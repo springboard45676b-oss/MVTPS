@@ -13,18 +13,31 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'date_joined', 'role')
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = User.USERNAME_FIELD  # This will be 'email'
+    
     def validate(self, attrs):
-        data = super().validate(attrs)
-        refresh = self.get_token(self.user)
+        # Authenticate using email instead of username
+        from django.contrib.auth import authenticate
+        
+        email = attrs.get('email')
+        password = attrs.get('password')
+        
+        user = authenticate(request=self.context.get('request'), username=email, password=password)
+        
+        if not user:
+            raise serializers.ValidationError("Invalid email or password.")
+        
+        refresh = self.get_token(user)
+        data = {}
         data['refresh'] = str(refresh)
         data['access'] = str(refresh.access_token)
         
         # Add custom claims
         data['user'] = {
-            'id': self.user.id,
-            'email': self.user.email,
-            'full_name': self.user.full_name,
-            'role': self.user.role,
+            'id': user.id,
+            'email': user.email,
+            'full_name': user.full_name,
+            'role': user.role,
         }
         return data
 

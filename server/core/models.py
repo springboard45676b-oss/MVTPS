@@ -35,11 +35,12 @@ class User(AbstractUser):
         (ROLE_ADMIN, "Admin"),
     )
 
+    # Remove inherited username field
     username = None
+    
     email = models.EmailField(_('email address'), unique=True)
     full_name = models.CharField(_('full name'), max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_OPERATOR, db_index=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
 
@@ -47,6 +48,9 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ['full_name']
 
     objects = UserManager()
+
+    class Meta:
+        db_table = 'core_user'
 
     def __str__(self):
         return f"{self.full_name} ({self.role})"

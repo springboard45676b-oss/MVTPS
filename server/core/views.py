@@ -49,12 +49,6 @@ def api_root(request, format=None):
                 'refresh': 'string (refresh token)'
             }
         },
-        'profile': {
-            'url': base_url + 'api/auth/profile/',
-            'method': 'GET, PATCH',
-            'description': 'Get or update user profile',
-            'authentication_required': True
-        },
         'admin': {
             'url': base_url + 'admin/',
             'description': 'Django admin interface'
@@ -87,25 +81,6 @@ class RegisterAPI(generics.CreateAPIView):
             'user': UserSerializer(user).data,
             'tokens': token_serializer.validated_data
         }, status=status.HTTP_201_CREATED)
-
-class ProfileAPI(generics.RetrieveUpdateAPIView):
-    """
-    Get or update the authenticated user's profile.
-    """
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_object(self):
-        return self.request.user
-    
-    def update(self, request, *args, **kwargs):
-        # Prevent role change through profile update
-        if 'role' in request.data and request.data['role'] != request.user.role:
-            return Response(
-                {"detail": "Role cannot be changed through this endpoint."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return super().update(request, *args, **kwargs)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
