@@ -107,26 +107,49 @@ const LoginRegister = () => {
   const validateForm = () => {
     const nextErrors = {};
     const trimmed = {
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
+      name: formData.name ? formData.name.trim() : '',
+      email: formData.email ? formData.email.trim() : '',
+      password: formData.password || '',
+      confirmPassword: formData.confirmPassword || '',
     };
 
-    if (!validateEmail(trimmed.email)) {
-      nextErrors.email = "Please enter a valid email";
-    }
-
-    if (!trimmed.password || trimmed.password.length < 6) {
-      nextErrors.password = "Password must be at least 6 characters";
-    }
-
-    if (authMode === "register") {
+    if (authMode === 'register') {
+      // Full name validation
       if (!trimmed.name) {
-        nextErrors.name = "Please enter your full name";
+        nextErrors.name = 'Please enter your full name';
       }
-      if (trimmed.password !== trimmed.confirmPassword) {
-        nextErrors.confirmPassword = "Passwords do not match";
+
+      // Email validation
+      if (!trimmed.email) {
+        nextErrors.email = 'Email is required';
+      } else if (!validateEmail(trimmed.email)) {
+        nextErrors.email = 'Please enter a valid email';
+      }
+
+      // Password validations
+      if (!trimmed.password) {
+        nextErrors.password = 'Password is required';
+      } else if (trimmed.password.length < 8) {
+        nextErrors.password = 'Password must be at least 8 characters';
+      } else if (/^\d+$/.test(trimmed.password)) {
+        nextErrors.password = 'Password cannot be all numbers';
+      } else if (['password', '12345678', 'qwerty', 'letmein'].includes(trimmed.password.toLowerCase())) {
+        nextErrors.password = 'Please choose a stronger password';
+      }
+
+      // Confirm password
+      if (!trimmed.confirmPassword) {
+        nextErrors.confirmPassword = 'Please confirm your password';
+      } else if (trimmed.password !== trimmed.confirmPassword) {
+        nextErrors.confirmPassword = 'Passwords do not match';
+      }
+    } else {
+      // Login validations
+      if (!validateEmail(trimmed.email)) {
+        nextErrors.email = 'Please enter a valid email';
+      }
+      if (!trimmed.password) {
+        nextErrors.password = 'Password is required';
       }
     }
 
@@ -145,44 +168,65 @@ const LoginRegister = () => {
 
     try {
       if (authMode === "register") {
-        const { confirmPassword, ...registrationData } = formData;
-        const response = await authAPI.register({
-          ...registrationData,
+        // Prepare registration data according to backend requirements
+        const registrationData = {
+          full_name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          password2: formData.confirmPassword,  // Note: Using password2 instead of confirmPassword
           role: selectedRole,
-        });
+        };
         
-        localStorage.setItem('token', response.token);
+        console.log('Registration payload:', registrationData);
+        
+        // Handle registration
+        const response = await authAPI.register(registrationData);
+        
         const roleText = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
         setSuccessMessage(`Account created successfully as ${roleText}.`);
         
-        // Redirect to dashboard after successful registration
+        // Auto-login after successful registration
+        const loginResponse = await authAPI.login({
+          email: formData.email,
+          password: formData.password,
+        });
+        
+        // Redirect to dashboard after successful login
         setTimeout(() => {
           navigate(`/${selectedRole}/dashboard`);
         }, 1500);
       } else {
+        // Handle login
         const response = await authAPI.login({
           email: formData.email,
           password: formData.password,
         });
         
-        localStorage.setItem('token', response.token);
+        const user = response.user;
+        const role = user.role || 'operator';
+        const roleText = role.charAt(0).toUpperCase() + role.slice(1);
         
-        if (isAdminLogin) {
-          setSuccessMessage("Welcome admin.");
-          setTimeout(() => {
+        setSuccessMessage(`${roleText} login successful.`);
+        
+        // Redirect based on user role
+        setTimeout(() => {
+          if (role === 'admin') {
             navigate('/admin/dashboard');
-          }, 1500);
-        } else {
-          const roleText = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
-          setSuccessMessage(`${roleText} login successful.`);
-          setTimeout(() => {
-            navigate(`/${selectedRole}/dashboard`);
-          }, 1500);
-        }
+          } else {
+            navigate(`/${role}/dashboard`);
+          }
+        }, 1500);
       }
+      
       setShowSuccess(true);
     } catch (error) {
-      setAuthError(error.response?.data?.message || "Unable to process the request right now.");
+      console.error('Authentication error:', error);
+      setAuthError(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        error.message || 
+        'An error occurred during authentication. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }

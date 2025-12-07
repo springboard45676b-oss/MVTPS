@@ -1,112 +1,130 @@
-// Mock API service for development
-const mockUsers = [
-  {
-    id: 1,
-    name: 'Admin User',
-    email: 'admin@vesselapp.com',
-    role: 'admin',
-    password: 'admin123'
+import axios from "axios";
+
+// Create axios instance with base URL and headers
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Add a request interceptor to add the auth token to requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-];
+);
 
-// Simulate API delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// Add a response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
+    // If the error is 401 and we haven't tried to refresh yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+          // No refresh token, redirect to login
+          window.location.href = "/login";
+          return Promise.reject(error);
+        }
+
+        // Try to refresh the token
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/auth/refresh/`,
+          { refresh: refreshToken }
+        );
+
+        const { access, refresh } = response.data;
+
+        // Update tokens in localStorage
+        localStorage.setItem("access_token", access);
+        if (refresh) {
+          localStorage.setItem("refresh_token", refresh);
+        }
+
+        // Update the Authorization header
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+
+        // Retry the original request
+        return api(originalRequest);
+      } catch (error) {
+        // If refresh fails, clear tokens and redirect to login
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Auth API methods
 export const authAPI = {
-  register: async (userData) => {
-    await delay(500); // Simulate network delay
-    
-    // Check if user already exists
-    const userExists = mockUsers.some(user => user.email === userData.email);
-    if (userExists) {
-      throw { 
-        response: { 
-          data: { 
-            message: 'User with this email already exists' 
-          } 
-        } 
-      };
-    }
-
-    // Create new user
-    const newUser = {
-      id: mockUsers.length + 1,
-      ...userData,
-      token: `mock-token-${Date.now()}`
-    };
-    
-    mockUsers.push(newUser);
-    
-    // Save token to localStorage
-    localStorage.setItem('token', newUser.token);
-    
-    return { 
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: userData.role || 'user'
-      },
-      token: newUser.token
-    };
-  },
-  
+  // Login user
   login: async (credentials) => {
-    await delay(500); // Simulate network delay
+    const response = await api.post('/auth/login/', {
+      email: credentials.email,
+      password: credentials.password
+    });
     
-    const user = mockUsers.find(
-      u => u.email === credentials.email && u.password === credentials.password
-    );
+    // Store tokens and user data
+    const { access, refresh, user } = response.data;
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    localStorage.setItem('user', JSON.stringify(user));
     
-    if (!user) {
-      throw { 
-        response: { 
-          data: { 
-            message: 'Invalid email or password' 
-          } 
-        } 
-      };
-    }
-    
-    // Generate a mock token
-    const token = `mock-token-${Date.now()}`;
-    
-    // Save token to localStorage
-    localStorage.setItem('token', token);
-    
-    return { 
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      },
-      token
-    };
+    return { token: access, user };
   },
   
-  getCurrentUser: async () => {
-    await delay(300); // Simulate network delay
+  // Register new user
+  register: async (userData) => {
+    const response = await api.post('/auth/register/', {
+      email: userData.email,
+      password: userData.password,
+      password2: userData.password2,
+      full_name: userData.name,
+      role: userData.role
+    });
     
-    // In a real app, this would validate the token with the backend
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No token found');
-    }
-    
-    // For demo purposes, return the first user
-    const user = mockUsers[0];
-    
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    };
+    // Auto-login after registration
+    return authAPI.login({
+      email: userData.email,
+      password: userData.password
+    });
+  },
+  
+  // Logout user
+  logout: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+  },
+  
+  // Get current user
+  getCurrentUser: () => {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  },
+  
+  // Check if user is authenticated
+  isAuthenticated: () => {
+    return !!localStorage.getItem('access_token');
   }
 };
 
-// For components that might be using the default export
-export default {
-  ...authAPI
-};
+export default api;

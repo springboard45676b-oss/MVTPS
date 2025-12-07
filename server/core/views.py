@@ -57,6 +57,9 @@ def api_root(request, format=None):
 
 User = get_user_model()
 
+import logging
+logger = logging.getLogger(__name__)
+
 class RegisterAPI(generics.CreateAPIView):
     """
     Register a new user with the given email, full name, password, and role.
@@ -66,8 +69,11 @@ class RegisterAPI(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     
     def create(self, request, *args, **kwargs):
+        logger.info(f"Registration attempt with data: {request.data}")
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
         
         # Get token for the registered user
