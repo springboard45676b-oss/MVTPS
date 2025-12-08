@@ -23,21 +23,21 @@ def api_root(request, format=None):
         'register': {
             'url': base_url + 'api/auth/register/',
             'method': 'POST',
-            'description': 'Register a new user (Operator/Analyst)',
+            'description': 'Register a new user (Operator/Analyst/Admin)',
             'required_fields': {
-                'email': 'string',
-                'full_name': 'string',
+                'username': 'string (unique)',
+                'email': 'string (unique)',
                 'password': 'string',
                 'password2': 'string (must match password)',
-                'role': 'string (operator or analyst)'
+                'role': 'string (operator, analyst, or admin)'
             }
         },
         'login': {
             'url': base_url + 'api/auth/login/',
             'method': 'POST',
-            'description': 'Get JWT tokens',
+            'description': 'Get JWT tokens (login with username or email)',
             'required_fields': {
-                'email': 'string',
+                'username': 'string (username or email)',
                 'password': 'string'
             }
         },
@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 class RegisterAPI(generics.CreateAPIView):
     """
     Register a new user with the given email, full name, password, and role.
-    Only allows registration for 'operator' and 'analyst' roles.
+    Allows registration for 'operator', 'analyst', and 'admin' roles.
     """
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -78,14 +78,17 @@ class RegisterAPI(generics.CreateAPIView):
         
         # Get token for the registered user
         token_serializer = CustomTokenObtainPairSerializer(data={
-            'email': user.email,
+            'username': user.username,
             'password': request.data.get('password')
         })
         token_serializer.is_valid(raise_exception=True)
         
+        token_data = token_serializer.validated_data
+        
         return Response({
             'user': UserSerializer(user).data,
-            'tokens': token_serializer.validated_data
+            'access': token_data.get('access'),
+            'refresh': token_data.get('refresh'),
         }, status=status.HTTP_201_CREATED)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -97,18 +100,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        
-        # If login is successful, check if user is active
-        if response.status_code == 200:
-            email = request.data.get('email')
-            try:
-                user = User.objects.get(email=email)
-                if not user.is_active:
-                    return Response(
-                        {"detail": "This account is inactive."},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-            except User.DoesNotExist:
-                pass
-                
-        return response
+        # is_active is now a property that always returns True
+        # No need to check it separately
+        return response 

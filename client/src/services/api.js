@@ -75,10 +75,10 @@ api.interceptors.response.use(
 
 // Auth API methods
 export const authAPI = {
-  // Login user
+  // Login user (with username or email)
   login: async (credentials) => {
     const response = await api.post('/auth/login/', {
-      email: credentials.email,
+      username: credentials.username || credentials.email,
       password: credentials.password
     });
     
@@ -94,16 +94,25 @@ export const authAPI = {
   // Register new user
   register: async (userData) => {
     const response = await api.post('/auth/register/', {
+      username: userData.username,
       email: userData.email,
       password: userData.password,
       password2: userData.password2,
-      full_name: userData.name,
       role: userData.role
     });
     
-    // Auto-login after registration
+    // Store tokens and user data from registration response
+    const { access, refresh, user } = response.data;
+    if (access && refresh) {
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('user', JSON.stringify(user));
+      return { token: access, user };
+    }
+    
+    // Fallback to auto-login if tokens not in response
     return authAPI.login({
-      email: userData.email,
+      username: userData.username,
       password: userData.password
     });
   },

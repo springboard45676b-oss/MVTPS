@@ -54,7 +54,6 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -155,11 +154,13 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only for development
+CORS_ALLOW_ALL_ORIGINS = True  # For development only
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ]
 
 # Custom user model
@@ -179,26 +180,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-#starts
-
-AUTH_USER_MODEL = 'core.User'
-
-
-from datetime import timedelta
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
-}
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-}
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 

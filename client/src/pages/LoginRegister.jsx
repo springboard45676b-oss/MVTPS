@@ -54,7 +54,7 @@ const LoginRegister = () => {
   const [mounted, setMounted] = useState(false);
   const [selectedRole, setSelectedRole] = useState("operator");
   const [formData, setFormData] = useState({
-    name: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -107,16 +107,20 @@ const LoginRegister = () => {
   const validateForm = () => {
     const nextErrors = {};
     const trimmed = {
-      name: formData.name ? formData.name.trim() : '',
+      username: formData.username ? formData.username.trim() : '',
       email: formData.email ? formData.email.trim() : '',
       password: formData.password || '',
       confirmPassword: formData.confirmPassword || '',
     };
 
     if (authMode === 'register') {
-      // Full name validation
-      if (!trimmed.name) {
-        nextErrors.name = 'Please enter your full name';
+      // Username validation
+      if (!trimmed.username) {
+        nextErrors.username = 'Username is required';
+      } else if (trimmed.username.length < 3) {
+        nextErrors.username = 'Username must be at least 3 characters';
+      } else if (!/^[a-zA-Z0-9@.+\-_]+$/.test(trimmed.username)) {
+        nextErrors.username = 'Username can only contain letters, numbers, and @/./+/-/_';
       }
 
       // Email validation
@@ -144,9 +148,9 @@ const LoginRegister = () => {
         nextErrors.confirmPassword = 'Passwords do not match';
       }
     } else {
-      // Login validations
-      if (!validateEmail(trimmed.email)) {
-        nextErrors.email = 'Please enter a valid email';
+      // Login validations - accept username or email
+      if (!trimmed.username && !trimmed.email) {
+        nextErrors.username = 'Username or email is required';
       }
       if (!trimmed.password) {
         nextErrors.password = 'Password is required';
@@ -161,7 +165,10 @@ const LoginRegister = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setIsSubmitting(false);
+      return;
+    }
 
     setIsSubmitting(true);
     setAuthError("");
@@ -169,14 +176,33 @@ const LoginRegister = () => {
     try {
       if (authMode === "register") {
         // Prepare registration data according to backend requirements
+        const username = (formData.username || '').trim();
+        const email = (formData.email || '').trim();
+        
+        // Double-check required fields
+        if (!username) {
+          setErrors(prev => ({ ...prev, username: 'Username is required' }));
+          setAuthError('Please fill in all required fields');
+          setIsSubmitting(false);
+          return;
+        }
+        
+        if (!email) {
+          setErrors(prev => ({ ...prev, email: 'Email is required' }));
+          setAuthError('Please fill in all required fields');
+          setIsSubmitting(false);
+          return;
+        }
+        
         const registrationData = {
-          full_name: formData.name.trim(),
-          email: formData.email.trim(),
+          username: username,
+          email: email,
           password: formData.password,
-          password2: formData.confirmPassword,  // Note: Using password2 instead of confirmPassword
+          password2: formData.confirmPassword,
           role: selectedRole,
         };
         
+        console.log('Form Data:', formData);
         console.log('Registration payload:', registrationData);
         
         // Handle registration
@@ -187,18 +213,23 @@ const LoginRegister = () => {
         
         // Auto-login after successful registration
         const loginResponse = await authAPI.login({
-          email: formData.email,
+          username: formData.username.trim(),
           password: formData.password,
         });
         
         // Redirect to dashboard after successful login
         setTimeout(() => {
-          navigate(`/${selectedRole}/dashboard`);
+          if (selectedRole === 'admin') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate(`/${selectedRole}/dashboard`);
+          }
         }, 1500);
       } else {
-        // Handle login
+        // Handle login - use username or email
+        const loginIdentifier = formData.username.trim() || formData.email.trim();
         const response = await authAPI.login({
-          email: formData.email,
+          username: loginIdentifier,
           password: formData.password,
         });
         
@@ -221,12 +252,43 @@ const LoginRegister = () => {
       setShowSuccess(true);
     } catch (error) {
       console.error('Authentication error:', error);
-      setAuthError(
-        error.response?.data?.detail || 
-        error.response?.data?.message || 
-        error.message || 
-        'An error occurred during authentication. Please try again.'
-      );
+      
+      // Handle validation errors from backend
+      let errorMessage = 'An error occurred during authentication. Please try again.';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // Handle field-specific validation errors
+        if (typeof errorData === 'object') {
+          const fieldErrors = [];
+          for (const [field, messages] of Object.entries(errorData)) {
+            if (Array.isArray(messages)) {
+              fieldErrors.push(`${field}: ${messages.join(', ')}`);
+            } else if (typeof messages === 'string') {
+              fieldErrors.push(messages);
+            } else if (typeof messages === 'object' && messages.length) {
+              fieldErrors.push(`${field}: ${messages.join(', ')}`);
+            }
+          }
+          
+          if (fieldErrors.length > 0) {
+            errorMessage = fieldErrors.join(' | ');
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setAuthError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -264,6 +326,8 @@ const LoginRegister = () => {
         subtitle: "Sign in with admin email and password.",
         headerTitle: "Admin Login",
         headerSubtitle: "Administrative access.",
+        registerTitle: "Register as Admin",
+        registerSubtitle: "Join as an administrator and manage the system.",
       },
     };
 
@@ -286,7 +350,7 @@ const LoginRegister = () => {
         <input
           type={type === "password" ? (showPassword ? "text" : "password") : type}
           name={id}
-          value={formData[id]}
+          value={formData[id] || ''}
           onChange={handleInput}
           placeholder={placeholder}
           className={`w-full rounded-2xl border bg-white/80 dark:bg-slate-900/80 py-3 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-50 placeholder-slate-400 dark:placeholder-slate-500 shadow-inner transition focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 ${
@@ -312,19 +376,26 @@ const LoginRegister = () => {
   const modeFields = [
     authMode === "register"
       ? renderTextInput({
-          id: "name",
-          label: "Full name",
-          placeholder: "Enter your name",
+          id: "username",
+          label: "Username",
+          placeholder: "Enter a unique username",
           icon: User,
         })
+      : renderTextInput({
+          id: "username",
+          label: "Username or Email",
+          placeholder: "Enter username or email",
+          icon: User,
+        }),
+    authMode === "register"
+      ? renderTextInput({
+          id: "email",
+          label: "Email",
+          placeholder: "user@example.com",
+          icon: Mail,
+          type: "email",
+        })
       : null,
-    renderTextInput({
-      id: "email",
-      label: "Email",
-      placeholder: "user@example.com",
-      icon: Mail,
-      type: "email",
-    }),
     renderTextInput({
       id: "password",
       label: "Password",
@@ -675,10 +746,11 @@ const LoginRegister = () => {
                   className="space-y-1.5"
                 >
                   <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Select Role</p>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {[
                       { id: "operator", label: "Operator", icon: Briefcase },
                       { id: "analyst", label: "Analyst", icon: TrendingUp },
+                      { id: "admin", label: "Admin", icon: ShieldCheck },
                     ].map((role) => (
                       <button
                         key={role.id}
