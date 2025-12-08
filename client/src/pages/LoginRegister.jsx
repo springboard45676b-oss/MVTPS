@@ -11,12 +11,10 @@ const hideScrollbar = {
     msOverflowStyle: 'none',  /* IE and Edge */
   }
 };
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { authAPI } from "../services/api";
 import {
   ShieldCheck,
-  Moon,
-  Sun,
   LogIn,
   Mail,
   Lock,
@@ -31,26 +29,13 @@ import {
   Anchor,
   Loader2,
 } from "lucide-react";
+import DarkModeToggle from "../components/DarkModeToggle";
 
 const ADMIN_EMAIL = "admin@vesselapp.com";
 const ADMIN_PASSWORD = "admin123";
 
 const LoginRegister = () => {
   const [authMode, setAuthMode] = useState("login");
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined" && typeof document !== "undefined") {
-      const saved = localStorage.getItem("vesselTrackerDarkMode");
-      const isDark = saved ? JSON.parse(saved) : false;
-      // Apply immediately before render
-      if (isDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-      return isDark;
-    }
-    return false;
-  });
   const [mounted, setMounted] = useState(false);
   const [selectedRole, setSelectedRole] = useState("operator");
   const [formData, setFormData] = useState({
@@ -63,6 +48,7 @@ const LoginRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -76,21 +62,10 @@ const LoginRegister = () => {
   }, []);
 
   useEffect(() => {
-    if (mounted) {
-      document.documentElement.classList.toggle("dark", darkMode);
-      localStorage.setItem("vesselTrackerDarkMode", JSON.stringify(darkMode));
-    }
-  }, [darkMode, mounted]);
-
-  useEffect(() => {
     setErrors({});
     setAuthError("");
     setShowSuccess(false);
   }, [authMode]);
-
-  const handleThemeToggle = () => {
-    setDarkMode((prev) => !prev);
-  };
 
   const handleInput = (e) => {
     const { name, value } = e.target;
@@ -162,6 +137,16 @@ const LoginRegister = () => {
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Sync authMode with URL path
+  useEffect(() => {
+    if (location.pathname.includes("/register")) {
+      setAuthMode("register");
+    } else {
+      setAuthMode("login");
+    }
+  }, [location.pathname]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -210,20 +195,10 @@ const LoginRegister = () => {
         
         const roleText = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
         setSuccessMessage(`Account created successfully as ${roleText}.`);
-        
-        // Auto-login after successful registration
-        const loginResponse = await authAPI.login({
-          username: formData.username.trim(),
-          password: formData.password,
-        });
-        
-        // Redirect to dashboard after successful login
+
+        // Redirect to login after successful registration
         setTimeout(() => {
-          if (selectedRole === 'admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate(`/${selectedRole}/dashboard`);
-          }
+          navigate('/login');
         }, 1500);
       } else {
         // Handle login - use username or email
@@ -261,25 +236,32 @@ const LoginRegister = () => {
         
         // Handle field-specific validation errors
         if (typeof errorData === 'object') {
-          const fieldErrors = [];
-          for (const [field, messages] of Object.entries(errorData)) {
-            if (Array.isArray(messages)) {
-              fieldErrors.push(`${field}: ${messages.join(', ')}`);
-            } else if (typeof messages === 'string') {
-              fieldErrors.push(messages);
-            } else if (typeof messages === 'object' && messages.length) {
-              fieldErrors.push(`${field}: ${messages.join(', ')}`);
+          // Handle non_field_errors specially
+          if (errorData.non_field_errors) {
+            errorMessage = Array.isArray(errorData.non_field_errors) 
+              ? errorData.non_field_errors[0]
+              : errorData.non_field_errors;
+          } 
+          // Handle other field errors
+          else {
+            const fieldErrors = [];
+            for (const [field, messages] of Object.entries(errorData)) {
+              if (Array.isArray(messages)) {
+                fieldErrors.push(messages.join(', '));
+              } else if (typeof messages === 'string') {
+                fieldErrors.push(messages);
+              }
             }
-          }
-          
-          if (fieldErrors.length > 0) {
-            errorMessage = fieldErrors.join(' | ');
-          } else if (errorData.detail) {
-            errorMessage = errorData.detail;
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.error) {
-            errorMessage = errorData.error;
+            
+            if (fieldErrors.length > 0) {
+              errorMessage = fieldErrors.join(' | ');
+            } else if (errorData.detail) {
+              errorMessage = errorData.detail;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            } else if (errorData.error) {
+              errorMessage = errorData.error;
+            }
           }
         } else if (typeof errorData === 'string') {
           errorMessage = errorData;
@@ -420,6 +402,10 @@ const LoginRegister = () => {
         darkMode ? "dark bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
       }`}
     >
+      {/* Dark Mode Toggle - Top Right Corner */}
+      <div className="absolute top-4 right-4 z-50">
+        <DarkModeToggle />
+      </div>
       {/* Left Side - Map Section */}
       <div className="hidden lg:flex w-1/2 flex-col items-center justify-center relative overflow-hidden" style={{
         background: 'linear-gradient(135deg, #0a1428 0%, #1a3a52 25%, #0f5a6f 50%, #1a3a52 75%, #0a1428 100%)'
@@ -491,7 +477,7 @@ const LoginRegister = () => {
             transition={{ duration: 4, repeat: Infinity }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent mb-2">Vessel Tracker</h1>
+            <h1 className="text-4xl font-bold bg-linear-to-r from-cyan-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent mb-2">Vessel Tracker</h1>
             <p className="text-cyan-200/80">Maritime Operations Management</p>
           </motion.div>
 
@@ -626,7 +612,7 @@ const LoginRegister = () => {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <motion.div 
-                  className="w-3 h-3 rounded-full bg-blue-400 shadow-lg flex-shrink-0"
+                  className="w-3 h-3 rounded-full bg-blue-400 shadow-lg shrink-0"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 ></motion.div>
@@ -634,7 +620,7 @@ const LoginRegister = () => {
               </div>
               <div className="flex items-center gap-2">
                 <motion.div 
-                  className="w-3 h-3 rounded-full bg-emerald-400 shadow-lg flex-shrink-0"
+                  className="w-3 h-3 rounded-full bg-emerald-400 shadow-lg shrink-0"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
                 ></motion.div>
@@ -642,7 +628,7 @@ const LoginRegister = () => {
               </div>
               <div className="flex items-center gap-2">
                 <motion.div 
-                  className="w-3 h-3 rounded-full bg-amber-400 shadow-lg flex-shrink-0"
+                  className="w-3 h-3 rounded-full bg-amber-400 shadow-lg shrink-0"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
                 ></motion.div>
@@ -650,7 +636,7 @@ const LoginRegister = () => {
               </div>
               <div className="flex items-center gap-2">
                 <motion.div 
-                  className="w-3 h-3 border-2 border-cyan-400 flex-shrink-0"
+                  className="w-3 h-3 border-2 border-cyan-400 shrink-0"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 4, repeat: Infinity }}
                 ></motion.div>
@@ -663,15 +649,6 @@ const LoginRegister = () => {
 
       {/* Right Side - Form Section */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-4 py-8">
-        <button
-          onClick={handleThemeToggle}
-          className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/80 px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-semibold text-slate-700 shadow-lg backdrop-blur dark:bg-slate-900/70 dark:text-white z-20"
-          aria-label="Toggle color mode"
-        >
-          {darkMode ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-600" />}
-          <span className="hidden sm:inline">{darkMode ? "Light" : "Dark"}</span>
-        </button>
-
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -713,7 +690,10 @@ const LoginRegister = () => {
               <div className="flex gap-2 rounded-2xl border border-slate-100 bg-slate-100/80 p-1 dark:border-slate-800 dark:bg-slate-900/60">
                 <button
                   type="button"
-                  onClick={() => setAuthMode("login")}
+                  onClick={() => {
+                    setAuthMode("login");
+                    navigate("/login");
+                  }}
                   className={`flex-1 rounded-2xl px-4 py-2 text-xs font-semibold transition ${
                     authMode === "login"
                       ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-white"
@@ -725,7 +705,10 @@ const LoginRegister = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAuthMode("register")}
+                  onClick={() => {
+                    setAuthMode("register");
+                    navigate("/register");
+                  }}
                   className={`flex-1 rounded-2xl px-4 py-2 text-xs font-semibold transition ${
                     authMode === "register"
                       ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-white"
