@@ -1,0 +1,46 @@
+.layout-container { display: flex; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #002244;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar a {
+  display: block;
+  padding: 15px 0;
+  text-decoration: none;
+  color: white;
+}
+
+.sidebar a:hover { color: #00bbff; }
+
+/* Main */
+.layout-main {
+  flex: 1;
+  background: #eef3f8;
+}
+
+/* Navbar */
+.navbar {
+  background: white;
+  padding: 15px;
+  display: flex;
+  justify-content: flex-end;
+  border-bottom: 1px solid #ddd;
+}
+
+.logout-btn {
+  background: #ff2e63;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+}
+
+/* Main content */
+.layout-content {
+  padding: 30px;
+}
