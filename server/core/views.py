@@ -1,10 +1,11 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.urls import reverse
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .serializers import (
     UserSerializer, 
@@ -90,6 +91,53 @@ class RegisterAPI(generics.CreateAPIView):
             'access': token_data.get('access'),
             'refresh': token_data.get('refresh'),
         }, status=status.HTTP_201_CREATED)
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'role')
+        read_only_fields = ('id', 'role')
+
+    def update(self, instance, validated_data):
+        # Handle password update if provided
+        password = self.context.get('request').data.get('password')
+        if password:
+            instance.set_password(password)
+        return super().update(instance, validated_data)
+
+class UserProfileAPI(generics.RetrieveUpdateAPIView):
+    """
+    Get or update the current user's profile.
+    """
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = self.get_serializer(
+            user, 
+            data=request.data, 
+            partial=True,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            
+            # Update session auth hash if password was changed
+            if 'password' in request.data:
+                update_session_auth_hash(request, user)
+            
+            return Response({
+                'message': 'Profile updated successfully',
+                'user': UserSerializer(user).data
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """

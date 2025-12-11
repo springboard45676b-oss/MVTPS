@@ -7,14 +7,18 @@ const DarkModeToggle = ({ className = "" }) => {
   const [mounted, setMounted] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
-  // After mounting, we have access to the theme
+  // Initialize dark mode from localStorage or system preference
   useEffect(() => {
     setMounted(true);
+    
+    // Check localStorage first
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved !== null) {
       setDarkMode(JSON.parse(saved));
-    } else {
-      setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } 
+    // Then check system preference
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setDarkMode(true);
     }
   }, []);
 
@@ -23,15 +27,37 @@ const DarkModeToggle = ({ className = "" }) => {
     if (!mounted) return;
     
     const root = document.documentElement;
+    
     if (darkMode) {
       root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
       document.body.classList.add('dark:bg-slate-900');
     } else {
       root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
       document.body.classList.remove('dark:bg-slate-900');
     }
+    
+    // Save preference to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(darkMode));
   }, [darkMode, mounted]);
+
+  // Handle system theme changes
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = (e) => {
+      // Only update if we don't have a saved preference
+      if (localStorage.getItem(STORAGE_KEY) === null) {
+        setDarkMode(e.matches);
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [mounted]);
 
   if (!mounted) {
     // Prevent hydration mismatch by rendering a placeholder

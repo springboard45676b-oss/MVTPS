@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import LoginRegister from './pages/LoginRegister';
 import VesselsPage from './pages/Vessels';
 import PortsPage from './pages/Ports';
@@ -6,7 +7,9 @@ import VoyagesPage from './pages/Voyages';
 import EventsPage from './pages/Events';
 import NotificationsPage from './pages/Notifications';
 import LiveTrackingPage from './pages/LiveTracking';
+import ProfilePage from './pages/Profile';
 import AppLayout from './components/AppLayout';
+import { authAPI } from './services/api';
 
 const Dashboard = ({ title }) => {
   const cards = [
@@ -39,28 +42,62 @@ const Dashboard = ({ title }) => {
   );
 };
 
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  if (!authAPI.isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  return children || <Outlet />;
+};
+
+// Update document title on route change
+const PageTitleUpdater = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    document.title = 'MVTPS Platform';
+  }, [location.pathname]);
+  
+  return null;
+};
+
 const App = () => {
   return (
     <Router>
+      <PageTitleUpdater />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route 
           path="/login" 
           element={
-            <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
-              <LoginRegister />
-            </main>
+            authAPI.isAuthenticated() ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+                <LoginRegister />
+              </main>
+            )
           } 
         />
         <Route 
           path="/register" 
           element={
-            <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
-              <LoginRegister />
-            </main>
+            authAPI.isAuthenticated() ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+                <LoginRegister />
+              </main>
+            )
           } 
         />
-        <Route element={<AppLayout />}>
+        
+        {/* Protected routes */}
+        <Route element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }>
           <Route path="/admin/dashboard" element={<Dashboard title="Admin Dashboard" />} />
           <Route path="/operator/dashboard" element={<Dashboard title="Operator Dashboard" />} />
           <Route path="/analyst/dashboard" element={<Dashboard title="Analyst Dashboard" />} />
@@ -70,6 +107,7 @@ const App = () => {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/live-tracking" element={<LiveTrackingPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </Router>

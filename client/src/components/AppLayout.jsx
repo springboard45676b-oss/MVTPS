@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
 import DarkModeToggle from "./DarkModeToggle";
+import { Ship } from "lucide-react";
 
 const navItems = [
   { to: "/admin/dashboard", label: "Dashboard" },
@@ -29,10 +30,10 @@ const Navbar = () => {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 gap-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white grid place-items-center font-bold shadow">
-            VT
+            <Ship className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900">Vessel Tracking</h1>
+            <h1 className="text-lg font-semibold text-slate-900">MVTPS</h1>
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-3 text-sm font-medium">
@@ -78,11 +79,18 @@ const Navbar = () => {
               </svg>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-lg py-2 text-sm">
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-lg py-2 text-sm z-50">
                 <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-xs text-slate-500">Signed in as</p>
                   <p className="font-semibold text-slate-900 truncate">{user?.email || user?.username || "User"}</p>
                 </div>
+                <NavLink
+                  to="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="block w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium"
+                >
+                  View Profile
+                </NavLink>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium"

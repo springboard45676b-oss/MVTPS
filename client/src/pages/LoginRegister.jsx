@@ -477,8 +477,8 @@ const LoginRegister = () => {
             transition={{ duration: 4, repeat: Infinity }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold bg-linear-to-r from-cyan-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent mb-2">Vessel Tracker</h1>
-            <p className="text-cyan-200/80">Maritime Operations Management</p>
+            <h1 className="text-4xl font-bold bg-linear-to-r from-cyan-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent mb-2 tracking-widest">M V T P S</h1>
+            <p className="text-cyan-200/80">Maritime Vessel Tracking & Port Safety</p>
           </motion.div>
 
           {/* Map representation */}

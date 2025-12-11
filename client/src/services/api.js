@@ -131,8 +131,41 @@ export const authAPI = {
   },
   
   // Check if user is authenticated
-  isAuthenticated: () => {
+  isAuthenticated() {
     return !!localStorage.getItem('access_token');
+  },
+
+  // Update user profile
+  updateProfile: async (formData) => {
+    const response = await api.put('/auth/profile/update/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    // Update user data in localStorage
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
+  },
+  
+  // Get current user data
+  fetchCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/profile/');
+      if (response.data) {
+        localStorage.setItem('user', JSON.stringify(response.data));
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // If there's an error, return the user from localStorage if available
+      const user = localStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    }
+    return null;
   }
 };
 
