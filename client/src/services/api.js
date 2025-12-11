@@ -15,6 +15,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Don't set Content-Type for FormData - let axios handle it
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
     return config;
   },
   (error) => {
@@ -124,7 +130,7 @@ export const authAPI = {
     localStorage.removeItem('user');
   },
   
-  // Get current user
+  // Get current user from localStorage
   getCurrentUser: () => {
     const user = localStorage.getItem('user');
     return user ? JSON.parse(user) : null;
@@ -135,11 +141,22 @@ export const authAPI = {
     return !!localStorage.getItem('access_token');
   },
 
-  // Update user profile
+  // Update user profile (username, email, role, password)
   updateProfile: async (formData) => {
-    const response = await api.put('/auth/profile/update/', formData, {
+    // Convert FormData to JSON if needed
+    let data = formData;
+    if (formData instanceof FormData) {
+      data = {};
+      for (let [key, value] of formData.entries()) {
+        if (value !== '' && value !== null) {
+          data[key] = value;
+        }
+      }
+    }
+
+    const response = await api.put('/auth/profile/update/', data, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
     });
     
@@ -151,7 +168,7 @@ export const authAPI = {
     return response.data;
   },
   
-  // Get current user data
+  // Fetch current user data from server
   fetchCurrentUser: async () => {
     try {
       const response = await api.get('/auth/profile/');
@@ -166,6 +183,23 @@ export const authAPI = {
       return user ? JSON.parse(user) : null;
     }
     return null;
+  },
+
+  // Update user profile via /profile/edit/
+  editProfile: async (formData) => {
+    // Keep as FormData and send directly
+    const response = await api.put('/auth/profile/edit/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    // Update user data in localStorage
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
   }
 };
 

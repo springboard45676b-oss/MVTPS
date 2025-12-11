@@ -8,6 +8,10 @@ from rest_framework.validators import UniqueValidator
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving user information.
+    Used for /profile/ endpoint (viewing profile).
+    """
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'created_at')
@@ -110,3 +114,69 @@ class RegisterSerializer(serializers.ModelSerializer):
             role=validated_data.get('role', User.ROLE_OPERATOR)
         )
         return user
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user profile.
+    Allows users to update username, email, role, and password.
+    """
+    password = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        validators=[validate_password],
+        style={'input_type': 'password'}
+    )
+    
+    username = serializers.CharField(
+        required=False,
+        max_length=150,
+        validators=[UniqueValidator(
+            queryset=User.objects.all(), 
+            message='A user with this username already exists.'
+        )],
+    )
+    
+    email = serializers.EmailField(
+        required=False,
+        validators=[UniqueValidator(
+            queryset=User.objects.all(), 
+            message='A user with this email already exists.'
+        )]
+    )
+    
+    role = serializers.ChoiceField(
+        choices=['operator', 'analyst', 'admin'],
+        required=False,
+        error_messages={
+            'invalid_choice': 'Role must be either "operator", "analyst", or "admin".',
+        }
+    )
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'role', 'password')
+        read_only_fields = ('id',)
+
+    def validate_password(self, value):
+        """Only validate password if it's being provided"""
+        if value:
+            validate_password(value)
+        return value
+
+    def update(self, instance, validated_data):
+        """Update user profile with new data"""
+        # Handle password separately since it needs special handling
+        password = validated_data.pop('password', None)
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Set password if provided
+        if password:
+            instance.set_password(password)
+        
+        instance.save()
+        return instance

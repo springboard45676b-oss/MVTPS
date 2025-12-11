@@ -3,7 +3,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     RegisterAPI,
     CustomTokenObtainPairView,
-    UserProfileAPI
+    UserProfileAPI,
+    UserProfileUpdateAPI
 )
 
 urlpatterns = [
@@ -14,5 +15,5 @@ urlpatterns = [
     
     # User profile endpoints
     path('profile/', UserProfileAPI.as_view(), name='user-profile'),
-    path('profile/update/', UserProfileAPI.as_view(), name='user-profile-update'),
+    path('profile/edit/', UserProfileUpdateAPI.as_view(), name='user-profile-edit'),
 ]

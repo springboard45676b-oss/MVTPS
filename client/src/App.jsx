@@ -8,6 +8,7 @@ import EventsPage from './pages/Events';
 import NotificationsPage from './pages/Notifications';
 import LiveTrackingPage from './pages/LiveTracking';
 import ProfilePage from './pages/Profile';
+import ProfileEditPage from './pages/ProfileEdit';
 import AppLayout from './components/AppLayout';
 import { authAPI } from './services/api';
 
@@ -107,7 +108,10 @@ const App = () => {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/live-tracking" element={<LiveTrackingPage />} />
+          
+          {/* Profile routes */}
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/edit" element={<ProfileEditPage />} />
         </Route>
       </Routes>
     </Router>

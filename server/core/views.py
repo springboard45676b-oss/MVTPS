@@ -10,7 +10,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import (
     UserSerializer, 
     RegisterSerializer, 
-    CustomTokenObtainPairSerializer
+    CustomTokenObtainPairSerializer,
+    UserProfileUpdateSerializer
 )
 
 @api_view(['GET'])
@@ -63,7 +64,7 @@ logger = logging.getLogger(__name__)
 
 class RegisterAPI(generics.CreateAPIView):
     """
-    Register a new user with the given email, full name, password, and role.
+    Register a new user with the given email, username, password, and role.
     Allows registration for 'operator', 'analyst', and 'admin' roles.
     """
     serializer_class = RegisterSerializer
@@ -92,32 +93,49 @@ class RegisterAPI(generics.CreateAPIView):
             'refresh': token_data.get('refresh'),
         }, status=status.HTTP_201_CREATED)
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'role')
-        read_only_fields = ('id', 'role')
 
-    def update(self, instance, validated_data):
-        # Handle password update if provided
-        password = self.context.get('request').data.get('password')
-        if password:
-            instance.set_password(password)
-        return super().update(instance, validated_data)
+class UserProfileAPI(generics.RetrieveAPIView):
+    """
+    Get the current user's profile information.
+    """
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-class UserProfileAPI(generics.RetrieveUpdateAPIView):
+    def get_object(self):
+        return self.request.user
+
+
+class UserProfileAPI(generics.RetrieveAPIView):
     """
-    Get or update the current user's profile.
+    Get the current user's profile information.
     """
-    serializer_class = UserProfileSerializer
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+class UserProfileUpdateAPI(generics.UpdateAPIView):
+    """
+    Update the current user's profile.
+    Allows updating username, email, role, and password.
+    PUT /auth/profile/edit/
+    """
+    serializer_class = UserProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
 
     def get_object(self):
         return self.request.user
 
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
     def update(self, request, *args, **kwargs):
         user = self.get_object()
+        logger.info(f"Profile update request for user {user.username}: {request.data}")
+        
         serializer = self.get_serializer(
             user, 
             data=request.data, 
@@ -129,15 +147,28 @@ class UserProfileAPI(generics.RetrieveUpdateAPIView):
             user = serializer.save()
             
             # Update session auth hash if password was changed
-            if 'password' in request.data:
+            if 'password' in request.data and request.data.get('password'):
                 update_session_auth_hash(request, user)
+            
+            logger.info(f"Profile updated successfully for user {user.username}")
+            
+            # Create response with all fields including role
+            response_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'created_at': user.created_at,
+            }
             
             return Response({
                 'message': 'Profile updated successfully',
-                'user': UserSerializer(user).data
-            })
+                'user': response_data
+            }, status=status.HTTP_200_OK)
         
+        logger.error(f"Profile update validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
@@ -148,6 +179,4 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        # is_active is now a property that always returns True
-        # No need to check it separately
-        return response 
+        return response
