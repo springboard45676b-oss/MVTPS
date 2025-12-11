@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from './api';
+import { STORAGE_KEYS } from '../constants';
 
 const AuthContext = createContext();
 
@@ -16,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       fetchUserProfile();
     } else {
@@ -29,8 +30,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get('/auth/profile/');
       setUser(response.data);
     } catch (error) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     } finally {
       setLoading(false);
     }
@@ -41,15 +42,15 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login/', { username, password });
       const { user, access, refresh } = response.data;
       
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh);
       setUser(user);
       
       return { success: true };
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.detail || 'Login failed' 
+        error: error.response?.data?.non_field_errors?.[0] || error.response?.data?.detail || 'Login failed' 
       };
     }
   };
@@ -57,12 +58,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register/', userData);
-      const { user, access, refresh } = response.data;
-      
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      setUser(user);
-      
+      // Don't auto-login after registration
       return { success: true };
     } catch (error) {
       return { 
@@ -73,8 +69,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     setUser(null);
   };
 

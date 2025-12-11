@@ -1,12 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from core.constants import USER_ROLES
 
 class User(AbstractUser):
-    USER_ROLES = (
-        ('operator', 'Operator'),
-        ('analyst', 'Analyst'),
-        ('admin', 'Admin'),
-    )
     
     role = models.CharField(max_length=20, choices=USER_ROLES, default='operator')
     phone = models.CharField(max_length=15, blank=True)
