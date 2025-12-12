@@ -1,21 +1,19 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Port, Vessel, Voyage, Event, Notification
+from .models import User, Vessel, Port, Event, Wire
 
-
-@admin.register(User)
+# 1. Create a custom configuration to show the 'role' field
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
-        ("Role", {"fields": ("role",)}),
+        ('Custom Fields', {'fields': ('role',)}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Custom Fields', {'fields': ('role',)}),
     )
 
-    list_display = ("username", "email", "role", "is_staff", "is_active")
-    list_filter = ("role", "is_staff", "is_active")
-    search_fields = ("username", "email")
-
-
-admin.site.register(Port)
+# 2. Register the models
+admin.site.register(User, CustomUserAdmin)
 admin.site.register(Vessel)
-admin.site.register(Voyage)
+admin.site.register(Port)
 admin.site.register(Event)
-admin.site.register(Notification)
+admin.site.register(Wire)

@@ -1,22 +1,18 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
+from api.views import CreateUserView, RoleDashboardView, VesselListView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from django.http import HttpResponse
-
-def home(request):
-    return HttpResponse("Welcome to Vessel Management Backend!")
 
 urlpatterns = [
-    # Home page
-    path("", home),
+    # Admin Panel
+    path('admin/', admin.site.urls),
 
-    # Admin panel
-    path("admin/", admin.site.urls),
+    # Authentication Endpoints
+    path('api/register/', CreateUserView.as_view(), name='register'),
+    path('api/token/', TokenObtainPairView.as_view(), name='get_token'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='refresh'),
 
-    # App-level API endpoints (viewsets, registration, current user)
-    path("api/", include("api.urls")),
-
-    # JWT authentication
-    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # Feature Endpoints
+    path('api/dashboard/', RoleDashboardView.as_view(), name='dashboard'),
+    path('api/vessels/', VesselListView.as_view(), name='vessel-list'), # <--- NEW
 ]
