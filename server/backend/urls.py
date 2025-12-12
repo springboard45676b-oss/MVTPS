@@ -6,9 +6,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core.views import api_root
 
 router = DefaultRouter()
-# register viewsets here later, for example:
-# from core.views import VesselViewSet
-# router.register('vessels', VesselViewSet)
 
 urlpatterns = [
     # Root API endpoint
@@ -19,14 +16,15 @@ urlpatterns = [
     
     # API endpoints
     path('api/', include([
-        # JWT Authentication endpoints
+        # JWT Authentication endpoints (keep at root level)
         path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
         path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
         
-        # Other auth endpoints
-        path('auth/', include('core.urls')),
+        # Include all core URLs (auth, vessels, positions, etc.)
+        # This puts endpoints like /api/auth/register/, /api/vessels/, etc.
+        path('', include('core.urls')),
         
-        # Other API endpoints (for future viewsets)
+        # Router for future viewsets
         path('', include(router.urls)),
     ])),
 ]

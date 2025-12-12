@@ -232,3 +232,52 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.get_type_display()} - {self.user.username}"
+
+# Add these new models to your existing models.py
+
+class VesselPosition(models.Model):
+    """
+    Real-time vessel position history from MarineTraffic/AIS Hub APIs
+    Stores historical position data for tracking vessel movements
+    """
+    vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, related_name='positions', db_column='vessel_id')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    speed = models.FloatField(null=True, blank=True)  # Speed in knots
+    course = models.FloatField(null=True, blank=True)  # Course/heading in degrees
+    timestamp = models.DateTimeField()
+    source = models.CharField(max_length=20, choices=[('marinetraffic', 'MarineTraffic'), ('aishub', 'AIS Hub')], default='marinetraffic')
+    
+    class Meta:
+        ordering = ['-timestamp']
+        db_table = 'core_vessel_position'
+        indexes = [
+            models.Index(fields=['vessel', '-timestamp']),
+            models.Index(fields=['timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.vessel.name} - {self.timestamp}"
+
+
+class APIKey(models.Model):
+    """
+    Store API keys for MarineTraffic and AIS Hub services
+    """
+    SERVICE_CHOICES = [
+        ('marinetraffic', 'MarineTraffic'),
+        ('aishub', 'AIS Hub'),
+    ]
+    
+    service = models.CharField(max_length=20, choices=SERVICE_CHOICES, unique=True)
+    api_key = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    last_used = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_api_key'
+
+    def __str__(self):
+        return f"{self.service} - {'Active' if self.is_active else 'Inactive'}"

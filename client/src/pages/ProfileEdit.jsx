@@ -67,19 +67,11 @@ const ProfileEdit = () => {
       const formData = new FormData();
       formData.append('username', user.username);
       formData.append('email', user.email);
-      formData.append('role', user.role);
       
       // Only append password if it's being changed
       if (password) {
         formData.append('password', password);
       }
-
-      console.log('Submitting FormData:', {
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        password: password ? '***' : 'not provided'
-      });
 
       const response = await authAPI.editProfile(formData);
       
@@ -117,8 +109,6 @@ const ProfileEdit = () => {
           errorMessage = Array.isArray(data.email) ? data.email[0] : data.email;
         } else if (data.password) {
           errorMessage = Array.isArray(data.password) ? data.password[0] : data.password;
-        } else if (data.role) {
-          errorMessage = Array.isArray(data.role) ? data.role[0] : data.role;
         } else if (data.message) {
           errorMessage = data.message;
         } else if (data.detail) {
@@ -192,16 +182,12 @@ const ProfileEdit = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Role
             </label>
-            <select
-              name="role"
-              value={user.role || ''}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="operator">Operator</option>
-              <option value="analyst">Analyst</option>
-              <option value="admin">Admin</option>
-            </select>
+            <input
+              type="text"
+              readOnly
+              value={user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Operator'}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-700 cursor-not-allowed"
+            />
           </div>
 
           <div className="pt-4 border-t border-slate-200">

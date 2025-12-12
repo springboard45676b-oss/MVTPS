@@ -4,8 +4,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
+from .models import Vessel, VesselPosition
 
 User = get_user_model()
+
+# ============================================
+# USER SERIALIZERS
+# ============================================
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -16,6 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'role', 'created_at')
         read_only_fields = ('id', 'created_at', 'role')
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'username'  # Allow username or email
@@ -53,6 +59,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'role': user.role,
         }
         return data
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
@@ -119,7 +126,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating user profile.
-    Allows users to update username, email, role, and password.
+    Allows users to update username, email, and password.
     """
     password = serializers.CharField(
         write_only=True,
@@ -180,3 +187,82 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+
+
+# ============================================
+# VESSEL SERIALIZERS
+# ============================================
+
+class VesselSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Vessel model
+    Includes all vessel information and current position
+    """
+    class Meta:
+        model = Vessel
+        fields = (
+            'id',
+            'imo_number',
+            'name',
+            'type',
+            'flag',
+            'cargo_type',
+            'operator',
+            'last_position_lat',
+            'last_position_lon',
+            'last_update'
+        )
+        read_only_fields = ('id', 'last_update')
+
+
+class VesselPositionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for VesselPosition model
+    Used for position history tracking
+    """
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    vessel_imo = serializers.CharField(source='vessel.imo_number', read_only=True)
+    
+    class Meta:
+        model = VesselPosition
+        fields = (
+            'id',
+            'vessel',
+            'vessel_name',
+            'vessel_imo',
+            'latitude',
+            'longitude',
+            'speed',
+            'course',
+            'timestamp',
+            'source'
+        )
+        read_only_fields = ('id', 'source')
+
+
+class VesselDetailedSerializer(serializers.ModelSerializer):
+    """
+    Detailed vessel serializer with recent positions
+    """
+    recent_positions = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Vessel
+        fields = (
+            'id',
+            'imo_number',
+            'name',
+            'type',
+            'flag',
+            'cargo_type',
+            'operator',
+            'last_position_lat',
+            'last_position_lon',
+            'last_update',
+            'recent_positions'
+        )
+    
+    def get_recent_positions(self, obj):
+        """Get last 10 positions"""
+        positions = VesselPosition.objects.filter(vessel=obj).order_by('-timestamp')[:10]
+        return VesselPositionSerializer(positions, many=True).data

@@ -1,141 +1,445 @@
-import React, { useState } from "react";
+// client/src/pages/Vessels.jsx - Updated with search/filter
+import React, { useState, useEffect, useRef } from 'react';
+import { Anchor, MapPin, Ship, TrendingUp, RefreshCw, Zap, AlertCircle } from 'lucide-react';
+import VesselSearchFilter from '../components/VesselSearchFilter';
 
 const VesselsPage = () => {
-  const [vessels, setVessels] = useState([
-    {
-      id: 1,
-      imo_number: "IMO1234567",
-      name: "Evergreen",
-      type: "Container",
-      flag: "Panama",
-      cargo_type: "General",
-      operator: "ABC Shipping",
-      last_position_lat: 25.7617,
-      last_position_lon: -80.1918,
-      last_update: "2025-12-08T10:00:00Z",
-    },
-  ]);
+  const [allVessels, setAllVessels] = useState([]);
+  const [filteredVessels, setFilteredVessels] = useState([]);
+  const [selectedVessel, setSelectedVessel] = useState(null);
+  const [track, setTrack] = useState([]);
+  const [vesselStats, setVesselStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [generating, setGenerating] = useState(false);
+  const refreshIntervalRef = useRef(null);
 
-  const [form, setForm] = useState({
-    imo_number: "",
-    name: "",
-    type: "",
-    flag: "",
-    cargo_type: "",
-    operator: "",
-    last_position_lat: "",
-    last_position_lon: "",
-  });
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  // Clear message after 3 seconds
+  useEffect(() => {
+    if (message.text) {
+      const timer = setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
-  const handleAdd = (e) => {
-    e.preventDefault();
-    const newVessel = {
-      id: vessels.length + 1,
-      ...form,
-      last_position_lat: parseFloat(form.last_position_lat) || null,
-      last_position_lon: parseFloat(form.last_position_lon) || null,
-      last_update: new Date().toISOString(),
+  // Load vessels on mount
+  useEffect(() => {
+    loadVessels();
+  }, []);
+
+  // Auto-refresh selected vessel data
+  useEffect(() => {
+    if (!autoRefresh || !selectedVessel) return;
+
+    refreshIntervalRef.current = setInterval(() => {
+      loadVesselTrack(selectedVessel.id);
+      loadVesselStats(selectedVessel.id);
+    }, 10000); // Refresh every 10 seconds
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
     };
-    setVessels((prev) => [...prev, newVessel]);
-    setForm({
-      imo_number: "",
-      name: "",
-      type: "",
-      flag: "",
-      cargo_type: "",
-      operator: "",
-      last_position_lat: "",
-      last_position_lon: "",
-    });
+  }, [autoRefresh, selectedVessel]);
+
+  // Load vessel details when selected
+  useEffect(() => {
+    if (selectedVessel) {
+      loadVesselTrack(selectedVessel.id);
+      loadVesselStats(selectedVessel.id);
+    }
+  }, [selectedVessel?.id]);
+
+  const loadVessels = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        setMessage({ type: 'error', text: 'You must be logged in to view vessels' });
+        setLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`${API_URL}/vessels/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const vesselList = Array.isArray(data) ? data : (data.results || []);
+      setAllVessels(vesselList);
+      setFilteredVessels(vesselList);
+      
+      // Auto-select first vessel
+      if (vesselList.length > 0 && !selectedVessel) {
+        setSelectedVessel(vesselList[0]);
+      }
+    } catch (error) {
+      console.error('Error loading vessels:', error);
+      setMessage({ type: 'error', text: 'Failed to load vessels' });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const loadVesselTrack = async (vesselId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      
+      const hours = 24;
+      const response = await fetch(
+        `${API_URL}/vessels/${vesselId}/positions/?hours=${hours}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) throw new Error('Failed to load positions');
+      
+      const data = await response.json();
+      
+      // Handle both paginated and direct response
+      const positions = data.positions || data.results || data;
+      setTrack(Array.isArray(positions) ? positions : []);
+    } catch (error) {
+      console.error('Error loading track:', error);
+      setMessage({ type: 'error', text: 'Failed to load position history' });
+    }
+  };
+
+  const loadVesselStats = async (vesselId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      
+      const response = await fetch(
+        `${API_URL}/vessels/${vesselId}/stats/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) throw new Error('Failed to load stats');
+      
+      const data = await response.json();
+      setVesselStats(data.stats);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const generateMockData = async () => {
+    try {
+      setGenerating(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        setMessage({ type: 'error', text: 'You must be logged in' });
+        setGenerating(false);
+        return;
+      }
+      
+      const response = await fetch(`${API_URL}/generate-realistic-mock-data/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ num_vessels: 5 })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to generate mock data');
+      }
+      
+      const data = await response.json();
+      setMessage({ 
+        type: 'success', 
+        text: `Generated ${data.vessels.length} vessels with realistic routes` 
+      });
+      
+      await loadVessels();
+    } catch (error) {
+      console.error('Error generating mock data:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to generate mock data' });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const manualRefresh = async () => {
+    if (selectedVessel) {
+      await loadVesselTrack(selectedVessel.id);
+      await loadVesselStats(selectedVessel.id);
+      setMessage({ type: 'success', text: 'Data refreshed' });
+    }
+  };
+
+  const handleFilterChange = (filtered) => {
+    setFilteredVessels(filtered);
+    // Clear selection if current vessel is filtered out
+    if (selectedVessel && !filtered.find(v => v.id === selectedVessel.id)) {
+      setSelectedVessel(filtered.length > 0 ? filtered[0] : null);
+    }
+  };
+
+  if (loading && allVessels.length === 0) {
+    return (
+      <div className="p-6 text-center">
+        <div className="inline-block">
+          <div className="animate-spin">
+            <RefreshCw className="text-blue-600" />
+          </div>
+          <p className="text-slate-600 mt-2">Loading fleet data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Vessels</h1>
-          <p className="text-slate-600">
-            Manage vessels (imo_number, name, type, flag, cargo_type, operator, last position, last update).
-          </p>
-        </header>
-
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <form
-            onSubmit={handleAdd}
-            className="col-span-1 bg-white rounded-2xl shadow p-4 space-y-3 border border-slate-100"
+    <div className="space-y-6 pb-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Fleet Management</h1>
+          <p className="text-slate-600 mt-1">Search, filter, and monitor your vessel fleet in real-time</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={manualRefresh}
+            disabled={!selectedVessel}
+            className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 flex items-center gap-2 transition"
           >
-            <h2 className="text-lg font-semibold">Add Vessel</h2>
-            {[
-              { id: "imo_number", label: "IMO Number" },
-              { id: "name", label: "Name" },
-              { id: "type", label: "Type" },
-              { id: "flag", label: "Flag" },
-              { id: "cargo_type", label: "Cargo Type" },
-              { id: "operator", label: "Operator" },
-              { id: "last_position_lat", label: "Last Position Lat", type: "number" },
-              { id: "last_position_lon", label: "Last Position Lon", type: "number" },
-            ].map((field) => (
-              <label key={field.id} className="block text-sm font-medium text-slate-700">
-                {field.label}
-                <input
-                  name={field.id}
-                  type={field.type || "text"}
-                  value={form[field.id]}
-                  onChange={handleChange}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required={["imo_number", "name", "type", "flag", "cargo_type", "operator"].includes(field.id)}
-                />
-              </label>
-            ))}
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-blue-600 text-white py-2 font-semibold hover:bg-blue-700 transition"
-            >
-              Add Vessel
-            </button>
-          </form>
+            <RefreshCw size={16} /> Refresh
+          </button>
+          <button
+            onClick={generateMockData}
+            disabled={generating}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition"
+          >
+            <Zap size={16} /> {generating ? 'Generating...' : 'Generate Data'}
+          </button>
+        </div>
+      </div>
 
-          <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl shadow p-4 border border-slate-100 overflow-auto">
-            <h2 className="text-lg font-semibold mb-3">Vessel List</h2>
-            <table className="w-full text-sm">
-              <thead className="text-left text-slate-600 border-b">
-                <tr>
-                  <th className="py-2 pr-2">IMO</th>
-                  <th className="py-2 pr-2">Name</th>
-                  <th className="py-2 pr-2">Type</th>
-                  <th className="py-2 pr-2">Flag</th>
-                  <th className="py-2 pr-2">Cargo</th>
-                  <th className="py-2 pr-2">Operator</th>
-                  <th className="py-2 pr-2">Lat</th>
-                  <th className="py-2 pr-2">Lon</th>
-                  <th className="py-2 pr-2">Last Update</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {vessels.map((v) => (
-                  <tr key={v.id} className="align-top">
-                    <td className="py-2 pr-2 font-medium">{v.imo_number}</td>
-                    <td className="py-2 pr-2">{v.name}</td>
-                    <td className="py-2 pr-2">{v.type}</td>
-                    <td className="py-2 pr-2">{v.flag}</td>
-                    <td className="py-2 pr-2">{v.cargo_type}</td>
-                    <td className="py-2 pr-2">{v.operator}</td>
-                    <td className="py-2 pr-2">{v.last_position_lat ?? "-"}</td>
-                    <td className="py-2 pr-2">{v.last_position_lon ?? "-"}</td>
-                    <td className="py-2 pr-2">
-                      {v.last_update ? new Date(v.last_update).toLocaleString() : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Messages */}
+      {message.text && (
+        <div className={`p-4 rounded-lg flex items-center gap-2 transition ${
+          message.type === 'error' 
+            ? 'bg-red-100 text-red-700' 
+            : 'bg-green-100 text-green-700'
+        }`}>
+          <AlertCircle size={18} />
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* Auto-Refresh Toggle */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+        <input
+          type="checkbox"
+          id="autoRefresh"
+          checked={autoRefresh}
+          onChange={(e) => setAutoRefresh(e.target.checked)}
+          className="w-4 h-4 cursor-pointer"
+        />
+        <label htmlFor="autoRefresh" className="text-sm text-slate-700 cursor-pointer">
+          Auto-refresh every 10 seconds {autoRefresh && <span className="ml-2 text-green-600">●</span>}
+        </label>
+      </div>
+
+      {/* Search and Filter */}
+      <VesselSearchFilter vessels={allVessels} onFiltersChange={handleFilterChange} />
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Vessels List */}
+        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="p-4 border-b border-slate-200 `bg-gradient-to-r` from-blue-50 to-slate-50">
+            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+              <Ship size={18} className="text-blue-600" /> Results ({filteredVessels.length})
+            </h2>
           </div>
-        </section>
+          <div className="overflow-y-auto max-h-96">
+            {filteredVessels.length === 0 ? (
+              <div className="p-4 text-slate-600 text-sm text-center py-8">
+                <p>No vessels found</p>
+                <p className="text-xs text-slate-500 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              filteredVessels.map((vessel) => (
+                <div
+                  key={vessel.id}
+                  onClick={() => setSelectedVessel(vessel)}
+                  className={`p-4 border-b border-slate-100 cursor-pointer transition ${
+                    selectedVessel?.id === vessel.id 
+                      ? 'bg-blue-50 border-l-4 border-blue-600' 
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="font-medium text-slate-900">{vessel.name}</div>
+                  <div className="text-xs text-slate-600 mt-1">IMO: {vessel.imo_number}</div>
+                  <div className="text-xs text-slate-600">Type: {vessel.type}</div>
+                  <div className="text-xs text-slate-600">Flag: {vessel.flag}</div>
+                  {vessel.last_position_lat && vessel.last_position_lon && (
+                    <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
+                      <MapPin size={12} />
+                      {vessel.last_position_lat.toFixed(3)}°, {vessel.last_position_lon.toFixed(3)}°
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Details and Track */}
+        <div className="lg:col-span-2 space-y-4">
+          {selectedVessel ? (
+            <>
+              {/* Vessel Details Card */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <Anchor size={18} className="text-blue-600" /> Vessel Details
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-slate-600">Name</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.name}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">IMO Number</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.imo_number}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Type</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.type}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Flag</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.flag}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Cargo Type</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.cargo_type}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Operator</div>
+                    <div className="font-medium text-slate-900">{selectedVessel.operator}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-xs text-slate-600">Current Position</div>
+                    <div className="font-medium text-slate-900">
+                      {selectedVessel.last_position_lat?.toFixed(4)}°N, {selectedVessel.last_position_lon?.toFixed(4)}°E
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-xs text-slate-600">Last Updated</div>
+                    <div className="font-medium text-slate-900">
+                      {new Date(selectedVessel.last_update).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Statistics Card */}
+              {vesselStats && (
+                <div className="`bg-gradient-to-br` from-blue-50 to-slate-50 rounded-xl border border-slate-200 p-6">
+                  <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <TrendingUp size={18} className="text-blue-600" /> Movement Statistics
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                      <div className="text-xs text-slate-600">Average Speed</div>
+                      <div className="text-xl font-bold text-slate-900">{vesselStats.avg_speed} kts</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                      <div className="text-xs text-slate-600">Max Speed</div>
+                      <div className="text-xl font-bold text-green-600">{vesselStats.max_speed} kts</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                      <div className="text-xs text-slate-600">Min Speed</div>
+                      <div className="text-xl font-bold text-orange-600">{vesselStats.min_speed} kts</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                      <div className="text-xs text-slate-600">Position Points</div>
+                      <div className="text-xl font-bold text-slate-900">{vesselStats.total_positions}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Position Track */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <TrendingUp size={18} className="text-blue-600" /> Position History (Last 24 Hours)
+                </h3>
+                {track.length === 0 ? (
+                  <div className="text-slate-600 text-sm text-center py-8">No position data available</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50">
+                          <th className="text-left py-3 px-2 text-slate-700 font-semibold">Time</th>
+                          <th className="text-left py-3 px-2 text-slate-700 font-semibold">Latitude</th>
+                          <th className="text-left py-3 px-2 text-slate-700 font-semibold">Longitude</th>
+                          <th className="text-left py-3 px-2 text-slate-700 font-semibold">Speed</th>
+                          <th className="text-left py-3 px-2 text-slate-700 font-semibold">Course</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {track.slice(0, 12).map((pos, idx) => (
+                          <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                            <td className="py-2 px-2 text-xs font-mono text-slate-600">
+                              {new Date(pos.timestamp).toLocaleTimeString()}
+                            </td>
+                            <td className="py-2 px-2 font-mono text-slate-900">{pos.latitude.toFixed(4)}°</td>
+                            <td className="py-2 px-2 font-mono text-slate-900">{pos.longitude.toFixed(4)}°</td>
+                            <td className="py-2 px-2">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                {pos.speed?.toFixed(2) || 'N/A'} kts
+                              </span>
+                            </td>
+                            <td className="py-2 px-2 text-slate-900">{pos.course?.toFixed(1) || 'N/A'}°</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {track.length > 12 && (
+                      <div className="text-center py-2 text-xs text-slate-500">
+                        Showing 12 of {track.length} records
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-600">
+              Select a vessel from the results to view details and tracking information
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
