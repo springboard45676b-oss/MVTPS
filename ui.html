@@ -1,0 +1,37 @@
+import{ useState } from "react";
+function login() {
+    const[username,setUsername] =
+    usestate("");
+    const[password,setPassword] =
+    usestate("");
+    const loginUser = async() => {
+        const responce =await
+        fetch("http://localhost:8000/api/token", {
+            method:"POST",
+            headers:{ "Content-Type":
+                "application/json" },
+                body:JSON.stringify( { username,
+                    password }),
+                });
+                const data =await Response.json();
+                console.log("Tokens:", data);
+            };
+            return(
+                <div>
+                    <h2>Login</h2>
+                    <input placeholder="Username"
+                    onChange={(e) =>
+                        setUsername(e.target.value)} />
+                        <input type="password"
+                        placeholder="Password" onChange={(e)=>
+                            setPassword(e.target.value)} />
+                            <button onClick={loginUser}>Login</button>
+                            </div>
+            );
+        }
+        export default login;
+
+            
+            
+                    
+            
