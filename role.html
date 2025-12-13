@@ -1,0 +1,6 @@
+# create_roles.py
+from django.contrib.auth.models import Group
+roles =['Operator','Analyst','Admin']
+for role in roles:
+Group.objects.get_or_create(name=role)
+print("Roles created successfully")
