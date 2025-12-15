@@ -1,0 +1,17 @@
+﻿/* src/styles/global.css */
+
+:root {
+  --bg: #071026;
+  --card: #081826;
+  --muted: #94a3b8;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  background: linear-gradient(180deg,#051225 0%, #081826 100%);
+  color: #e6eef6;
+}
+
+a { color: #9b5cff; text-decoration: none; }

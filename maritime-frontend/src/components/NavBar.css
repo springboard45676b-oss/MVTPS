@@ -1,0 +1,16 @@
+.nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 30px;
+  background: #021124;
+  color: white;
+}
+
+.nav a,
+.nav button {
+  margin-left: 15px;
+  color: white;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
