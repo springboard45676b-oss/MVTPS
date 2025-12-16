@@ -202,18 +202,25 @@ const VesselsPage = () => {
     }
   };
 
-  if (loading && allVessels.length === 0) {
-    return (
-      <div className="p-6 text-center">
-        <div className="inline-block">
-          <div className="animate-spin">
-            <RefreshCw className="text-blue-600" />
+ if (loading && allVessels.length === 0) {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        {/* Animated Spinner */}
+        <div className="flex justify-center mb-4">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin"></div>
           </div>
-          <p className="text-slate-600 mt-2">Loading fleet data...</p>
         </div>
+        
+        {/* Loading Text */}
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Fleet Data</h3>
+        <p className="text-slate-600">Please wait while we fetch your vessel information...</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="space-y-6 pb-6">

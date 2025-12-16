@@ -148,133 +148,146 @@ const LoginRegister = () => {
     }
   }, [location.pathname]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!validateForm()) {
-      setIsSubmitting(false);
-      return;
-    }
+// In client/src/pages/LoginRegister.jsx - REPLACE the handleSubmit function with this:
 
-    setIsSubmitting(true);
-    setAuthError("");
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  if (!validateForm()) {
+    setIsSubmitting(false);
+    return;
+  }
 
-    try {
-      if (authMode === "register") {
-        // Prepare registration data according to backend requirements
-        const username = (formData.username || '').trim();
-        const email = (formData.email || '').trim();
-        
-        // Double-check required fields
-        if (!username) {
-          setErrors(prev => ({ ...prev, username: 'Username is required' }));
-          setAuthError('Please fill in all required fields');
-          setIsSubmitting(false);
-          return;
-        }
-        
-        if (!email) {
-          setErrors(prev => ({ ...prev, email: 'Email is required' }));
-          setAuthError('Please fill in all required fields');
-          setIsSubmitting(false);
-          return;
-        }
-        
-        const registrationData = {
-          username: username,
-          email: email,
-          password: formData.password,
-          password2: formData.confirmPassword,
-          role: selectedRole,
-        };
-        
-        console.log('Form Data:', formData);
-        console.log('Registration payload:', registrationData);
-        
-        // Handle registration
-        const response = await authAPI.register(registrationData);
-        
-        const roleText = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
-        setSuccessMessage(`Account created successfully as ${roleText}.`);
+  setIsSubmitting(true);
+  setAuthError("");
 
-        // Redirect to login after successful registration
-        setTimeout(() => {
-          navigate('/login');
-        }, 1500);
-      } else {
-        // Handle login - use username or email
-        const loginIdentifier = formData.username.trim() || formData.email.trim();
-        const response = await authAPI.login({
-          username: loginIdentifier,
-          password: formData.password,
-        });
-        
-        const user = response.user;
-        const role = user.role || 'operator';
-        const roleText = role.charAt(0).toUpperCase() + role.slice(1);
-        
-        setSuccessMessage(`${roleText} login successful.`);
-        
-        // Redirect based on user role
-        setTimeout(() => {
-          if (role === 'admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate(`/${role}/dashboard`);
-          }
-        }, 1500);
+  try {
+    if (authMode === "register") {
+      // Prepare registration data according to backend requirements
+      const username = (formData.username || '').trim();
+      const email = (formData.email || '').trim();
+      
+      // Double-check required fields
+      if (!username) {
+        setErrors(prev => ({ ...prev, username: 'Username is required' }));
+        setAuthError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
       }
       
-      setShowSuccess(true);
-    } catch (error) {
-      console.error('Authentication error:', error);
-      
-      // Handle validation errors from backend
-      let errorMessage = 'An error occurred during authentication. Please try again.';
-      
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        
-        // Handle field-specific validation errors
-        if (typeof errorData === 'object') {
-          // Handle non_field_errors specially
-          if (errorData.non_field_errors) {
-            errorMessage = Array.isArray(errorData.non_field_errors) 
-              ? errorData.non_field_errors[0]
-              : errorData.non_field_errors;
-          } 
-          // Handle other field errors
-          else {
-            const fieldErrors = [];
-            for (const [field, messages] of Object.entries(errorData)) {
-              if (Array.isArray(messages)) {
-                fieldErrors.push(messages.join(', '));
-              } else if (typeof messages === 'string') {
-                fieldErrors.push(messages);
-              }
-            }
-            
-            if (fieldErrors.length > 0) {
-              errorMessage = fieldErrors.join(' | ');
-            } else if (errorData.detail) {
-              errorMessage = errorData.detail;
-            } else if (errorData.message) {
-              errorMessage = errorData.message;
-            } else if (errorData.error) {
-              errorMessage = errorData.error;
-            }
-          }
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (!email) {
+        setErrors(prev => ({ ...prev, email: 'Email is required' }));
+        setAuthError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
       }
       
-      setAuthError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+      const registrationData = {
+        username: username,
+        email: email,
+        password: formData.password,
+        password2: formData.confirmPassword,
+        role: selectedRole,
+      };
+      
+      console.log('Form Data:', formData);
+      console.log('Registration payload:', registrationData);
+      
+      // Handle registration
+      const response = await authAPI.register(registrationData);
+      
+      const roleText = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
+      setSuccessMessage(`Account created successfully as ${roleText}.`);
+
+      // Redirect to login after successful registration
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+    } else {
+      // Handle login - use username or email
+      const loginIdentifier = formData.username.trim() || formData.email.trim();
+      
+      // ========== IMPORTANT: SEND SELECTED ROLE FOR VALIDATION ==========
+      const response = await authAPI.login({
+        username: loginIdentifier,
+        password: formData.password,
+        selected_role: selectedRole  // SEND THE SELECTED ROLE
+      });
+      
+      const user = response.user;
+      const role = user.role || 'operator';
+      const roleText = role.charAt(0).toUpperCase() + role.slice(1);
+      
+      setSuccessMessage(`${roleText} login successful.`);
+      
+      // Redirect based on user role
+      setTimeout(() => {
+        if (role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (role === 'analyst') {
+          navigate('/analyst/dashboard');
+        } else {
+          navigate('/operator/dashboard');
+        }
+      }, 1500);
     }
-  };
+    
+    setShowSuccess(true);
+  } catch (error) {
+    console.error('Authentication error:', error);
+    
+    // Handle validation errors from backend
+    let errorMessage = 'An error occurred during authentication. Please try again.';
+    
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      
+      // Handle field-specific validation errors
+      if (typeof errorData === 'object') {
+        // Handle non_field_errors specially
+        if (errorData.non_field_errors) {
+          errorMessage = Array.isArray(errorData.non_field_errors) 
+            ? errorData.non_field_errors[0]
+            : errorData.non_field_errors;
+        }
+        // Handle selected_role errors (role mismatch)
+        else if (errorData.selected_role) {
+          errorMessage = Array.isArray(errorData.selected_role)
+            ? errorData.selected_role[0]
+            : errorData.selected_role;
+        }
+        // Handle other field errors
+        else {
+          const fieldErrors = [];
+          for (const [field, messages] of Object.entries(errorData)) {
+            if (Array.isArray(messages)) {
+              fieldErrors.push(messages.join(', '));
+            } else if (typeof messages === 'string') {
+              fieldErrors.push(messages);
+            }
+          }
+          
+          if (fieldErrors.length > 0) {
+            errorMessage = fieldErrors.join(' | ');
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        }
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    setAuthError(errorMessage);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const getRoleConfig = () => {
     const configs = {
@@ -660,7 +673,7 @@ const LoginRegister = () => {
             className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/95 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80"
           >
             <motion.div
-              className={`absolute inset-x-16 top-0 h-40 rounded-b-[40%] bg-gradient-to-r ${roleConfig.gradient} opacity-20 blur-2xl`}
+              className={`absolute inset-x-16 top-0 h-40 rounded-b-[40%] bg-linear-to-r ${roleConfig.gradient} opacity-20 blur-2xl`}
               layout
             />
 
@@ -823,7 +836,7 @@ const LoginRegister = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r ${
+                  className={`group relative w-full overflow-hidden rounded-2xl bg-linear-to-r ${
                     roleConfig.gradient
                   } px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60`}
                 >

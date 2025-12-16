@@ -42,13 +42,16 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) {
           // No refresh token, redirect to login
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
           window.location.href = "/login";
           return Promise.reject(error);
         }
 
         // Try to refresh the token
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/auth/refresh/`,
+          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/auth/token/refresh/`,
           { refresh: refreshToken }
         );
 
@@ -83,44 +86,71 @@ api.interceptors.response.use(
 export const authAPI = {
   // Login user (with username or email)
   login: async (credentials) => {
-    const response = await api.post('/auth/login/', {
-      username: credentials.username || credentials.email,
-      password: credentials.password
-    });
-    
-    // Store tokens and user data
-    const { access, refresh, user } = response.data;
-    localStorage.setItem('access_token', access);
-    localStorage.setItem('refresh_token', refresh);
-    localStorage.setItem('user', JSON.stringify(user));
-    
-    return { token: access, user };
+    try {
+      console.log('Login attempt with:', { username: credentials.username, selected_role: credentials.selected_role });
+      
+      const response = await api.post('/auth/login/', {
+        username: credentials.username || credentials.email,
+        password: credentials.password,
+        selected_role: credentials.selected_role  // Send the selected role
+      });
+      
+      console.log('Login response:', response.data);
+      
+      // Store tokens and user data
+      const { access, refresh, user } = response.data;
+      
+      if (!access || !refresh) {
+        console.error('No tokens in response:', response.data);
+        throw new Error('Login failed: No tokens received');
+      }
+      
+      // Save to localStorage
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('Tokens saved to localStorage');
+      console.log('access_token:', access.substring(0, 20) + '...');
+      console.log('refresh_token:', refresh.substring(0, 20) + '...');
+      
+      return { token: access, user };
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   },
   
   // Register new user
   register: async (userData) => {
-    const response = await api.post('/auth/register/', {
-      username: userData.username,
-      email: userData.email,
-      password: userData.password,
-      password2: userData.password2,
-      role: userData.role
-    });
-    
-    // Store tokens and user data from registration response
-    const { access, refresh, user } = response.data;
-    if (access && refresh) {
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      localStorage.setItem('user', JSON.stringify(user));
-      return { token: access, user };
+    try {
+      const response = await api.post('/auth/register/', {
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        password2: userData.password2,
+        role: userData.role
+      });
+      
+      // Store tokens and user data from registration response
+      const { access, refresh, user } = response.data;
+      if (access && refresh) {
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+        localStorage.setItem('user', JSON.stringify(user));
+        return { token: access, user };
+      }
+      
+      // Fallback to auto-login if tokens not in response
+      return authAPI.login({
+        username: userData.username,
+        password: userData.password,
+        selected_role: userData.role
+      });
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
     }
-    
-    // Fallback to auto-login if tokens not in response
-    return authAPI.login({
-      username: userData.username,
-      password: userData.password
-    });
   },
   
   // Logout user
@@ -128,6 +158,7 @@ export const authAPI = {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    console.log('User logged out');
   },
   
   // Get current user from localStorage
@@ -138,36 +169,11 @@ export const authAPI = {
   
   // Check if user is authenticated
   isAuthenticated() {
-    return !!localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
+    const user = localStorage.getItem('user');
+    return !!(token && user);
   },
 
-  // Update user profile (username, email, role, password)
-  updateProfile: async (formData) => {
-    // Convert FormData to JSON if needed
-    let data = formData;
-    if (formData instanceof FormData) {
-      data = {};
-      for (let [key, value] of formData.entries()) {
-        if (value !== '' && value !== null) {
-          data[key] = value;
-        }
-      }
-    }
-
-    const response = await api.put('/auth/profile/update/', data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    // Update user data in localStorage
-    if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
-    
-    return response.data;
-  },
-  
   // Fetch current user data from server
   fetchCurrentUser: async () => {
     try {
@@ -187,19 +193,23 @@ export const authAPI = {
 
   // Update user profile via /profile/edit/
   editProfile: async (formData) => {
-    // Keep as FormData and send directly
-    const response = await api.put('/auth/profile/edit/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    // Update user data in localStorage
-    if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    try {
+      const response = await api.put('/auth/profile/edit/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      // Update user data in localStorage
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Edit profile error:', error);
+      throw error;
     }
-    
-    return response.data;
   }
 };
 

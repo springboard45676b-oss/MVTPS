@@ -1,88 +1,80 @@
-import React, { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+// client/src/components/DarkModeToggle.jsx
 
-const STORAGE_KEY = "vesselTrackerDarkMode";
+import React, { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 
-const DarkModeToggle = ({ className = "" }) => {
+const DarkModeToggle = () => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
-  // Initialize dark mode from localStorage or system preference
+  // Initialize dark mode from localStorage and system preference
   useEffect(() => {
-    setMounted(true);
-    
     // Check localStorage first
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved !== null) {
-      setDarkMode(JSON.parse(saved));
-    } 
-    // Then check system preference
-    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setDarkMode(true);
+    const savedMode = localStorage.getItem('darkMode');
+    
+    if (savedMode !== null) {
+      const isDark = JSON.parse(savedMode);
+      setIsDarkMode(isDark);
+      applyDarkMode(isDark);
+    } else {
+      // Check system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(prefersDark);
+      applyDarkMode(prefersDark);
     }
+    
+    setMounted(true);
   }, []);
 
-  // Update the theme when darkMode changes
-  useEffect(() => {
-    if (!mounted) return;
+  const applyDarkMode = (isDark) => {
+    const html = document.documentElement;
     
-    const root = document.documentElement;
-    
-    if (darkMode) {
-      root.classList.add('dark');
-      root.setAttribute('data-theme', 'dark');
-      document.body.classList.add('dark:bg-slate-900');
+    if (isDark) {
+      html.classList.add('dark');
+      document.body.style.backgroundColor = '#0f172a'; // slate-950
     } else {
-      root.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
-      document.body.classList.remove('dark:bg-slate-900');
+      html.classList.remove('dark');
+      document.body.style.backgroundColor = '#ffffff'; // white
     }
-    
-    // Save preference to localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(darkMode));
-  }, [darkMode, mounted]);
+  };
 
-  // Handle system theme changes
-  useEffect(() => {
-    if (!mounted) return;
-    
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleChange = (e) => {
-      // Only update if we don't have a saved preference
-      if (localStorage.getItem(STORAGE_KEY) === null) {
-        setDarkMode(e.matches);
-      }
-    };
-    
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [mounted]);
+  const handleToggle = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    applyDarkMode(newMode);
+    localStorage.setItem('darkMode', JSON.stringify(newMode));
+  };
 
   if (!mounted) {
-    // Prevent hydration mismatch by rendering a placeholder
-    return (
-      <button 
-        className={`w-9 h-9 rounded-full bg-transparent ${className}`}
-        aria-label="Toggle dark mode"
-      />
-    );
+    return null;
   }
 
   return (
     <button
-      onClick={() => setDarkMode(!darkMode)}
-      className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-200 ${
-        darkMode 
-          ? 'text-amber-400 hover:bg-slate-700' 
-          : 'text-slate-600 hover:bg-slate-100'
-      } ${className}`}
-      aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={handleToggle}
+      className={`
+        relative inline-flex items-center justify-center
+        w-10 h-10 rounded-full
+        transition-all duration-300 ease-in-out
+        hover:scale-110
+        ${isDarkMode 
+          ? 'text-yellow-400 hover:text-yellow-300' 
+          : 'text-slate-700 hover:text-slate-900'
+        }
+      `}
+      title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label="Toggle dark mode"
     >
-      {darkMode ? (
-        <Sun className="w-5 h-5" />
+      {isDarkMode ? (
+        <Sun 
+          size={20} 
+          className="transition-transform duration-300 rotate-0 hover:rotate-180"
+        />
       ) : (
-        <Moon className="w-5 h-5" />
+        <Moon 
+          size={20} 
+          className="transition-transform duration-300 rotate-0 hover:rotate-180"
+        />
       )}
     </button>
   );
