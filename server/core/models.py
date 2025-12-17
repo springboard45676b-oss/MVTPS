@@ -281,3 +281,74 @@ class APIKey(models.Model):
 
     def __str__(self):
         return f"{self.service} - {'Active' if self.is_active else 'Inactive'}"
+    
+# server/backend/core/models.py - ADD THESE MODELS
+
+class VesselSubscription(models.Model):
+    """
+    User subscription to vessel alerts and status updates
+    Allows users to enable/disable alerts for specific vessels
+    """
+    ALERT_TYPES = [
+        ('position_update', 'Position Update'),
+        ('departure', 'Departure'),
+        ('arrival', 'Arrival'),
+        ('speed_change', 'Speed Change'),
+        ('course_change', 'Course Change'),
+        ('all', 'All Events'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vessel_subscriptions', db_column='user_id')
+    vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, related_name='subscriptions', db_column='vessel_id')
+    is_active = models.BooleanField(default=True)
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, default='all')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_vessel_subscription'
+        unique_together = ('user', 'vessel')  # One subscription per user per vessel
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['vessel', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} subscribed to {self.vessel.name}"
+
+
+class VesselAlert(models.Model):
+    """
+    Alert records for subscribed vessels
+    Logs alerts that have been sent to users
+    """
+    ALERT_STATUS = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('read', 'Read'),
+        ('dismissed', 'Dismissed'),
+    ]
+    
+    subscription = models.ForeignKey(VesselSubscription, on_delete=models.CASCADE, related_name='alerts', db_column='subscription_id')
+    alert_type = models.CharField(max_length=20, choices=[
+        ('position_update', 'Position Update'),
+        ('departure', 'Departure'),
+        ('arrival', 'Arrival'),
+        ('speed_change', 'Speed Change'),
+        ('course_change', 'Course Change'),
+    ])
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=ALERT_STATUS, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'core_vessel_alert'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['subscription', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.alert_type} - {self.subscription.vessel.name}"

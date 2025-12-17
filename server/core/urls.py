@@ -1,4 +1,3 @@
-# server/backend/core/urls.py
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
@@ -7,7 +6,7 @@ from .views import (
     CustomTokenObtainPairView,
     UserProfileAPI,
     UserProfileUpdateAPI,
-    # Vessel views - ONLY these
+    # Vessel views
     VesselListCreateAPI,
     VesselDetailAPI,
     VesselPositionHistoryAPI,
@@ -16,6 +15,11 @@ from .views import (
     UpdateVesselPositionAPI,
     GenerateRealisticMockDataAPI,
     BulkVesselPositionsAPI,
+    # Subscription & Alert views
+    UserVesselSubscriptionsAPI,
+    VesselSubscriptionDetailAPI,
+    UserAlertsAPI,
+    AlertMarkAsReadAPI,
 )
 
 urlpatterns = [
@@ -38,6 +42,14 @@ urlpatterns = [
     path('vessels/<int:vessel_id>/stats/', VesselStatsAPI.as_view(), name='vessel-stats'),
     path('vessels/<int:vessel_id>/update-position/', UpdateVesselPositionAPI.as_view(), name='update-vessel-position'),
     path('vessels/bulk/current-positions/', BulkVesselPositionsAPI.as_view(), name='bulk-vessel-positions'),
+    
+    # ============================================
+    # SUBSCRIPTION & ALERT ENDPOINTS - /api/users/*
+    # ============================================
+    path('users/subscriptions/', UserVesselSubscriptionsAPI.as_view(), name='user-subscriptions'),
+    path('users/subscriptions/<int:pk>/', VesselSubscriptionDetailAPI.as_view(), name='subscription-detail'),
+    path('users/alerts/', UserAlertsAPI.as_view(), name='user-alerts'),
+    path('alerts/<int:alert_id>/mark-read/', AlertMarkAsReadAPI.as_view(), name='mark-alert-read'),
     
     # ============================================
     # DATA GENERATION - /api/*

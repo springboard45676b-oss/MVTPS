@@ -1,4 +1,3 @@
-# server/backend/core/views.py
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,9 +17,11 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     UserProfileUpdateSerializer,
     VesselSerializer,
-    VesselPositionSerializer
+    VesselPositionSerializer,
+    VesselSubscriptionSerializer,
+    VesselAlertSerializer
 )
-from .models import Vessel, VesselPosition
+from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert
 from .services import VesselPositionService
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,14 @@ def api_root(request, format=None):
             'positions': base_url + 'api/vessels/{id}/positions/',
             'current_position': base_url + 'api/vessels/{id}/current-position/',
             'stats': base_url + 'api/vessels/{id}/stats/',
+            'update_position': base_url + 'api/vessels/{id}/update-position/',
             'bulk_positions': base_url + 'api/vessels/bulk/current-positions/',
+        },
+        'subscriptions': {
+            'list': base_url + 'api/users/subscriptions/',
+            'detail': base_url + 'api/users/subscriptions/{id}/',
+            'alerts': base_url + 'api/users/alerts/',
+            'mark_alert_read': base_url + 'api/alerts/{id}/mark-read/',
         },
         'data_generation': {
             'generate_mock': base_url + 'api/generate-realistic-mock-data/',
@@ -336,7 +344,7 @@ class VesselStatsAPI(generics.RetrieveAPIView):
 
 class UpdateVesselPositionAPI(APIView):
     """
-    Update vessel position (for API integrations like MarineTraffic/AIS Hub)
+    Update vessel position (FIXED VERSION)
     POST /api/vessels/{vessel_id}/update-position/
     
     Request body:
@@ -351,29 +359,46 @@ class UpdateVesselPositionAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, vessel_id):
-        # Only allow admins to update positions from external sources
+        # Only allow admins and analysts to update positions
         if request.user.role not in ['admin', 'analyst']:
             return Response(
                 {'detail': 'Insufficient permissions to update positions'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
+        # Validate vessel exists
+        try:
+            vessel = Vessel.objects.get(id=vessel_id)
+        except Vessel.DoesNotExist:
+            return Response(
+                {'detail': f'Vessel with id {vessel_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get and validate coordinates
         try:
             latitude = float(request.data.get('latitude'))
             longitude = float(request.data.get('longitude'))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             return Response(
-                {'detail': 'Invalid latitude or longitude'},
+                {'detail': 'Invalid latitude or longitude - must be valid numbers'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate coordinates
-        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+        # Validate coordinate ranges
+        if not (-90 <= latitude <= 90):
             return Response(
-                {'detail': 'Coordinates out of valid range'},
+                {'detail': 'Latitude must be between -90 and 90'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        if not (-180 <= longitude <= 180):
+            return Response(
+                {'detail': 'Longitude must be between -180 and 180'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get optional fields
         try:
             speed = float(request.data.get('speed')) if request.data.get('speed') else None
             course = float(request.data.get('course')) if request.data.get('course') else None
@@ -383,25 +408,50 @@ class UpdateVesselPositionAPI(APIView):
         
         source = request.data.get('source', 'api')
         
-        position = VesselPositionService.update_vessel_position(
-            vessel_id,
-            latitude,
-            longitude,
-            speed=speed,
-            course=course,
-            source=source
-        )
-        
-        if not position:
+        try:
+            # Create new position record
+            position = VesselPosition.objects.create(
+                vessel=vessel,
+                latitude=latitude,
+                longitude=longitude,
+                speed=speed,
+                course=course,
+                timestamp=timezone.now(),
+                source=source
+            )
+            
+            # Update vessel's last position
+            vessel.last_position_lat = latitude
+            vessel.last_position_lon = longitude
+            vessel.last_update = timezone.now()
+            vessel.save()
+            
+            # Trigger alerts for subscribed users
+            subscriptions = VesselSubscription.objects.filter(
+                vessel=vessel,
+                is_active=True
+            )
+            
+            for subscription in subscriptions:
+                if subscription.alert_type in ['position_update', 'all']:
+                    VesselAlert.objects.create(
+                        subscription=subscription,
+                        alert_type='position_update',
+                        message=f'{vessel.name} position updated: {latitude:.4f}°N, {longitude:.4f}°E',
+                        status='pending'
+                    )
+            
             return Response(
-                {'detail': 'Vessel not found'},
-                status=status.HTTP_404_NOT_FOUND
+                VesselPositionSerializer(position).data,
+                status=status.HTTP_201_CREATED
             )
         
-        return Response(
-            VesselPositionSerializer(position).data,
-            status=status.HTTP_201_CREATED
-        )
+        except Exception as e:
+            logger.error(f"Error updating vessel position: {str(e)}")
+            return Response(
+                {'detail': f'Error updating position: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class GenerateRealisticMockDataAPI(APIView):
@@ -480,3 +530,131 @@ class BulkVesselPositionsAPI(generics.ListAPIView):
             'count': len(positions_data),
             'vessels': positions_data,
         })
+    
+# ============================================
+# SUBSCRIPTION & ALERT VIEWS
+# (Add to the end of views.py from Part 1)
+# ============================================
+
+from rest_framework import generics, status, permissions
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.utils import timezone
+from .models import VesselSubscription, VesselAlert, Vessel
+from .serializers import VesselSubscriptionSerializer, VesselAlertSerializer
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class UserVesselSubscriptionsAPI(generics.ListCreateAPIView):
+    """
+    List and create vessel subscriptions for current user
+    GET /api/users/subscriptions/ - Get all subscriptions
+    POST /api/users/subscriptions/ - Subscribe to a vessel
+    """
+    serializer_class = VesselSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return VesselSubscription.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        vessel_id = request.data.get('vessel')
+        alert_type = request.data.get('alert_type', 'all')
+        
+        try:
+            vessel = Vessel.objects.get(id=vessel_id)
+        except Vessel.DoesNotExist:
+            return Response(
+                {'detail': 'Vessel not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if subscription already exists
+        subscription, created = VesselSubscription.objects.update_or_create(
+            user=request.user,
+            vessel=vessel,
+            defaults={'is_active': True, 'alert_type': alert_type}
+        )
+        
+        serializer = self.get_serializer(subscription)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        
+        return Response(serializer.data, status=status_code)
+
+
+class VesselSubscriptionDetailAPI(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Get, update, or delete a specific subscription
+    GET /api/users/subscriptions/{id}/
+    PUT /api/users/subscriptions/{id}/ - Update alert type or status
+    DELETE /api/users/subscriptions/{id}/ - Unsubscribe
+    """
+    serializer_class = VesselSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return VesselSubscription.objects.filter(user=self.request.user)
+    
+    def perform_destroy(self, instance):
+        """Mark as inactive instead of deleting"""
+        instance.is_active = False
+        instance.save()
+
+
+class UserAlertsAPI(generics.ListAPIView):
+    """
+    Get all alerts for current user
+    GET /api/users/alerts/ - Get unread/all alerts
+    GET /api/users/alerts/?status=pending - Filter by status
+    """
+    serializer_class = VesselAlertSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user_subscriptions = VesselSubscription.objects.filter(user=self.request.user).values_list('id', flat=True)
+        queryset = VesselAlert.objects.filter(subscription_id__in=user_subscriptions)
+        
+        # Filter by status
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        
+        return queryset.order_by('-created_at')
+
+
+class AlertMarkAsReadAPI(APIView):
+    """
+    Mark alert as read
+    POST /api/alerts/{alert_id}/mark-read/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, alert_id):
+        try:
+            alert = VesselAlert.objects.get(id=alert_id)
+            
+            # Verify user owns this alert
+            if alert.subscription.user != request.user:
+                return Response(
+                    {'detail': 'Permission denied'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            alert.status = 'read'
+            alert.read_at = timezone.now()
+            alert.save()
+            
+            return Response(
+                VesselAlertSerializer(alert).data,
+                status=status.HTTP_200_OK
+            )
+        except VesselAlert.DoesNotExist:
+            return Response(
+                {'detail': 'Alert not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
