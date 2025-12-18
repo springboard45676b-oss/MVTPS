@@ -1,7 +1,7 @@
-# server/backend/core/services.py
 import random
 import threading
 import time
+import math
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db import transaction
@@ -31,6 +31,91 @@ class VesselPositionService:
         'Tokyo': (35.4437, 139.6380),
         'New York': (40.7128, -74.0060),
     }
+    
+    # Typical speed ranges by vessel type (in knots)
+    VESSEL_TYPE_SPEEDS = {
+        'Container Ship': {'base': 20, 'variation': 3},
+        'Oil Tanker': {'base': 15, 'variation': 2},
+        'LNG Tanker': {'base': 18, 'variation': 2},
+        'Chemical Tanker': {'base': 16, 'variation': 2},
+        'General Cargo Ship': {'base': 19, 'variation': 2},
+        'Bulk Carrier': {'base': 14, 'variation': 2},
+        'Break Bulk Carrier': {'base': 17, 'variation': 2},
+        'Refrigerated Cargo Ship': {'base': 18, 'variation': 2},
+        'Heavy Lift Ship': {'base': 13, 'variation': 2},
+        'Car Carrier': {'base': 20, 'variation': 2},
+        'RoRo Ship': {'base': 19, 'variation': 2},
+        'Multipurpose Ship': {'base': 16, 'variation': 2},
+        'Offshore Supply Vessel': {'base': 14, 'variation': 2},
+        'Yacht Support Vessel': {'base': 16, 'variation': 2},
+    }
+
+    @staticmethod
+    def calculate_speed_for_position(vessel_type, progress, weather_factor=None):
+        """
+        Calculate realistic speed for a vessel at a given point in its journey.
+        
+        Args:
+            vessel_type: Type of vessel
+            progress: Progress along route (0.0 to 1.0)
+            weather_factor: Optional weather impact factor
+        
+        Returns:
+            Speed in knots
+        """
+        speed_config = VesselPositionService.VESSEL_TYPE_SPEEDS.get(
+            vessel_type, 
+            {'base': 15, 'variation': 2}
+        )
+        
+        base_speed = speed_config['base']
+        variation = speed_config['variation']
+        
+        # Speed variations based on journey progress
+        if progress < 0.05:  # Leaving port - slower
+            speed_modifier = random.uniform(0.4, 0.6)
+        elif progress > 0.95:  # Approaching port - slower
+            speed_modifier = random.uniform(0.5, 0.7)
+        elif 0.4 <= progress <= 0.6:  # Mid-journey - optimal speed
+            speed_modifier = random.uniform(0.95, 1.05)
+        else:  # Normal cruising
+            speed_modifier = random.uniform(0.85, 1.0)
+        
+        # Apply weather factor if provided
+        if weather_factor is None:
+            weather_factor = random.uniform(0.9, 1.0)
+        
+        # Calculate final speed
+        speed = base_speed * speed_modifier * weather_factor
+        
+        # Add small random variation
+        speed += random.uniform(-variation/2, variation/2)
+        
+        # Ensure speed is positive and realistic
+        return round(max(1, speed), 1)
+    
+    @staticmethod
+    def calculate_course(lat1, lon1, lat2, lon2):
+        """
+        Calculate bearing/course between two points
+        
+        Returns:
+            Course in degrees (0-360)
+        """
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        lon_diff_rad = math.radians(lon2 - lon1)
+        
+        x = math.sin(lon_diff_rad) * math.cos(lat2_rad)
+        y = math.cos(lat1_rad) * math.sin(lat2_rad) - (
+            math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(lon_diff_rad)
+        )
+        
+        initial_bearing = math.atan2(x, y)
+        initial_bearing = math.degrees(initial_bearing)
+        course = (initial_bearing + 360) % 360
+        
+        return round(course, 1)
 
     @staticmethod
     def generate_realistic_route(start_port, end_port, num_points=24):
@@ -57,7 +142,7 @@ class VesselPositionService:
     @transaction.atomic
     def generate_mock_vessel_data(num_vessels=5):
         """
-        Generate comprehensive mock vessel data with realistic routes
+        Generate comprehensive mock vessel data with realistic routes and speeds
         """
         vessels_data = [
             # Container Ships
@@ -70,7 +155,6 @@ class VesselPositionService:
                 'operator': 'Evergreen Marine Corp',
                 'destination': 'Rotterdam',
                 'route': ('Singapore', 'Rotterdam'),
-                'speed_range': (18, 22),
             },
             {
                 'imo_number': '9632730',
@@ -81,7 +165,6 @@ class VesselPositionService:
                 'operator': 'Mediterranean Shipping Company',
                 'destination': 'Los Angeles',
                 'route': ('Shanghai', 'Los Angeles'),
-                'speed_range': (19, 23),
             },
             {
                 'imo_number': '9360467',
@@ -92,7 +175,6 @@ class VesselPositionService:
                 'operator': 'China Ocean Shipping Company',
                 'destination': 'Hamburg',
                 'route': ('Hong Kong', 'Hamburg'),
-                'speed_range': (17, 21),
             },
             # Tankers
             {
@@ -104,7 +186,6 @@ class VesselPositionService:
                 'operator': 'Torm A/S',
                 'destination': 'Rotterdam',
                 'route': ('Dubai', 'Rotterdam'),
-                'speed_range': (13, 17),
             },
             {
                 'imo_number': '9494098',
@@ -115,7 +196,6 @@ class VesselPositionService:
                 'operator': 'Maersk Line',
                 'destination': 'Tokyo',
                 'route': ('Port Said', 'Tokyo'),
-                'speed_range': (16, 20),
             },
             {
                 'imo_number': '9512345',
@@ -126,7 +206,6 @@ class VesselPositionService:
                 'operator': 'Stena Line',
                 'destination': 'Hamburg',
                 'route': ('Singapore', 'Hamburg'),
-                'speed_range': (14, 18),
             },
             # Cargo Ships
             {
@@ -138,7 +217,6 @@ class VesselPositionService:
                 'operator': 'CMA CGM',
                 'destination': 'Shanghai',
                 'route': ('Los Angeles', 'Shanghai'),
-                'speed_range': (17, 21),
             },
             {
                 'imo_number': '9723456',
@@ -149,7 +227,6 @@ class VesselPositionService:
                 'operator': 'Diana Containerships',
                 'destination': 'Busan',
                 'route': ('Dubai', 'Busan'),
-                'speed_range': (12, 16),
             },
             {
                 'imo_number': '9834567',
@@ -160,7 +237,6 @@ class VesselPositionService:
                 'operator': 'Seatrade',
                 'destination': 'New York',
                 'route': ('Rotterdam', 'New York'),
-                'speed_range': (15, 19),
             },
             # Refrigerated Cargo Ships
             {
@@ -172,7 +248,6 @@ class VesselPositionService:
                 'operator': 'A.P. Moller-Maersk',
                 'destination': 'Dubai',
                 'route': ('Port Said', 'Dubai'),
-                'speed_range': (16, 20),
             },
             # Specialized Ships
             {
@@ -184,7 +259,6 @@ class VesselPositionService:
                 'operator': 'Boskalis',
                 'destination': 'Singapore',
                 'route': ('Hamburg', 'Singapore'),
-                'speed_range': (11, 15),
             },
             {
                 'imo_number': '9167890',
@@ -195,7 +269,6 @@ class VesselPositionService:
                 'operator': 'Nippon Yusen Kaisha',
                 'destination': 'Tokyo',
                 'route': ('Los Angeles', 'Tokyo'),
-                'speed_range': (18, 22),
             },
             {
                 'imo_number': '9278901',
@@ -206,7 +279,6 @@ class VesselPositionService:
                 'operator': 'Schiber',
                 'destination': 'Antwerp',
                 'route': ('Hamburg', 'Antwerp'),
-                'speed_range': (17, 21),
             },
             {
                 'imo_number': '9389012',
@@ -217,7 +289,6 @@ class VesselPositionService:
                 'operator': 'Universal Ocean Services',
                 'destination': 'Mumbai',
                 'route': ('Shanghai', 'Mumbai'),
-                'speed_range': (14, 18),
             },
             {
                 'imo_number': '9490123',
@@ -228,7 +299,6 @@ class VesselPositionService:
                 'operator': 'Maersk Supply Service',
                 'destination': 'Singapore',
                 'route': ('Dubai', 'Singapore'),
-                'speed_range': (12, 16),
             },
             {
                 'imo_number': '9501234',
@@ -239,7 +309,6 @@ class VesselPositionService:
                 'operator': 'Camper & Nicholsons',
                 'destination': 'Dubai',
                 'route': ('Rotterdam', 'Dubai'),
-                'speed_range': (14, 18),
             },
         ]
         
@@ -274,13 +343,28 @@ class VesselPositionService:
             
             for i, (lat, lon) in enumerate(route_points):
                 timestamp = now - timedelta(hours=24-i)
+                progress = i / (len(route_points) - 1) if len(route_points) > 1 else 0
+                
+                # Calculate unique speed for this vessel at this position
+                speed = VesselPositionService.calculate_speed_for_position(
+                    vessel_data['type'], 
+                    progress
+                )
+                
+                # Calculate course to next point
+                course = None
+                if i < len(route_points) - 1:
+                    next_lat, next_lon = route_points[i + 1]
+                    course = VesselPositionService.calculate_course(
+                        lat, lon, next_lat, next_lon
+                    )
                 
                 position = VesselPosition(
                     vessel=vessel,
                     latitude=lat + random.uniform(-0.05, 0.05),
                     longitude=lon + random.uniform(-0.05, 0.05),
-                    speed=None,  # Will be calculated on-the-fly
-                    course=None,  # Will be calculated on-the-fly
+                    speed=speed,
+                    course=course,
                     timestamp=timestamp,
                     source='mock',
                 )
@@ -361,12 +445,27 @@ class VesselPositionService:
                         new_lat = max(-90, min(90, new_lat))
                         new_lon = max(-180, min(180, new_lon))
                         
+                        # Calculate new speed based on vessel type
+                        # Assume mid-journey progress for continuous simulation
+                        new_speed = VesselPositionService.calculate_speed_for_position(
+                            vessel.type,
+                            0.5  # Mid-journey
+                        )
+                        
+                        # Calculate course
+                        new_course = VesselPositionService.calculate_course(
+                            latest_pos.latitude,
+                            latest_pos.longitude,
+                            new_lat,
+                            new_lon
+                        )
+                        
                         VesselPositionService.update_vessel_position(
                             vessel.id,
                             new_lat,
                             new_lon,
-                            speed=None,
-                            course=None,
+                            speed=new_speed,
+                            course=new_course,
                             source='mock'
                         )
                 

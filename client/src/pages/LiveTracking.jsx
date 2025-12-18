@@ -278,6 +278,17 @@ const LiveTracking = () => {
     speedRange: [0, 30]
   });
 
+  // Predefined vessel categories
+  const vesselCategories = [
+    { id: 'cargo', name: 'Cargo' },
+    { id: 'tanker', name: 'Tanker' },
+    { id: 'container', name: 'Container' },
+    { id: 'fishing', name: 'Fishing' },
+    { id: 'passenger', name: 'Passenger' },
+    { id: 'tug', name: 'Tug' },
+    { id: 'other', name: 'Other' }
+  ];
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
   // Clear message after 3 seconds
@@ -615,7 +626,7 @@ const LiveTracking = () => {
           <div className="space-y-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-slate-900 font-semibold text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg transition text-white font-semibold text-sm shadow-md"
             >
               <span className="flex items-center gap-2">
                 <Filter size={16} />
@@ -627,29 +638,27 @@ const LiveTracking = () => {
             {showFilters && (
               <>
                 {/* Vessel Type Filter */}
-                {uniqueTypes.length > 0 && (
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
-                      Vessel Type
-                    </label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {uniqueTypes.map(type => (
-                        <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={filters.types.includes(type)}
-                            onChange={() => toggleFilter('types', type)}
-                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-slate-700 group-hover:text-slate-900">{type}</span>
-                          <span className="text-xs text-slate-500 ml-auto">
-                            ({vessels.filter(v => v.type === type).length})
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
+                    Vessel Category
+                  </label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {vesselCategories.map(category => (
+                      <label key={category.id} className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={filters.types.includes(category.id)}
+                          onChange={() => toggleFilter('types', category.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-slate-700 group-hover:text-slate-900">{category.name}</span>
+                        <span className="text-xs text-slate-500 ml-auto">
+                          ({vessels.filter(v => v.type && v.type.toLowerCase().includes(category.id)).length})
+                        </span>
+                      </label>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* Flag Filter */}
                 {uniqueFlags.length > 0 && (
@@ -708,9 +717,9 @@ const LiveTracking = () => {
                 {/* Clear Filters */}
                 <button
                   onClick={clearFilters}
-                  className="w-full px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition"
+                  className="w-full mt-2 px-3 py-2 text-sm text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg font-medium shadow-md transition-colors"
                 >
-                  Clear Filters
+                  Clear all filters
                 </button>
               </>
             )}
@@ -741,7 +750,7 @@ const LiveTracking = () => {
                       <div>Type: {vessel.type || 'N/A'}</div>
                       <div>Flag: {vessel.flag || 'N/A'}</div>
                       <div>Dest: {vessel.destination || 'N/A'}</div>
-                      {vessel.speed && <div>Speed: {vessel.speed.toFixed(1)} kn</div>}
+                      {vessel.speed && <div>Speed: {vessel.speed.toFixed(1)} km</div>}
                     </div>
                   </div>
                 ))}
