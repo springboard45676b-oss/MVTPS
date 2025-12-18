@@ -27,8 +27,11 @@ class VesselPositionService:
         'Port Said': (31.2571, 32.2960),
         'Busan': (35.0979, 129.0245),
         'Antwerp': (51.3397, 4.2804),
+        'Mumbai': (19.0176, 72.8479),
+        'Tokyo': (35.4437, 139.6380),
+        'New York': (40.7128, -74.0060),
     }
-    
+
     @staticmethod
     def generate_realistic_route(start_port, end_port, num_points=24):
         """
@@ -57,6 +60,7 @@ class VesselPositionService:
         Generate comprehensive mock vessel data with realistic routes
         """
         vessels_data = [
+            # Container Ships
             {
                 'imo_number': '9625698',
                 'name': 'Ever Given',
@@ -64,6 +68,7 @@ class VesselPositionService:
                 'flag': 'Panama',
                 'cargo_type': 'Containers',
                 'operator': 'Evergreen Marine Corp',
+                'destination': 'Rotterdam',
                 'route': ('Singapore', 'Rotterdam'),
                 'speed_range': (18, 22),
             },
@@ -74,6 +79,7 @@ class VesselPositionService:
                 'flag': 'Liberia',
                 'cargo_type': 'Containers',
                 'operator': 'Mediterranean Shipping Company',
+                'destination': 'Los Angeles',
                 'route': ('Shanghai', 'Los Angeles'),
                 'speed_range': (19, 23),
             },
@@ -84,29 +90,157 @@ class VesselPositionService:
                 'flag': 'Hong Kong',
                 'cargo_type': 'Containers',
                 'operator': 'China Ocean Shipping Company',
+                'destination': 'Hamburg',
                 'route': ('Hong Kong', 'Hamburg'),
                 'speed_range': (17, 21),
             },
+            # Tankers
             {
                 'imo_number': '9641625',
-                'name': 'ONE Innovation',
-                'type': 'Container Ship',
+                'name': 'Nordic Tanker',
+                'type': 'Oil Tanker',
                 'flag': 'Panama',
-                'cargo_type': 'Containers',
-                'operator': 'Ocean Network Express',
-                'route': ('Busan', 'Rotterdam'),
-                'speed_range': (18, 22),
+                'cargo_type': 'Crude Oil',
+                'operator': 'Torm A/S',
+                'destination': 'Rotterdam',
+                'route': ('Dubai', 'Rotterdam'),
+                'speed_range': (13, 17),
             },
             {
                 'imo_number': '9494098',
+                'name': 'LNG Carrier One',
+                'type': 'LNG Tanker',
+                'flag': 'Denmark',
+                'cargo_type': 'Liquefied Natural Gas',
+                'operator': 'Maersk Line',
+                'destination': 'Tokyo',
+                'route': ('Port Said', 'Tokyo'),
+                'speed_range': (16, 20),
+            },
+            {
+                'imo_number': '9512345',
+                'name': 'Chemical Carrier',
+                'type': 'Chemical Tanker',
+                'flag': 'Singapore',
+                'cargo_type': 'Chemicals',
+                'operator': 'Stena Line',
+                'destination': 'Hamburg',
+                'route': ('Singapore', 'Hamburg'),
+                'speed_range': (14, 18),
+            },
+            # Cargo Ships
+            {
+                'imo_number': '9654321',
+                'name': 'Pacific Fortune',
+                'type': 'General Cargo Ship',
+                'flag': 'Panama',
+                'cargo_type': 'General Cargo',
+                'operator': 'CMA CGM',
+                'destination': 'Shanghai',
+                'route': ('Los Angeles', 'Shanghai'),
+                'speed_range': (17, 21),
+            },
+            {
+                'imo_number': '9723456',
+                'name': 'Bulk Carrier Star',
+                'type': 'Bulk Carrier',
+                'flag': 'Malta',
+                'cargo_type': 'Bulk Commodities',
+                'operator': 'Diana Containerships',
+                'destination': 'Busan',
+                'route': ('Dubai', 'Busan'),
+                'speed_range': (12, 16),
+            },
+            {
+                'imo_number': '9834567',
+                'name': 'Global Trader',
+                'type': 'Break Bulk Carrier',
+                'flag': 'Liberia',
+                'cargo_type': 'Heavy Lift Cargo',
+                'operator': 'Seatrade',
+                'destination': 'New York',
+                'route': ('Rotterdam', 'New York'),
+                'speed_range': (15, 19),
+            },
+            # Refrigerated Cargo Ships
+            {
+                'imo_number': '9945678',
                 'name': 'Maersk Seatrade',
                 'type': 'Refrigerated Cargo Ship',
                 'flag': 'Denmark',
                 'cargo_type': 'Refrigerated Goods',
                 'operator': 'A.P. Moller-Maersk',
+                'destination': 'Dubai',
                 'route': ('Port Said', 'Dubai'),
                 'speed_range': (16, 20),
-            }
+            },
+            # Specialized Ships
+            {
+                'imo_number': '9056789',
+                'name': 'Heavy Lift Vessel',
+                'type': 'Heavy Lift Ship',
+                'flag': 'Germany',
+                'cargo_type': 'Project Cargo',
+                'operator': 'Boskalis',
+                'destination': 'Singapore',
+                'route': ('Hamburg', 'Singapore'),
+                'speed_range': (11, 15),
+            },
+            {
+                'imo_number': '9167890',
+                'name': 'Vehicle Carrier One',
+                'type': 'Car Carrier',
+                'flag': 'Japan',
+                'cargo_type': 'Vehicles',
+                'operator': 'Nippon Yusen Kaisha',
+                'destination': 'Tokyo',
+                'route': ('Los Angeles', 'Tokyo'),
+                'speed_range': (18, 22),
+            },
+            {
+                'imo_number': '9278901',
+                'name': 'Ro-Ro Vessel',
+                'type': 'RoRo Ship',
+                'flag': 'Norway',
+                'cargo_type': 'Roll-on/Roll-off Cargo',
+                'operator': 'Schiber',
+                'destination': 'Antwerp',
+                'route': ('Hamburg', 'Antwerp'),
+                'speed_range': (17, 21),
+            },
+            {
+                'imo_number': '9389012',
+                'name': 'Multipurpose Vessel',
+                'type': 'Multipurpose Ship',
+                'flag': 'Hong Kong',
+                'cargo_type': 'General & Heavy Cargo',
+                'operator': 'Universal Ocean Services',
+                'destination': 'Mumbai',
+                'route': ('Shanghai', 'Mumbai'),
+                'speed_range': (14, 18),
+            },
+            {
+                'imo_number': '9490123',
+                'name': 'Offshore Supply Vessel',
+                'type': 'Offshore Supply Vessel',
+                'flag': 'Singapore',
+                'cargo_type': 'Offshore Equipment',
+                'operator': 'Maersk Supply Service',
+                'destination': 'Singapore',
+                'route': ('Dubai', 'Singapore'),
+                'speed_range': (12, 16),
+            },
+            {
+                'imo_number': '9501234',
+                'name': 'Yacht Support Vessel',
+                'type': 'Yacht Support Vessel',
+                'flag': 'Cayman Islands',
+                'cargo_type': 'Yacht Supplies',
+                'operator': 'Camper & Nicholsons',
+                'destination': 'Dubai',
+                'route': ('Rotterdam', 'Dubai'),
+                'speed_range': (14, 18),
+            },
         ]
         
         created_vessels = []
@@ -120,6 +254,7 @@ class VesselPositionService:
                     'flag': vessel_data['flag'],
                     'cargo_type': vessel_data['cargo_type'],
                     'operator': vessel_data['operator'],
+                    'destination': vessel_data['destination'],
                 }
             )
             
@@ -139,14 +274,13 @@ class VesselPositionService:
             
             for i, (lat, lon) in enumerate(route_points):
                 timestamp = now - timedelta(hours=24-i)
-                speed_min, speed_max = vessel_data['speed_range']
                 
                 position = VesselPosition(
                     vessel=vessel,
                     latitude=lat + random.uniform(-0.05, 0.05),
                     longitude=lon + random.uniform(-0.05, 0.05),
-                    speed=round(random.uniform(speed_min, speed_max), 2),
-                    course=round(random.uniform(0, 360), 2),
+                    speed=None,  # Will be calculated on-the-fly
+                    course=None,  # Will be calculated on-the-fly
                     timestamp=timestamp,
                     source='mock',
                 )
@@ -231,8 +365,8 @@ class VesselPositionService:
                             vessel.id,
                             new_lat,
                             new_lon,
-                            speed=round(random.uniform(5, 25), 2),
-                            course=round(random.uniform(0, 360), 2),
+                            speed=None,
+                            course=None,
                             source='mock'
                         )
                 

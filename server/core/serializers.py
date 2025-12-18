@@ -4,9 +4,75 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
+import math
 from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert
 
 User = get_user_model()
+
+# ============================================
+# POSITION CALCULATOR
+# ============================================
+
+class PositionCalculator:
+    """Calculate speed and course from GPS coordinates"""
+    
+    EARTH_RADIUS_KM = 6371.0
+    KNOTS_PER_KMH = 0.539957
+    
+    @staticmethod
+    def haversine_distance(lat1, lon1, lat2, lon2):
+        """Calculate distance between two coordinates in km"""
+        lat1_rad = math.radians(lat1)
+        lon1_rad = math.radians(lon1)
+        lat2_rad = math.radians(lat2)
+        lon2_rad = math.radians(lon2)
+        
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        
+        a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+        c = 2 * math.asin(math.sqrt(a))
+        
+        return PositionCalculator.EARTH_RADIUS_KM * c
+    
+    @staticmethod
+    def calculate_bearing(lat1, lon1, lat2, lon2):
+        """Calculate bearing (course) from point 1 to point 2 (0-360 degrees)"""
+        lat1_rad = math.radians(lat1)
+        lon1_rad = math.radians(lon1)
+        lat2_rad = math.radians(lat2)
+        lon2_rad = math.radians(lon2)
+        
+        dlon = lon2_rad - lon1_rad
+        
+        x = math.sin(dlon) * math.cos(lat2_rad)
+        y = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(dlon)
+        
+        bearing_rad = math.atan2(x, y)
+        bearing_deg = math.degrees(bearing_rad)
+        bearing_deg = (bearing_deg + 360) % 360
+        
+        return round(bearing_deg, 2)
+    
+    @staticmethod
+    def calculate_speed_and_course(lat1, lon1, timestamp1, lat2, lon2, timestamp2):
+        """Calculate speed (knots) and course from two positions"""
+        distance_km = PositionCalculator.haversine_distance(lat1, lon1, lat2, lon2)
+        time_diff = timestamp2 - timestamp1
+        hours = time_diff.total_seconds() / 3600
+        
+        if hours == 0 or distance_km < 0.01:
+            return {'speed': 0.0, 'course': 0.0}
+        
+        speed_kmh = distance_km / hours
+        speed_knots = speed_kmh * PositionCalculator.KNOTS_PER_KMH
+        course = PositionCalculator.calculate_bearing(lat1, lon1, lat2, lon2)
+        
+        return {
+            'speed': round(min(speed_knots, 30), 2),
+            'course': course
+        }
+
 
 # ============================================
 # USER SERIALIZERS
@@ -234,14 +300,17 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 # ============================================
-# VESSEL SERIALIZERS
+# VESSEL SERIALIZERS (UPDATED WITH CALCULATIONS)
 # ============================================
 
 class VesselSerializer(serializers.ModelSerializer):
     """
-    Serializer for Vessel model
-    Includes all vessel information and current position
+    Serializer for Vessel model with calculated speed and course
+    Speed and course are calculated on-the-fly from position history
     """
+    speed = serializers.SerializerMethodField()
+    course = serializers.SerializerMethodField()
+    
     class Meta:
         model = Vessel
         fields = (
@@ -250,13 +319,60 @@ class VesselSerializer(serializers.ModelSerializer):
             'name',
             'type',
             'flag',
+            'destination',
             'cargo_type',
             'operator',
             'last_position_lat',
             'last_position_lon',
-            'last_update'
+            'last_update',
+            'speed',
+            'course'
         )
-        read_only_fields = ('id', 'last_update')
+        read_only_fields = ('id', 'last_update', 'speed', 'course')
+    
+    def get_speed(self, obj):
+        """Calculate current speed from last two positions"""
+        try:
+            positions = VesselPosition.objects.filter(vessel=obj).order_by('-timestamp')[:2]
+            
+            if len(positions) >= 2:
+                latest = positions[0]
+                previous = positions[1]
+                
+                calc = PositionCalculator.calculate_speed_and_course(
+                    previous.latitude,
+                    previous.longitude,
+                    previous.timestamp,
+                    latest.latitude,
+                    latest.longitude,
+                    latest.timestamp
+                )
+                return calc['speed']
+            return None
+        except Exception as e:
+            return None
+    
+    def get_course(self, obj):
+        """Calculate current course from last two positions"""
+        try:
+            positions = VesselPosition.objects.filter(vessel=obj).order_by('-timestamp')[:2]
+            
+            if len(positions) >= 2:
+                latest = positions[0]
+                previous = positions[1]
+                
+                calc = PositionCalculator.calculate_speed_and_course(
+                    previous.latitude,
+                    previous.longitude,
+                    previous.timestamp,
+                    latest.latitude,
+                    latest.longitude,
+                    latest.timestamp
+                )
+                return calc['course']
+            return None
+        except Exception as e:
+            return None
 
 
 class VesselPositionSerializer(serializers.ModelSerializer):
@@ -286,8 +402,10 @@ class VesselPositionSerializer(serializers.ModelSerializer):
 
 class VesselDetailedSerializer(serializers.ModelSerializer):
     """
-    Detailed vessel serializer with recent positions
+    Detailed vessel serializer with calculated speed/course and recent positions
     """
+    speed = serializers.SerializerMethodField()
+    course = serializers.SerializerMethodField()
     recent_positions = serializers.SerializerMethodField()
     
     class Meta:
@@ -298,13 +416,49 @@ class VesselDetailedSerializer(serializers.ModelSerializer):
             'name',
             'type',
             'flag',
+            'destination',
             'cargo_type',
             'operator',
             'last_position_lat',
             'last_position_lon',
             'last_update',
+            'speed',
+            'course',
             'recent_positions'
         )
+        read_only_fields = ('id', 'last_update', 'speed', 'course')
+    
+    def get_speed(self, obj):
+        """Calculate current speed from last two positions"""
+        try:
+            positions = VesselPosition.objects.filter(vessel=obj).order_by('-timestamp')[:2]
+            if len(positions) >= 2:
+                latest = positions[0]
+                previous = positions[1]
+                calc = PositionCalculator.calculate_speed_and_course(
+                    previous.latitude, previous.longitude, previous.timestamp,
+                    latest.latitude, latest.longitude, latest.timestamp
+                )
+                return calc['speed']
+            return None
+        except Exception:
+            return None
+    
+    def get_course(self, obj):
+        """Calculate current course from last two positions"""
+        try:
+            positions = VesselPosition.objects.filter(vessel=obj).order_by('-timestamp')[:2]
+            if len(positions) >= 2:
+                latest = positions[0]
+                previous = positions[1]
+                calc = PositionCalculator.calculate_speed_and_course(
+                    previous.latitude, previous.longitude, previous.timestamp,
+                    latest.latitude, latest.longitude, latest.timestamp
+                )
+                return calc['course']
+            return None
+        except Exception:
+            return None
     
     def get_recent_positions(self, obj):
         """Get last 10 positions"""

@@ -1,7 +1,133 @@
-// client/src/pages/Vessels.jsx - Updated with search/filter
+// client/src/pages/Vessels.jsx - Updated with destination field
 import React, { useState, useEffect, useRef } from 'react';
 import { Anchor, MapPin, Ship, TrendingUp, RefreshCw, Zap, AlertCircle } from 'lucide-react';
 import VesselSearchFilter from '../components/VesselSearchFilter';
+
+// Beautiful Loading Animation Component
+const LoadingAnimation = () => {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-ring {
+          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+          70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+
+        @keyframes dash {
+          0% { stroke-dashoffset: 1000; }
+          100% { stroke-dashoffset: 0; }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1); }
+        }
+
+        .spinner-circle {
+          animation: spin 3s linear infinite;
+        }
+
+        .pulse-ring {
+          animation: pulse-ring 2s infinite;
+        }
+
+        .floating {
+          animation: float 2s ease-in-out infinite;
+        }
+
+        .dash-circle {
+          animation: dash 2s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="flex flex-col items-center gap-8">
+        {/* Main circular loader */}
+        <div className="relative w-32 h-32">
+          {/* Outer pulsing ring */}
+          <div className="absolute inset-0 rounded-full pulse-ring border-4 border-blue-400"></div>
+
+          {/* SVG circular progress */}
+          <svg
+            className="w-32 h-32 -rotate-90"
+            viewBox="0 0 120 120"
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3))' }}
+          >
+            {/* Background circle */}
+            <circle
+              cx="60"
+              cy="60"
+              r="54"
+              fill="none"
+              stroke="#e0e7ff"
+              strokeWidth="3"
+            />
+            {/* Animated circle */}
+            <circle
+              cx="60"
+              cy="60"
+              r="54"
+              fill="none"
+              stroke="url(#gradient)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="dash-circle"
+              strokeDasharray="1000"
+            />
+            <defs>
+              <linearGradient
+                id="gradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#06b6d4" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          {/* Inner spinning dot */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
+          </div>
+        </div>
+
+        {/* Text content */}
+        <div className="floating text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            Loading Fleet Data
+          </h2>
+          <p className="text-slate-600">Connecting to database...</p>
+        </div>
+
+        {/* Animated dots */}
+        <div className="flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-blue-500"
+              style={{
+                animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
+              }}
+            ></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const VesselsPage = () => {
   const [allVessels, setAllVessels] = useState([]);
@@ -202,25 +328,10 @@ const VesselsPage = () => {
     }
   };
 
- if (loading && allVessels.length === 0) {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        {/* Animated Spinner */}
-        <div className="flex justify-center mb-4">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-600 animate-spin"></div>
-          </div>
-        </div>
-        
-        {/* Loading Text */}
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Fleet Data</h3>
-        <p className="text-slate-600">Please wait while we fetch your vessel information...</p>
-      </div>
-    </div>
-  );
-}
+  // Use beautiful loading animation
+  if (loading && allVessels.length === 0) {
+    return <LoadingAnimation />;
+  }
 
   return (
     <div className="space-y-6 pb-6">
@@ -281,7 +392,7 @@ const VesselsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Vessels List */}
         <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200">
-          <div className="p-4 border-b border-slate-200 `bg-gradient-to-r` from-blue-50 to-slate-50">
+          <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-slate-50">
             <h2 className="font-semibold text-slate-900 flex items-center gap-2">
               <Ship size={18} className="text-blue-600" /> Results ({filteredVessels.length})
             </h2>
@@ -307,6 +418,7 @@ const VesselsPage = () => {
                   <div className="text-xs text-slate-600 mt-1">IMO: {vessel.imo_number}</div>
                   <div className="text-xs text-slate-600">Type: {vessel.type}</div>
                   <div className="text-xs text-slate-600">Flag: {vessel.flag}</div>
+                  <div className="text-xs text-blue-600 font-medium">Dest: {vessel.destination || 'N/A'}</div>
                   {vessel.last_position_lat && vessel.last_position_lon && (
                     <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
                       <MapPin size={12} />
@@ -353,7 +465,11 @@ const VesselsPage = () => {
                     <div className="text-xs text-slate-600">Operator</div>
                     <div className="font-medium text-slate-900">{selectedVessel.operator}</div>
                   </div>
-                  <div className="col-span-2">
+                  <div>
+                    <div className="text-xs text-slate-600">Destination</div>
+                    <div className="font-medium text-blue-600">{selectedVessel.destination || 'N/A'}</div>
+                  </div>
+                  <div>
                     <div className="text-xs text-slate-600">Current Position</div>
                     <div className="font-medium text-slate-900">
                       {selectedVessel.last_position_lat?.toFixed(4)}°N, {selectedVessel.last_position_lon?.toFixed(4)}°E
@@ -370,7 +486,7 @@ const VesselsPage = () => {
 
               {/* Statistics Card */}
               {vesselStats && (
-                <div className="`bg-gradient-to-br` from-blue-50 to-slate-50 rounded-xl border border-slate-200 p-6">
+                <div className="bg-gradient-to-br from-blue-50 to-slate-50 rounded-xl border border-slate-200 p-6">
                   <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <TrendingUp size={18} className="text-blue-600" /> Movement Statistics
                   </h3>

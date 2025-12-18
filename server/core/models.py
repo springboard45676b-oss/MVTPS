@@ -112,7 +112,7 @@ class User(AbstractBaseUser):
 class Vessel(models.Model):
     """
     Vessel model matching ERD schema exactly:
-    - id, imo_number, name, type, flag, cargo_type, operator, last_position_lat, last_position_lon, last_update
+    - id, imo_number, name, type, flag, cargo_type, operator, destination, last_position_lat, last_position_lon, last_update
     """
     imo_number = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=255)
@@ -120,6 +120,7 @@ class Vessel(models.Model):
     flag = models.CharField(max_length=100)
     cargo_type = models.CharField(max_length=100)
     operator = models.CharField(max_length=255)
+    destination = models.CharField(max_length=255, null=True, blank=True)  # NEW FIELD
     last_position_lat = models.FloatField(null=True, blank=True)
     last_position_lon = models.FloatField(null=True, blank=True)
     last_update = models.DateTimeField(auto_now=True)
