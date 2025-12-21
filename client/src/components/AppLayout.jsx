@@ -1,8 +1,11 @@
+// src/components/AppLayout.jsx (UPDATED)
 import React, { useState, useEffect } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
+import { useNotificationWebSocket } from "../hooks/useNotificationWebSocket.jsx";
 import DarkModeToggle from "./DarkModeToggle";
 import { Ship, Bell } from "lucide-react";
+import toast from "react-hot-toast";
 
 const navItems = [
   { to: "/admin/dashboard", label: "Dashboard" },
@@ -27,8 +30,9 @@ const LogoutLoadingScreen = () => (
   </div>
 );
 
-const Navbar = () => {
+const Navbar = ({ isConnected }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -65,12 +69,12 @@ const Navbar = () => {
       const notificationsList = Array.isArray(data) ? data : (data.results || []);
       
       // Sort by newest first
-      notificationsList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      notificationsList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       
       setNotifications(notificationsList);
       
       // Count unread notifications
-      const unread = notificationsList.filter(n => n.status !== 'read').length;
+      const unread = notificationsList.filter(n => n.status === 'unread').length;
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -107,11 +111,19 @@ const Navbar = () => {
       if (!token) return;
 
       // Mark all as read
-      for (const notification of notifications.filter(n => n.status !== 'read')) {
+      for (const notification of notifications.filter(n => n.status === 'unread')) {
         await markNotificationAsRead(notification.id);
       }
     } catch (error) {
       console.error('Error clearing notifications:', error);
+    }
+  };
+
+  const handleNotificationClick = (notification) => {
+    // Redirect to vessel in live tracking if vessel_id exists
+    if (notification.vessel_id) {
+      setNotificationsOpen(false);
+      navigate(`/live-tracking?vessel=${notification.vessel_id}`);
     }
   };
 
@@ -184,6 +196,11 @@ const Navbar = () => {
                 {unreadCount > 0 && (
                   <div className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
                 )}
+
+                {/* WebSocket Connection Indicator */}
+                {isConnected && (
+                  <div className="absolute top-0.5 left-0.5 h-2 w-2 bg-green-500 rounded-full animate-pulse" title="WebSocket Connected" />
+                )}
               </button>
 
               {/* Notifications Dropdown */}
@@ -218,29 +235,21 @@ const Navbar = () => {
                       notifications.map((notification) => (
                         <div
                           key={notification.id}
-                          onClick={() => {
-                            if (notification.status !== 'read') {
-                              markNotificationAsRead(notification.id);
-                            }
-                          }}
-                          className={`px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition ${
-                            notification.status !== 'read' ? 'bg-blue-50' : ''
-                          }`}
+                          onClick={() => handleNotificationClick(notification)}
+                          className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition"
                         >
                           <div className="flex items-start gap-3">
-                            {/* Unread Indicator */}
-                            {notification.status !== 'read' && (
-                              <div className="h-2 w-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
-                            )}
+                            {/* Icon */}
+                            <div className="h-2 w-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
                             
                             {/* Content */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <p className={`text-sm ${notification.status !== 'read' ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>
+                                <p className="text-sm font-semibold text-slate-900">
                                   {notification.type?.toUpperCase() || 'NOTIFICATION'}
                                 </p>
                                 <span className="text-xs text-slate-500 flex-shrink-0">
-                                  {formatTime(notification.created_at)}
+                                  {formatTime(notification.timestamp)}
                                 </span>
                               </div>
                               <p className="text-sm text-slate-600 mt-1 line-clamp-2">
@@ -358,9 +367,18 @@ const Footer = () => (
 );
 
 const AppLayout = () => {
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // Setup WebSocket notifications
+  useNotificationWebSocket((notification) => {
+    // This callback is called whenever a new notification is received via WebSocket
+    console.log('Notification received:', notification);
+    setWsConnected(true);
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      <Navbar />
+      <Navbar isConnected={wsConnected} />
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Outlet />
       </main>

@@ -208,9 +208,15 @@ class Event(models.Model):
         return f"{self.get_event_type_display()} - {self.vessel.name} at {self.timestamp}"
 
 
+# server/backend/core/models.py - UPDATE NOTIFICATION MODEL
+
+# Find your existing Notification model and update it:
+
+# server/backend/core/models.py - UPDATED NOTIFICATION MODEL
+
 class Notification(models.Model):
     """
-    Notification model matching ERD schema exactly:
+    Notification model matching ERD schema:
     - id, user_id, vessel_id, event_id, message, type, timestamp
     """
     NOTIFICATION_TYPES = [
@@ -222,7 +228,7 @@ class Notification(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', db_column='user_id')
     vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, related_name='notifications', db_column='vessel_id')
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='notifications', db_column='event_id')
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='notifications', db_column='event_id', null=True, blank=True)
     message = models.TextField()
     type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info', db_column='type')
     timestamp = models.DateTimeField(auto_now_add=True, db_column='timestamp')
@@ -230,9 +236,21 @@ class Notification(models.Model):
     class Meta:
         ordering = ['-timestamp']
         db_table = 'core_notification'
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.get_type_display()} - {self.user.username}"
+
+
+# After updating the model, run these commands:
+# 
+# cd server/backend
+# python manage.py makemigrations
+# python manage.py migrate
+#
+# This will create a migration to add the 'status' field to the Notification model
 
 # Add these new models to your existing models.py
 

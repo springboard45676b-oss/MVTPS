@@ -1,3 +1,5 @@
+# server/backend/core/urls.py - UPDATED
+
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
@@ -20,6 +22,10 @@ from .views import (
     VesselSubscriptionDetailAPI,
     UserAlertsAPI,
     AlertMarkAsReadAPI,
+    # NEW: Notification views
+    UserNotificationsAPI,
+    NotificationDetailAPI,
+    MarkAllNotificationsAsReadAPI,
 )
 
 urlpatterns = [
@@ -50,6 +56,13 @@ urlpatterns = [
     path('users/subscriptions/<int:pk>/', VesselSubscriptionDetailAPI.as_view(), name='subscription-detail'),
     path('users/alerts/', UserAlertsAPI.as_view(), name='user-alerts'),
     path('alerts/<int:alert_id>/mark-read/', AlertMarkAsReadAPI.as_view(), name='mark-alert-read'),
+    
+    # ============================================
+    # NOTIFICATION ENDPOINTS - /api/users/notifications/*
+    # ============================================
+    path('users/notifications/', UserNotificationsAPI.as_view(), name='user-notifications-list'),
+    path('users/notifications/<int:pk>/', NotificationDetailAPI.as_view(), name='notification-detail'),
+    path('users/notifications/mark-all-read/', MarkAllNotificationsAsReadAPI.as_view(), name='mark-all-notifications-read'),
     
     # ============================================
     # DATA GENERATION - /api/*

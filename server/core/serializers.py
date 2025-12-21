@@ -493,3 +493,114 @@ class VesselAlertSerializer(serializers.ModelSerializer):
         model = VesselAlert
         fields = ('id', 'subscription', 'vessel_name', 'alert_type', 'message', 'status', 'created_at', 'read_at')
         read_only_fields = ('id', 'created_at')
+
+# server/backend/core/serializers.py - UPDATED (NO STATUS FIELD)
+
+from rest_framework import serializers
+from .models import Notification, VesselAlert, VesselSubscription, Vessel
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for Notification model"""
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    event_type = serializers.CharField(source='event.event_type', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'user',
+            'user_username',
+            'vessel',
+            'vessel_name',
+            'event',
+            'event_type',
+            'message',
+            'type',
+            'timestamp',
+        ]
+        read_only_fields = ['id', 'timestamp', 'user', 'vessel', 'event']
+
+
+class VesselAlertSerializer(serializers.ModelSerializer):
+    """Serializer for VesselAlert model"""
+    subscription_vessel_name = serializers.CharField(source='subscription.vessel.name', read_only=True)
+    subscription_user = serializers.CharField(source='subscription.user.username', read_only=True)
+    
+    class Meta:
+        model = VesselAlert
+        fields = [
+            'id',
+            'subscription',
+            'subscription_vessel_name',
+            'subscription_user',
+            'alert_type',
+            'message',
+            'status',
+            'created_at',
+            'read_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'read_at']
+
+
+class VesselSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for VesselSubscription model"""
+    vessel_details = serializers.SerializerMethodField()
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    
+    class Meta:
+        model = VesselSubscription
+        fields = [
+            'id',
+            'user',
+            'user_username',
+            'vessel',
+            'vessel_details',
+            'is_active',
+            'alert_type',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+    
+    def get_vessel_details(self, obj):
+        """Include basic vessel information"""
+        vessel = obj.vessel
+        return {
+            'id': vessel.id,
+            'name': vessel.name,
+            'imo_number': vessel.imo_number,
+            'type': vessel.type,
+            'flag': vessel.flag,
+        }
+    
+    def create(self, validated_data):
+        """
+        Handle subscription creation or toggle
+        If subscription exists, toggle is_active
+        """
+        user = self.context['request'].user
+        vessel = validated_data.get('vessel')
+        alert_type = validated_data.get('alert_type', 'all')
+        
+        if not vessel:
+            raise serializers.ValidationError({'vessel': 'Vessel is required'})
+        
+        # Check if subscription already exists
+        subscription, created = VesselSubscription.objects.get_or_create(
+            user=user,
+            vessel=vessel,
+            defaults={
+                'is_active': True,
+                'alert_type': alert_type
+            }
+        )
+        
+        # If it exists, toggle is_active and update alert_type
+        if not created:
+            subscription.is_active = not subscription.is_active
+            subscription.alert_type = alert_type
+            subscription.save()
+        
+        return subscription
