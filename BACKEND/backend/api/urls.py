@@ -1,9 +1,11 @@
 from django.urls import path
-from .views import hello, register, login, get_roles
+from .views import hello, register, login, get_roles, vessel_list, vessel_positions
 
 urlpatterns = [
     path('hello/', hello),
     path('register/', register),
     path('login/', login),
     path('roles/', get_roles),
+    path('vessels/', vessel_list),
+    path('vessels/<str:imo_number>/positions/', vessel_positions),
 ]

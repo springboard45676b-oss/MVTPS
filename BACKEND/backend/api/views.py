@@ -103,3 +103,39 @@ def get_roles(request):
         {'value': 'analyst', 'label': 'Analyst'},
     ]
     return Response({'roles': roles}, status=status.HTTP_200_OK)
+
+
+
+# Additional views for vessel data can be added here in the future.
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Vessel
+from .serializers import VesselSerializer
+
+
+@api_view(['GET'])
+def vessel_list(request):
+    """
+    GET /api/vessels/
+    """
+    vessels = Vessel.objects.all()
+    serializer = VesselSerializer(vessels, many=True)
+    return Response(serializer.data)
+
+
+# Additional views for vessel data can be added here in the future.
+from .models import VesselPosition
+from .serializers import VesselPositionSerializer
+
+
+@api_view(['GET'])
+def vessel_positions(request, imo_number):
+    """
+    GET /api/vessels/{imo}/positions/
+    """
+    positions = VesselPosition.objects.filter(
+        vessel__imo_number=imo_number
+    ).order_by('-timestamp')
+
+    serializer = VesselPositionSerializer(positions, many=True)
+    return Response(serializer.data)

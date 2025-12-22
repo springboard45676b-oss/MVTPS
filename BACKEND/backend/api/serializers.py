@@ -67,3 +67,44 @@ class LoginSerializer(serializers.Serializer):
         
         data['user'] = user
         return data
+
+
+# Additional serializers can be added here as needed for other models
+# ===============================
+# Vessel & Position Serializers
+# (Milestone-2)
+# ===============================
+
+from .models import Vessel, VesselPosition
+
+
+class VesselSerializer(serializers.ModelSerializer):
+    normalized_cargo = serializers.SerializerMethodField()
+    class Meta:
+        model = Vessel
+        fields = [
+            'imo_number',
+            'name',
+            'type',
+            'flag',
+            'cargo_type',
+            'normalized_cargo',
+            'operator',
+            'last_position_lat',
+            'last_position_lon',
+            'last_update',
+        ]
+    def get_normalized_cargo(self, obj):
+        return obj.get_normalized_cargo()
+
+
+class VesselPositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VesselPosition
+        fields = [
+            'latitude',
+            'longitude',
+            'speed',
+            'course',
+            'timestamp',
+        ]
