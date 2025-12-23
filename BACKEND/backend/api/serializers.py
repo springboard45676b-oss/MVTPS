@@ -79,6 +79,10 @@ from .models import Vessel, VesselPosition
 
 
 class VesselSerializer(serializers.ModelSerializer):
+    course = serializers.SerializerMethodField()
+
+    def get_course(self, obj):
+        return 90  # east (demo)
     normalized_cargo = serializers.SerializerMethodField()
     class Meta:
         model = Vessel
@@ -93,6 +97,8 @@ class VesselSerializer(serializers.ModelSerializer):
             'last_position_lat',
             'last_position_lon',
             'last_update',
+            'last_course',
+            'course',
         ]
     def get_normalized_cargo(self, obj):
         return obj.get_normalized_cargo()

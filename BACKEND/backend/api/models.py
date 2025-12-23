@@ -15,6 +15,7 @@ class Vessel(models.Model):
     # live position snapshot
     last_position_lat = models.FloatField(null=True, blank=True)
     last_position_lon = models.FloatField(null=True, blank=True)
+    last_course = models.FloatField(null=True, blank=True)  # ✅ ADD
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
