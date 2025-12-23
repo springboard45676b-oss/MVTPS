@@ -3,7 +3,7 @@ import React from 'react';
 
 const LoadingAnimation = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="fixed inset-0 top-[73px] `bg-gradient-to-br` from-blue-50 to-indigo-100 flex items-center justify-center">
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -62,7 +62,7 @@ const LoadingAnimation = () => {
             </defs>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
+            <div className="w-12 h-12 rounded-full `bg-gradient-to-br` from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
           </div>
         </div>
 

@@ -67,7 +67,6 @@ class User(AbstractBaseUser):
         db_table = 'core_user'
         verbose_name = _('user')
         verbose_name_plural = _('users')
-        # Exclude Django's default permissions system fields from admin
         swappable = 'AUTH_USER_MODEL'
 
     def __str__(self):
@@ -84,7 +83,6 @@ class User(AbstractBaseUser):
         self.full_clean()
         super().save(*args, **kwargs)
     
-    # Required for Django admin interface but won't be in database schema
     @property
     def is_staff(self):
         """Required for Django admin - returns True for admin role"""
@@ -120,7 +118,7 @@ class Vessel(models.Model):
     flag = models.CharField(max_length=100)
     cargo_type = models.CharField(max_length=100)
     operator = models.CharField(max_length=255)
-    destination = models.CharField(max_length=255, null=True, blank=True)  # NEW FIELD
+    destination = models.CharField(max_length=255, null=True, blank=True)
     last_position_lat = models.FloatField(null=True, blank=True)
     last_position_lon = models.FloatField(null=True, blank=True)
     last_update = models.DateTimeField(auto_now=True)
@@ -208,16 +206,12 @@ class Event(models.Model):
         return f"{self.get_event_type_display()} - {self.vessel.name} at {self.timestamp}"
 
 
-# server/backend/core/models.py - UPDATE NOTIFICATION MODEL
-
-# Find your existing Notification model and update it:
-
-# server/backend/core/models.py - UPDATED NOTIFICATION MODEL
-
 class Notification(models.Model):
     """
-    Notification model matching ERD schema:
+    Notification model matching ERD schema with new fields:
     - id, user_id, vessel_id, event_id, message, type, timestamp
+    - is_read (NEW) - Boolean for read status
+    - event_type (NEW) - varchar for position_update, arrival, departure
     """
     NOTIFICATION_TYPES = [
         ('info', 'Information'),
@@ -226,33 +220,41 @@ class Notification(models.Model):
         ('update', 'Update'),
     ]
 
+    EVENT_TYPES = [
+        ('position_update', 'Position Update'),
+        ('arrival', 'Arrival'),
+        ('departure', 'Departure'),
+        ('unknown', 'Unknown'),
+    ]
+
+    # EXACT SCHEMA FROM ERD
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', db_column='user_id')
     vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, related_name='notifications', db_column='vessel_id')
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='notifications', db_column='event_id', null=True, blank=True)
     message = models.TextField()
     type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info', db_column='type')
     timestamp = models.DateTimeField(auto_now_add=True, db_column='timestamp')
+    
+    # NEW FIELDS
+    is_read = models.BooleanField(default=False, db_column='is_read')
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, default='unknown', db_column='event_type')
 
     class Meta:
         ordering = ['-timestamp']
         db_table = 'core_notification'
         indexes = [
             models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['is_read', '-timestamp']),
         ]
 
     def __str__(self):
         return f"{self.get_type_display()} - {self.user.username}"
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        self.is_read = True
+        self.save()
 
-
-# After updating the model, run these commands:
-# 
-# cd server/backend
-# python manage.py makemigrations
-# python manage.py migrate
-#
-# This will create a migration to add the 'status' field to the Notification model
-
-# Add these new models to your existing models.py
 
 class VesselPosition(models.Model):
     """
@@ -262,8 +264,8 @@ class VesselPosition(models.Model):
     vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, related_name='positions', db_column='vessel_id')
     latitude = models.FloatField()
     longitude = models.FloatField()
-    speed = models.FloatField(null=True, blank=True)  # Speed in knots
-    course = models.FloatField(null=True, blank=True)  # Course/heading in degrees
+    speed = models.FloatField(null=True, blank=True)
+    course = models.FloatField(null=True, blank=True)
     timestamp = models.DateTimeField()
     source = models.CharField(max_length=20, choices=[('marinetraffic', 'MarineTraffic'), ('aishub', 'AIS Hub')], default='marinetraffic')
     
@@ -300,8 +302,7 @@ class APIKey(models.Model):
 
     def __str__(self):
         return f"{self.service} - {'Active' if self.is_active else 'Inactive'}"
-    
-# server/backend/core/models.py - ADD THESE MODELS
+
 
 class VesselSubscription(models.Model):
     """
@@ -326,7 +327,7 @@ class VesselSubscription(models.Model):
     
     class Meta:
         db_table = 'core_vessel_subscription'
-        unique_together = ('user', 'vessel')  # One subscription per user per vessel
+        unique_together = ('user', 'vessel')
         indexes = [
             models.Index(fields=['user', 'is_active']),
             models.Index(fields=['vessel', 'is_active']),

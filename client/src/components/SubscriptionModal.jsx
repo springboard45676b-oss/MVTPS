@@ -1,7 +1,7 @@
 // src/components/SubscriptionModal.jsx
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Bell, X, AlertCircle } from 'lucide-react';
+import { Bell, X, AlertCircle, Trash2, CheckCircle } from 'lucide-react';
 
 const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -36,10 +36,115 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
       if (subscription) {
         setIsSubscribed(subscription.is_active);
         setAlertType(subscription.alert_type);
+      } else {
+        setIsSubscribed(false);
+        setAlertType('all');
       }
     } catch (error) {
       console.error('Error checking subscription:', error);
     }
+  };
+
+  // Custom success toast
+  const showSuccessToast = (title, subtitle, detail) => {
+    toast.custom(
+      (t) => (
+        <div className="bg-white rounded-sm shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between p-4 gap-4">
+            <p className="text-gray-800 text-sm">
+              <span className="font-bold">{title}</span> for <span className="font-semibold">{subtitle}</span>
+              {detail && (
+                <>
+                  {' '}· <span className="text-gray-600">{detail}</span>
+                </>
+              )}
+            </p>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close notification"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="h-1 bg-gray-200 overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{
+                animation: `slideOut 8s linear forwards`,
+              }}
+            />
+          </div>
+        </div>
+      ),
+      {
+        duration: 8000,
+        position: 'top-right'
+      }
+    );
+  };
+
+  // Custom error toast
+  const showErrorToast = (title, subtitle) => {
+    toast.custom(
+      (t) => (
+        <div className="bg-white rounded-sm shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between p-4 gap-4">
+            <p className="text-gray-800 text-sm">
+              <span className="font-bold">{title}</span>
+              {subtitle && (
+                <>
+                  {' '}· <span className="text-gray-600">{subtitle}</span>
+                </>
+              )}
+            </p>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close notification"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="h-1 bg-gray-200 overflow-hidden">
+            <div
+              className="h-full bg-red-500 transition-all"
+              style={{
+                animation: `slideOut 8s linear forwards`,
+              }}
+            />
+          </div>
+        </div>
+      ),
+      {
+        duration: 8000,
+        position: 'top-right'
+      }
+    );
   };
 
   const handleToggleSubscription = async () => {
@@ -47,7 +152,7 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        toast.error('You must be logged in');
+        showErrorToast('Error', 'You must be logged in');
         setLoading(false);
         return;
       }
@@ -71,67 +176,38 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
       const data = await response.json();
       setIsSubscribed(data.is_active);
       
-      // 🔥 SHOW TOAST IMMEDIATELY WHEN ALERT IS ENABLED
       if (data.is_active) {
-        toast.success(
-          (t) => (
-            <div className="flex flex-col gap-2">
-              <span className="font-bold text-lg">🔔 Alerts Enabled!</span>
-              <span className="text-sm">{vessel.name}</span>
-              <span className="text-xs opacity-90">Type: {alertType.replace('_', ' ').toUpperCase()}</span>
-            </div>
-          ),
-          {
-            duration: 5000,
-            position: 'top-right',
-            style: {
-              borderRadius: '12px',
-              background: '#10b981',
-              color: '#fff',
-              padding: '16px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            }
-          }
+        showSuccessToast(
+          'Alerts Enabled',
+          vessel.name,
+          `Type: ${alertType.replace('_', ' ').toUpperCase()}`
         );
       } else {
-        toast(
-          (t) => (
-            <div className="flex flex-col gap-2">
-              <span className="font-bold text-lg">🔕 Alerts Disabled</span>
-              <span className="text-sm">{vessel.name}</span>
-            </div>
-          ),
-          {
-            duration: 4000,
-            position: 'top-right',
-            icon: '🔕',
-            style: {
-              borderRadius: '12px',
-              background: '#6b7280',
-              color: '#fff',
-              padding: '16px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            }
-          }
+        showSuccessToast(
+          'Alerts Removed',
+          vessel.name,
+          ''
         );
       }
       
       setMessage({
         type: 'success',
         text: data.is_active 
-          ? `✅ Subscribed to ${vessel.name} alerts` 
-          : `🔕 Unsubscribed from ${vessel.name}`
+          ? `Subscribed to ${vessel.name} alerts` 
+          : `Unsubscribed from ${vessel.name}`
       });
       
       if (onSubscriptionChange) {
         onSubscriptionChange();
       }
+
+      // Close modal after 1 second
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     } catch (error) {
       console.error('Error updating subscription:', error);
-      toast.error('❌ Failed to update subscription', {
-        duration: 3000,
-        position: 'top-right',
-      });
+      showErrorToast('Failed to Update', 'Could not update subscription settings');
       setMessage({ type: 'error', text: 'Failed to update subscription' });
     } finally {
       setLoading(false);
@@ -143,7 +219,7 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        toast.error('You must be logged in');
+        showErrorToast('Error', 'You must be logged in');
         setLoading(false);
         return;
       }
@@ -164,37 +240,28 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
         throw new Error('Failed to update alert type');
       }
 
-      toast.success(
-        (t) => (
-          <div className="flex flex-col gap-2">
-            <span className="font-bold">✅ Alert Type Updated</span>
-            <span className="text-sm">{alertType.replace('_', ' ').toUpperCase()}</span>
-            <span className="text-xs opacity-90">for {vessel.name}</span>
-          </div>
-        ),
-        {
-          duration: 4000,
-          position: 'top-right',
-          style: {
-            borderRadius: '12px',
-            background: '#3b82f6',
-            color: '#fff',
-            padding: '16px',
-          }
-        }
+      showSuccessToast(
+        `Alert type set to ${alertType.replace('_', ' ').toUpperCase()}`,
+        vessel.name,
+        ''
       );
       
       setMessage({
         type: 'success',
-        text: `✅ Alert type updated to ${alertType.replace('_', ' ')}`
+        text: `Alert type updated to ${alertType.replace('_', ' ')}`
       });
       
       if (onSubscriptionChange) {
         onSubscriptionChange();
       }
+
+      // Close modal after 1 second
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     } catch (error) {
       console.error('Error updating alert type:', error);
-      toast.error('Failed to update alert type');
+      showErrorToast('Failed to Update', 'Could not update alert type');
       setMessage({ type: 'error', text: 'Failed to update alert type' });
     } finally {
       setLoading(false);
@@ -202,76 +269,47 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-            <Bell size={18} className="text-blue-600" /> Alert Settings
-          </h3>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        {/* Header */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8">
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-lg">
+              <Bell size={24} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-lg">Alert Settings</h3>
+              <p className="text-blue-100 text-sm">{vessel.name}</p>
+            </div>
+          </div>
         </div>
 
-        {message.text && (
-          <div className={`p-3 rounded-lg mb-4 flex items-center gap-2 text-sm ${
-            message.type === 'error'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-green-100 text-green-700'
-          }`}>
-            <AlertCircle size={16} />
-            {message.text}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Subscription Status Message */}
-          <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
-            isSubscribed
-              ? 'bg-green-100 text-green-700'
-              : 'bg-blue-100 text-blue-700'
-          }`}>
-            <AlertCircle size={16} />
-            {isSubscribed 
-              ? `Subscribed to ${vessel.name} alerts`
-              : `Unsubscribed from ${vessel.name}`
-            }
-          </div>
-
-          {/* Subscription Toggle */}
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <div>
-              <p className="font-medium text-slate-900">Enable Alerts for {vessel.name}</p>
-              <p className="text-sm text-slate-600">Receive notifications about this vessel</p>
-            </div>
-            <button
-              onClick={handleToggleSubscription}
-              disabled={loading}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition ${
-                isSubscribed
-                  ? 'bg-green-600'
-                  : 'bg-slate-300'
-              } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition ${
-                  isSubscribed ? 'translate-x-7' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Alert Type Selection - Only show if subscribed */}
+        <div className="p-6 space-y-5">
+          {/* Status Badge */}
           {isSubscribed && (
-            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <label className="block text-sm font-medium text-slate-900">Alert Type</label>
+            <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <CheckCircle size={20} className="text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Active Subscription</p>
+                <p className="text-xs text-emerald-700">Receiving alerts for this vessel</p>
+              </div>
+            </div>
+          )}
+
+          {/* Alert Type Selection */}
+          {isSubscribed && (
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-900">Alert Type</label>
               <select
                 value={alertType}
                 onChange={(e) => setAlertType(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-gray-50 hover:bg-white"
               >
                 <option value="all">All Events</option>
                 <option value="position_update">Position Updates Only</option>
@@ -282,20 +320,53 @@ const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
               <button
                 onClick={handleUpdateAlertType}
                 disabled={loading}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium"
+                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm"
               >
-                {loading ? 'Updating...' : 'Update Alert Type'}
+                {loading ? 'Updating...' : 'Update Type'}
               </button>
             </div>
           )}
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-800">
-              <strong>Note:</strong> You'll receive notifications based on your selected alert type.
+          {/* Action Button */}
+          {isSubscribed ? (
+            <button
+              onClick={handleToggleSubscription}
+              disabled={loading}
+              className="w-full px-4 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold text-sm flex items-center justify-center gap-2 border border-red-200"
+            >
+              <Trash2 size={18} />
+              Remove Alert
+            </button>
+          ) : (
+            <button
+              onClick={handleToggleSubscription}
+              disabled={loading}
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              <Bell size={18} />
+              Enable Alerts
+            </button>
+          )}
+
+          {/* Info Section */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-xs text-gray-700 leading-relaxed">
+              <span className="font-semibold text-gray-900">💡 Tip:</span> You'll receive real-time notifications based on your selected alert type. Stay informed about important vessel updates.
             </p>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideOut {
+          0% {
+            width: 100%;
+          }
+          100% {
+            width: 0%;
+          }
+        }
+      `}</style>
     </div>
   );
 };

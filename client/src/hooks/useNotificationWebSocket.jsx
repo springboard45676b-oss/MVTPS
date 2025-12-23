@@ -5,15 +5,17 @@ import toast from 'react-hot-toast';
 /**
  * Custom hook for notification management
  * Uses REST API polling instead of WebSocket (no Daphne needed)
- * Checks for new notifications every 10 seconds
+ * Checks for new notifications every 30 seconds (reduced server load)
  */
 export const useNotificationWebSocket = (onNotificationReceived) => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const lastNotificationTimeRef = useRef(null);
   const pollingIntervalRef = useRef(null);
+  const toastIdRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+  const POLLING_INTERVAL = 30000; // 30 seconds instead of 10 to reduce server load
 
   // Fetch notifications via REST API
   const fetchNotifications = useCallback(async () => {
@@ -52,30 +54,67 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
             onNotificationReceived(latestNotification);
           }
 
-          // Show toast notification
+          // Dismiss previous toast if exists
+          if (toastIdRef.current) {
+            toast.dismiss(toastIdRef.current);
+          }
+
+          // Show toast notification with custom styling
           console.log('📢 New notification received:', latestNotification);
-          toast.success(
-            () => (
-              <div className="flex flex-col gap-1">
-                <p className="font-semibold">
-                  {(latestNotification.type || 'alert').toUpperCase()}
-                </p>
-                <p className="text-sm">{latestNotification.message}</p>
-                {latestNotification.vessel_name && (
-                  <p className="text-xs opacity-75">
-                    Vessel: {latestNotification.vessel_name}
-                  </p>
-                )}
+          toastIdRef.current = toast.custom(
+            (t) => (
+              <div className="w-80 bg-white rounded-sm shadow-lg overflow-hidden">
+                {/* Header with close button */}
+                <div className="flex items-start justify-between p-4 pb-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">
+                      {(latestNotification.type || 'ALERT').toUpperCase()}
+                    </p>
+                    <p className="text-sm text-gray-700 mt-2">{latestNotification.message}</p>
+                    {latestNotification.vessel_name && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Vessel: {latestNotification.vessel_name}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors ml-2"
+                    aria-label="Close notification"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                {/* Progress bar */}
+                <div className="h-1 bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{
+                      animation: `slideOut 15s linear forwards`,
+                      '@keyframes slideOut': {
+                        '0%': { width: '100%' },
+                        '100%': { width: '0%' }
+                      }
+                    }}
+                  />
+                </div>
               </div>
             ),
             {
-              duration: 5000,
-              position: 'top-right',
-              icon: '🚢',
-              style: {
-                background: '#10b981',
-                color: '#fff',
-              }
+              duration: 15000, // 15 seconds visible
+              position: 'top-right'
             }
           );
         }
@@ -96,10 +135,10 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     // Initial fetch
     fetchNotifications();
 
-    // Set up polling interval (check every 10 seconds)
+    // Set up polling interval (check every 30 seconds to reduce server load)
     pollingIntervalRef.current = setInterval(() => {
       fetchNotifications();
-    }, 10000);
+    }, POLLING_INTERVAL);
 
     // Cleanup
     return () => {

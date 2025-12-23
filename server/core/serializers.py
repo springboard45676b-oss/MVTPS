@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 import math
-from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert
+from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert, Notification
 
 User = get_user_model()
 
@@ -90,11 +90,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'username'  # Allow username or email
+    username_field = 'username'
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Add selected_role field for role-based login validation
         self.fields['selected_role'] = serializers.CharField(
             required=False,
             allow_blank=True,
@@ -106,12 +105,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         username_or_email = attrs.get('username')
         password = attrs.get('password')
-        selected_role = attrs.pop('selected_role', None)  # Get the role user selected during login
+        selected_role = attrs.pop('selected_role', None)
         
-        # Try to authenticate with username first
         user = authenticate(request=self.context.get('request'), username=username_or_email, password=password)
         
-        # If that fails, try with email
         if not user and '@' in username_or_email:
             try:
                 user_obj = User.objects.get(email=username_or_email)
@@ -122,7 +119,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not user:
             raise serializers.ValidationError("Invalid username/email or password.")
         
-        # ROLE-BASED VALIDATION: Check if selected role matches user's actual role
         if selected_role:
             if user.role != selected_role:
                 raise serializers.ValidationError(
@@ -136,7 +132,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['refresh'] = str(refresh)
         data['access'] = str(refresh.access_token)
         
-        # Add custom claims
         data['user'] = {
             'id': user.id,
             'username': user.username,
@@ -180,7 +175,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('username', 'email', 'password', 'password2', 'role')
 
     def validate_username(self, value):
-        # Use Django's username validator
         from django.contrib.auth.validators import UnicodeUsernameValidator
         validator = UnicodeUsernameValidator()
         try:
@@ -195,10 +189,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # Remove password2 from the data
         validated_data.pop('password2', None)
         
-        # Create user
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -250,7 +242,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'password')
-        read_only_fields = ('id', 'role')  # Role is always read-only
+        read_only_fields = ('id', 'role')
 
     def validate_password(self, value):
         """Only validate password if it's being provided"""
@@ -267,9 +259,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         user = self.instance
         request = self.context.get('request')
         
-        # If not an admin, restrict fields
         if user.role != 'admin' and request and request.user.role != 'admin':
-            # Non-admins can only update username and email
             allowed_fields = {'username', 'email'}
             provided_fields = set(data.keys())
             restricted_fields = provided_fields - allowed_fields
@@ -284,14 +274,11 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update user profile with new data"""
-        # Handle password separately since it needs special handling
         password = validated_data.pop('password', None)
         
-        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        # Set password if provided
         if password:
             instance.set_password(password)
         
@@ -300,7 +287,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 # ============================================
-# VESSEL SERIALIZERS (UPDATED WITH CALCULATIONS)
+# VESSEL SERIALIZERS
 # ============================================
 
 class VesselSerializer(serializers.ModelSerializer):
@@ -476,76 +463,6 @@ class VesselSubscriptionSerializer(serializers.ModelSerializer):
     """
     vessel_name = serializers.CharField(source='vessel.name', read_only=True)
     vessel_imo = serializers.CharField(source='vessel.imo_number', read_only=True)
-    
-    class Meta:
-        model = VesselSubscription
-        fields = ('id', 'user', 'vessel', 'vessel_name', 'vessel_imo', 'is_active', 'alert_type', 'created_at')
-        read_only_fields = ('id', 'user', 'created_at')
-
-
-class VesselAlertSerializer(serializers.ModelSerializer):
-    """
-    Serializer for vessel alerts
-    """
-    vessel_name = serializers.CharField(source='subscription.vessel.name', read_only=True)
-    
-    class Meta:
-        model = VesselAlert
-        fields = ('id', 'subscription', 'vessel_name', 'alert_type', 'message', 'status', 'created_at', 'read_at')
-        read_only_fields = ('id', 'created_at')
-
-# server/backend/core/serializers.py - UPDATED (NO STATUS FIELD)
-
-from rest_framework import serializers
-from .models import Notification, VesselAlert, VesselSubscription, Vessel
-
-
-class NotificationSerializer(serializers.ModelSerializer):
-    """Serializer for Notification model"""
-    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
-    user_username = serializers.CharField(source='user.username', read_only=True)
-    event_type = serializers.CharField(source='event.event_type', read_only=True, allow_null=True)
-    
-    class Meta:
-        model = Notification
-        fields = [
-            'id',
-            'user',
-            'user_username',
-            'vessel',
-            'vessel_name',
-            'event',
-            'event_type',
-            'message',
-            'type',
-            'timestamp',
-        ]
-        read_only_fields = ['id', 'timestamp', 'user', 'vessel', 'event']
-
-
-class VesselAlertSerializer(serializers.ModelSerializer):
-    """Serializer for VesselAlert model"""
-    subscription_vessel_name = serializers.CharField(source='subscription.vessel.name', read_only=True)
-    subscription_user = serializers.CharField(source='subscription.user.username', read_only=True)
-    
-    class Meta:
-        model = VesselAlert
-        fields = [
-            'id',
-            'subscription',
-            'subscription_vessel_name',
-            'subscription_user',
-            'alert_type',
-            'message',
-            'status',
-            'created_at',
-            'read_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'read_at']
-
-
-class VesselSubscriptionSerializer(serializers.ModelSerializer):
-    """Serializer for VesselSubscription model"""
     vessel_details = serializers.SerializerMethodField()
     user_username = serializers.CharField(source='user.username', read_only=True)
     
@@ -556,6 +473,8 @@ class VesselSubscriptionSerializer(serializers.ModelSerializer):
             'user',
             'user_username',
             'vessel',
+            'vessel_name',
+            'vessel_imo',
             'vessel_details',
             'is_active',
             'alert_type',
@@ -587,7 +506,6 @@ class VesselSubscriptionSerializer(serializers.ModelSerializer):
         if not vessel:
             raise serializers.ValidationError({'vessel': 'Vessel is required'})
         
-        # Check if subscription already exists
         subscription, created = VesselSubscription.objects.get_or_create(
             user=user,
             vessel=vessel,
@@ -597,10 +515,86 @@ class VesselSubscriptionSerializer(serializers.ModelSerializer):
             }
         )
         
-        # If it exists, toggle is_active and update alert_type
         if not created:
             subscription.is_active = not subscription.is_active
             subscription.alert_type = alert_type
             subscription.save()
         
         return subscription
+
+
+class VesselAlertSerializer(serializers.ModelSerializer):
+    """Serializer for VesselAlert model"""
+    subscription_vessel_name = serializers.CharField(source='subscription.vessel.name', read_only=True)
+    subscription_user = serializers.CharField(source='subscription.user.username', read_only=True)
+    
+    class Meta:
+        model = VesselAlert
+        fields = [
+            'id',
+            'subscription',
+            'subscription_vessel_name',
+            'subscription_user',
+            'alert_type',
+            'message',
+            'status',
+            'created_at',
+            'read_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'read_at']
+
+
+# ============================================
+# NOTIFICATION SERIALIZERS
+# ============================================
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Notification model
+    Includes is_read and event_type fields
+    """
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    vessel_imo = serializers.CharField(source='vessel.imo_number', read_only=True)
+    vessel_type = serializers.CharField(source='vessel.type', read_only=True)
+    vessel_flag = serializers.CharField(source='vessel.flag', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    event_type_display = serializers.CharField(source='get_event_type_display', read_only=True)
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'user',
+            'user_username',
+            'vessel',
+            'vessel_name',
+            'vessel_imo',
+            'vessel_type',
+            'vessel_flag',
+            'event',
+            'message',
+            'type',
+            'type_display',
+            'event_type',
+            'event_type_display',
+            'is_read',
+            'timestamp',
+        ]
+        read_only_fields = [
+            'id',
+            'user_username',
+            'vessel_name',
+            'vessel_imo',
+            'vessel_type',
+            'vessel_flag',
+            'type_display',
+            'event_type_display',
+            'timestamp',
+        ]
+    
+    def validate_message(self, value):
+        """Validate message field"""
+        if not value or len(value.strip()) == 0:
+            raise serializers.ValidationError('Message cannot be empty')
+        return value

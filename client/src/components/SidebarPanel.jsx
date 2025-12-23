@@ -10,8 +10,6 @@ const SidebarPanel = ({
   setSearchQuery,
   filters,
   setFilters,
-  refreshInterval,
-  setRefreshInterval,
   onUpdatePositions,
   updating,
   onSelectVessel,
@@ -46,7 +44,18 @@ const SidebarPanel = ({
   };
 
   return (
-    <div className="w-80 bg-white shadow-lg flex flex-col border-r border-slate-200 overflow-hidden">
+    <div className="w-96 bg-white shadow-lg flex flex-col border-r border-slate-200 overflow-hidden">
+      <style>{`
+        /* Hide scrollbars while keeping functionality */
+        .scrollbar-hide {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;  /* Chrome, Safari and Opera */
+        }
+      `}</style>
+
       <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-blue-700">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Anchor size={28} />
@@ -55,7 +64,7 @@ const SidebarPanel = ({
         <p className="text-blue-100 text-sm mt-1">Live Vessel Tracking</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-hide">
         {/* Message */}
         {message.text && (
           <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
@@ -78,41 +87,26 @@ const SidebarPanel = ({
               placeholder="Vessel name or IMO..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        {/* Refresh Settings */}
-        <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-2">Auto-Refresh</label>
-          <select 
-            value={refreshInterval} 
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={10}>Every 10s</option>
-            <option value={30}>Every 30s</option>
-            <option value={60}>Every 60s</option>
-            <option value={300}>Every 5m</option>
-          </select>
-        </div>
-
-        {/* Update Button */}
+        {/* Refresh Button */}
         <button
           onClick={onUpdatePositions}
           disabled={updating}
-          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400 flex items-center justify-center gap-2 transition font-medium"
+          className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400 flex items-center justify-center gap-2 transition font-medium text-sm shadow-md"
         >
           <RefreshCw size={16} className={updating ? 'animate-spin' : ''} />
-          {updating ? 'Updating...' : 'Update All Positions'}
+          {updating ? 'Refreshing Fleet Data...' : 'Refresh Fleet Data'}
         </button>
 
         {/* Filter Section */}
         <div className="space-y-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg transition text-white font-semibold text-sm shadow-md"
+            className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg transition text-white font-semibold text-sm shadow-md"
           >
             <span className="flex items-center gap-2">
               <Filter size={16} />
@@ -128,7 +122,7 @@ const SidebarPanel = ({
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
                   Vessel Category
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide">
                   {vesselCategories.map(category => (
                     <label key={category.id} className="flex items-center gap-2 cursor-pointer group">
                       <input
@@ -152,7 +146,7 @@ const SidebarPanel = ({
                   <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
                     Flag State
                   </label>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto scrollbar-hide">
                     {uniqueFlags.map(flag => (
                       <label key={flag} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -219,24 +213,24 @@ const SidebarPanel = ({
           {filteredVessels.length === 0 ? (
             <div className="text-center py-8 text-slate-600 text-sm">No vessels match your filters</div>
           ) : (
-            <div className="space-y-1 max-h-96 overflow-y-auto">
+            <div className="space-y-1.5 max-h-96 overflow-y-auto scrollbar-hide pr-1">
               {filteredVessels.map(vessel => (
                 <div
                   key={vessel.id}
                   onClick={() => onSelectVessel(vessel)}
-                  className={`p-3 rounded-lg cursor-pointer transition ${
+                  className={`p-4 rounded-lg cursor-pointer transition ${
                     selectedVessel?.id === vessel.id
                       ? 'bg-blue-500 text-white shadow-md'
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-900'
                   }`}
                 >
                   <div className="font-semibold text-sm">{vessel.name}</div>
-                  <div className={`text-xs ${selectedVessel?.id === vessel.id ? 'opacity-90' : 'opacity-75'} mt-1 space-y-0.5`}>
-                    <div>IMO: {vessel.imo_number}</div>
-                    <div>Type: {vessel.type || 'N/A'}</div>
-                    <div>Flag: {vessel.flag || 'N/A'}</div>
-                    <div>Dest: {vessel.destination || 'N/A'}</div>
-                    {vessel.speed && <div>Speed: {vessel.speed.toFixed(1)} km</div>}
+                  <div className={`text-xs ${selectedVessel?.id === vessel.id ? 'opacity-90' : 'opacity-75'} mt-2 space-y-1`}>
+                    <div><span className="font-medium">IMO:</span> {vessel.imo_number}</div>
+                    <div><span className="font-medium">Type:</span> {vessel.type || 'N/A'}</div>
+                    <div><span className="font-medium">Flag:</span> {vessel.flag || 'N/A'}</div>
+                    <div><span className="font-medium">Dest:</span> {vessel.destination || 'N/A'}</div>
+                    {vessel.speed && <div><span className="font-medium">Speed:</span> {vessel.speed.toFixed(1)} km</div>}
                   </div>
                 </div>
               ))}

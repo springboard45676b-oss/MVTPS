@@ -19,7 +19,6 @@ const LiveTracking = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [refreshInterval, setRefreshInterval] = useState(30);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -31,12 +30,10 @@ const LiveTracking = () => {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  // Fetch all vessels on mount and setup auto-refresh
+  // Fetch all vessels on mount only (no auto-refresh)
   useEffect(() => {
     loadVessels();
-    const interval = setInterval(loadVessels, refreshInterval * 1000);
-    return () => clearInterval(interval);
-  }, [refreshInterval]);
+  }, []);
 
   // Fetch vessel track when selected
   useEffect(() => {
@@ -168,7 +165,7 @@ const LiveTracking = () => {
         });
       }
       
-      toast.success('Positions updated! Alerts sent to subscribed users 🚢', {
+      toast.success('Fleet data refreshed! All vessel information updated 🚢', {
         duration: 4000,
         position: 'bottom-right',
         icon: '✅',
@@ -235,7 +232,7 @@ const LiveTracking = () => {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100">
+    <div className="fixed inset-0 top-[73px] flex bg-slate-100">
       <Toaster
         position="bottom-right"
         reverseOrder={false}
@@ -286,8 +283,6 @@ const LiveTracking = () => {
         setSearchQuery={setSearchQuery}
         filters={filters}
         setFilters={setFilters}
-        refreshInterval={refreshInterval}
-        setRefreshInterval={setRefreshInterval}
         onUpdatePositions={handleUpdatePositions}
         updating={updating}
         onSelectVessel={setSelectedVessel}

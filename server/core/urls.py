@@ -1,8 +1,7 @@
-# server/backend/core/urls.py - UPDATED
-
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
+    api_root,
     # Authentication views
     RegisterAPI,
     CustomTokenObtainPairView,
@@ -22,13 +21,19 @@ from .views import (
     VesselSubscriptionDetailAPI,
     UserAlertsAPI,
     AlertMarkAsReadAPI,
-    # NEW: Notification views
+    # Notification views
     UserNotificationsAPI,
     NotificationDetailAPI,
+    MarkNotificationAsReadAPI,
     MarkAllNotificationsAsReadAPI,
+    ClearAllNotificationsAPI,
+    DeleteNotificationAPI,
 )
 
 urlpatterns = [
+    # API Root
+    path('', api_root, name='api-root'),
+    
     # ============================================
     # AUTHENTICATION ENDPOINTS - /api/auth/*
     # ============================================
@@ -62,7 +67,10 @@ urlpatterns = [
     # ============================================
     path('users/notifications/', UserNotificationsAPI.as_view(), name='user-notifications-list'),
     path('users/notifications/<int:pk>/', NotificationDetailAPI.as_view(), name='notification-detail'),
+    path('users/notifications/<int:notification_id>/mark-read/', MarkNotificationAsReadAPI.as_view(), name='mark-notification-read'),
     path('users/notifications/mark-all-read/', MarkAllNotificationsAsReadAPI.as_view(), name='mark-all-notifications-read'),
+    path('users/notifications/<int:notification_id>/delete/', DeleteNotificationAPI.as_view(), name='delete-notification'),
+    path('users/notifications/clear-all/', ClearAllNotificationsAPI.as_view(), name='clear-all-notifications'),
     
     # ============================================
     # DATA GENERATION - /api/*
