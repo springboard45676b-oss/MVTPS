@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db import transaction
 from .models import Vessel, VesselPosition, APIKey
+from .notification_service import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -390,6 +391,9 @@ class VesselPositionService:
     def update_vessel_position(vessel_id, latitude, longitude, speed=None, course=None, source='api'):
         """
         Update or create a new position for a vessel
+        Triggers real-time notifications via WebSocket
+        
+        ✅ SINGLE METHOD - NO DUPLICATES!
         """
         try:
             vessel = Vessel.objects.get(id=vessel_id)
@@ -410,11 +414,23 @@ class VesselPositionService:
             vessel.last_update = timezone.now()
             vessel.save()
             
+            # ✅ TRIGGER REAL-TIME NOTIFICATION via WebSocket
+            if speed:
+                NotificationService.notify_position_update(
+                    vessel_id=vessel_id,
+                    latitude=latitude,
+                    longitude=longitude,
+                    speed=speed
+                )
+            
             logger.info(f"Updated position for vessel {vessel.name}: ({latitude}, {longitude})")
             return position
             
         except Vessel.DoesNotExist:
             logger.error(f"Vessel with id {vessel_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Error updating vessel position: {str(e)}")
             return None
     
     @staticmethod

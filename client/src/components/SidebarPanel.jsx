@@ -1,6 +1,7 @@
 // src/components/SidebarPanel.jsx
-import React, { useState } from 'react';
-import { Search, Filter, RefreshCw, Anchor, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, RefreshCw, Anchor, AlertCircle, Trash2, Bell, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const SidebarPanel = ({
   vessels,
@@ -13,21 +14,157 @@ const SidebarPanel = ({
   onUpdatePositions,
   updating,
   onSelectVessel,
-  message
+  message,
+  onSubscriptionUpdate // New prop to notify parent
 }) => {
   const [showFilters, setShowFilters] = useState(false);
+  const [subscribedVessels, setSubscribedVessels] = useState(new Set());
+  const [selectedAlerts, setSelectedAlerts] = useState(new Set());
+  const [showAlertManagement, setShowAlertManagement] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const vesselCategories = [
-    { id: 'cargo', name: 'Cargo' },
-    { id: 'tanker', name: 'Tanker' },
-    { id: 'container', name: 'Container' },
-    { id: 'fishing', name: 'Fishing' },
-    { id: 'passenger', name: 'Passenger' },
-    { id: 'tug', name: 'Tug' },
-    { id: 'other', name: 'Other' }
-  ];
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  const uniqueFlags = [...new Set(vessels.map(v => v.flag).filter(Boolean))].sort();
+  useEffect(() => {
+    fetchSubscribedVessels();
+  }, [refreshTrigger]); // Re-fetch when trigger changes
+
+  // Refresh when parent notifies of subscription change
+  useEffect(() => {
+    if (onSubscriptionUpdate) {
+      fetchSubscribedVessels();
+    }
+  }, [onSubscriptionUpdate]);
+
+  const fetchSubscribedVessels = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/users/subscriptions/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const results = Array.isArray(data) ? data : (data.results || []);
+      
+      const subscribedIds = new Set(
+        results
+          .filter(sub => sub.is_active)
+          .map(sub => sub.vessel)
+      );
+      
+      setSubscribedVessels(subscribedIds);
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+    }
+  };
+
+  const handleRemoveAllAlerts = async () => {
+    if (subscribedVessels.size === 0) {
+      toast.error('No active alerts to remove', {
+        position: 'top-center',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!window.confirm(`Remove all ${subscribedVessels.size} active alerts?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      for (const vesselId of subscribedVessels) {
+        await fetch(`${API_URL}/users/subscriptions/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            vessel: vesselId,
+            alert_type: 'all',
+            is_active: false
+          })
+        });
+      }
+
+      setSubscribedVessels(new Set());
+      toast.success('All alerts removed', {
+        position: 'top-center',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error removing alerts:', error);
+      toast.error('Failed to remove alerts', {
+        position: 'top-center',
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleRemoveSelectedAlerts = async () => {
+    if (selectedAlerts.size === 0) return;
+
+    if (!window.confirm(`Remove ${selectedAlerts.size} selected alert(s)?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      for (const vesselId of selectedAlerts) {
+        await fetch(`${API_URL}/users/subscriptions/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            vessel: vesselId,
+            alert_type: 'all',
+            is_active: false
+          })
+        });
+      }
+
+      const newSubscribed = new Set(subscribedVessels);
+      selectedAlerts.forEach(id => newSubscribed.delete(id));
+      setSubscribedVessels(newSubscribed);
+      setSelectedAlerts(new Set());
+      
+      toast.success('Selected alerts removed', {
+        position: 'top-center',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error removing alerts:', error);
+      toast.error('Failed to remove alerts', {
+        position: 'top-center',
+        duration: 3000,
+      });
+    }
+  };
+
+  const toggleAlertSelection = (vesselId) => {
+    const newSelected = new Set(selectedAlerts);
+    if (newSelected.has(vesselId)) {
+      newSelected.delete(vesselId);
+    } else {
+      newSelected.add(vesselId);
+    }
+    setSelectedAlerts(newSelected);
+  };
+
+  const vesselTypes = ['Cargo', 'Tanker', 'Container', 'Fishing', 'Passenger', 'Tug', 'Bulk'];
+  const continents = ['Asia', 'Europe', 'Africa', 'Americas', 'Oceania'];
 
   const toggleFilter = (key, value) => {
     setFilters(prev => ({
@@ -39,20 +176,19 @@ const SidebarPanel = ({
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], flags: [], speedRange: [0, 30] });
+    setFilters({ types: [], continents: [], speedRange: [0, 30] });
     setSearchQuery('');
   };
 
   return (
     <div className="w-96 bg-white shadow-lg flex flex-col border-r border-slate-200 overflow-hidden">
       <style>{`
-        /* Hide scrollbars while keeping functionality */
         .scrollbar-hide {
-          -ms-overflow-style: none;  /* IE and Edge */
-          scrollbar-width: none;  /* Firefox */
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
         .scrollbar-hide::-webkit-scrollbar {
-          display: none;  /* Chrome, Safari and Opera */
+          display: none;
         }
       `}</style>
 
@@ -64,32 +200,17 @@ const SidebarPanel = ({
         <p className="text-blue-100 text-sm mt-1">Live Vessel Tracking</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-hide">
-        {/* Message */}
-        {message.text && (
-          <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
-            message.type === 'error'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-green-100 text-green-700'
-          }`}>
-            <AlertCircle size={16} />
-            {message.text}
-          </div>
-        )}
-
+      <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
         {/* Search */}
-        <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-2">Search</label>
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Vessel name or IMO..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-2.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search vessel..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* Refresh Button */}
@@ -99,74 +220,105 @@ const SidebarPanel = ({
           className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400 flex items-center justify-center gap-2 transition font-medium text-sm shadow-md"
         >
           <RefreshCw size={16} className={updating ? 'animate-spin' : ''} />
-          {updating ? 'Refreshing Fleet Data...' : 'Refresh Fleet Data'}
+          {updating ? 'Refreshing...' : 'Refresh Fleet'}
         </button>
 
-        {/* Filter Section */}
-        <div className="space-y-3">
+        {/* Alert Management */}
+        {subscribedVessels.size > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <button
+              onClick={() => setShowAlertManagement(!showAlertManagement)}
+              className="w-full flex items-center justify-between text-sm font-semibold text-orange-900"
+            >
+              <span className="flex items-center gap-2">
+                <Bell size={14} />
+                Active Alerts ({subscribedVessels.size})
+              </span>
+              <span className={`transition ${showAlertManagement ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+
+            {showAlertManagement && (
+              <div className="mt-3 space-y-2">
+                <button
+                  onClick={handleRemoveAllAlerts}
+                  className="w-full px-3 py-2 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={12} />
+                  Remove All
+                </button>
+
+                {selectedAlerts.size > 0 && (
+                  <button
+                    onClick={handleRemoveSelectedAlerts}
+                    className="w-full px-3 py-2 text-xs text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={12} />
+                    Remove Selected ({selectedAlerts.size})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Filters */}
+        <div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg transition text-white font-semibold text-sm shadow-md"
+            className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition text-slate-900 font-medium text-sm"
           >
             <span className="flex items-center gap-2">
               <Filter size={16} />
               Filters
             </span>
-            <span className={`transform transition ${showFilters ? 'rotate-180' : ''}`}>▼</span>
+            <span className={`transition ${showFilters ? 'rotate-180' : ''}`}>▼</span>
           </button>
 
           {showFilters && (
-            <>
-              {/* Vessel Type Filter */}
+            <div className="mt-3 space-y-4 p-4 bg-slate-50 rounded-lg">
+              {/* Vessel Type */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
-                  Vessel Category
-                </label>
-                <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide">
-                  {vesselCategories.map(category => (
-                    <label key={category.id} className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={filters.types.includes(category.id)}
-                        onChange={() => toggleFilter('types', category.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-slate-700 group-hover:text-slate-900">{category.name}</span>
-                      <span className="text-xs text-slate-500 ml-auto">
-                        ({vessels.filter(v => v.type && v.type.toLowerCase().includes(category.id)).length})
-                      </span>
-                    </label>
+                <p className="text-xs font-bold text-slate-900 mb-2">Type</p>
+                <div className="flex flex-wrap gap-2">
+                  {vesselTypes.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => toggleFilter('types', type.toLowerCase())}
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${
+                        filters.types.includes(type.toLowerCase())
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-slate-700 border border-slate-300 hover:border-blue-400'
+                      }`}
+                    >
+                      {type}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* Flag Filter */}
-              {uniqueFlags.length > 0 && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
-                    Flag State
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto scrollbar-hide">
-                    {uniqueFlags.map(flag => (
-                      <label key={flag} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filters.flags.includes(flag)}
-                          onChange={() => toggleFilter('flags', flag)}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-slate-700">{flag}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Speed Range Filter */}
+              {/* Continent Filter */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">
-                  Speed Range (knots)
-                </label>
+                <p className="text-xs font-bold text-slate-900 mb-2">Region</p>
+                <div className="flex flex-wrap gap-2">
+                  {continents.map(continent => (
+                    <button
+                      key={continent}
+                      onClick={() => toggleFilter('continents', continent)}
+                      className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${
+                        filters.continents?.includes(continent)
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-slate-700 border border-slate-300 hover:border-purple-400'
+                      }`}
+                    >
+                      {continent}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Speed Range */}
+              <div>
+                <p className="text-xs font-bold text-slate-900 mb-2">Speed (knots)</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -177,9 +329,9 @@ const SidebarPanel = ({
                       ...prev,
                       speedRange: [Number(e.target.value), prev.speedRange[1]]
                     }))}
-                    className="w-16 px-2 py-1 border border-slate-300 rounded text-sm"
+                    className="w-20 px-2 py-1.5 border border-slate-300 rounded text-xs"
                   />
-                  <span className="text-slate-600 text-sm">to</span>
+                  <span className="text-slate-600 text-xs">to</span>
                   <input
                     type="number"
                     min="0"
@@ -189,7 +341,7 @@ const SidebarPanel = ({
                       ...prev,
                       speedRange: [prev.speedRange[0], Number(e.target.value)]
                     }))}
-                    className="w-16 px-2 py-1 border border-slate-300 rounded text-sm"
+                    className="w-20 px-2 py-1.5 border border-slate-300 rounded text-xs"
                   />
                 </div>
               </div>
@@ -197,51 +349,74 @@ const SidebarPanel = ({
               {/* Clear Filters */}
               <button
                 onClick={clearFilters}
-                className="w-full mt-2 px-3 py-2 text-sm text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg font-medium shadow-md transition-colors"
+                className="w-full px-3 py-2 text-xs text-red-600 bg-white border border-red-300 hover:bg-red-50 rounded-lg font-medium transition"
               >
-                Clear all filters
+                Clear Filters
               </button>
-            </>
+            </div>
           )}
         </div>
 
         {/* Vessels List */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 px-1">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 mb-2">
             Fleet ({filteredVessels.length})
           </h3>
           {filteredVessels.length === 0 ? (
-            <div className="text-center py-8 text-slate-600 text-sm">No vessels match your filters</div>
+            <div className="text-center py-8 text-slate-500 text-sm">No vessels found</div>
           ) : (
-            <div className="space-y-1.5 max-h-96 overflow-y-auto scrollbar-hide pr-1">
-              {filteredVessels.map(vessel => (
-                <div
-                  key={vessel.id}
-                  onClick={() => onSelectVessel(vessel)}
-                  className={`p-4 rounded-lg cursor-pointer transition ${
-                    selectedVessel?.id === vessel.id
-                      ? 'bg-blue-500 text-white shadow-md'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-900'
-                  }`}
-                >
-                  <div className="font-semibold text-sm">{vessel.name}</div>
-                  <div className={`text-xs ${selectedVessel?.id === vessel.id ? 'opacity-90' : 'opacity-75'} mt-2 space-y-1`}>
-                    <div><span className="font-medium">IMO:</span> {vessel.imo_number}</div>
-                    <div><span className="font-medium">Type:</span> {vessel.type || 'N/A'}</div>
-                    <div><span className="font-medium">Flag:</span> {vessel.flag || 'N/A'}</div>
-                    <div><span className="font-medium">Dest:</span> {vessel.destination || 'N/A'}</div>
-                    {vessel.speed && <div><span className="font-medium">Speed:</span> {vessel.speed.toFixed(1)} km</div>}
+            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-hide">
+              {filteredVessels.map(vessel => {
+                const hasAlert = subscribedVessels.has(vessel.id);
+                const isSelected = selectedVessel?.id === vessel.id;
+                const isAlertSelected = selectedAlerts.has(vessel.id);
+                
+                return (
+                  <div
+                    key={vessel.id}
+                    className={`rounded-lg cursor-pointer transition relative ${
+                      isSelected
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : hasAlert
+                        ? 'bg-orange-50 hover:bg-orange-100 text-slate-900 border-l-4 border-orange-400'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-900'
+                    }`}
+                  >
+                    <div 
+                      className="p-3"
+                      onClick={() => onSelectVessel(vessel)}
+                    >
+                      {hasAlert && (
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                          {showAlertManagement && (
+                            <input
+                              type="checkbox"
+                              checked={isAlertSelected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleAlertSelection(vessel.id);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-3.5 h-3.5 rounded border-orange-400 text-orange-600"
+                            />
+                          )}
+                          <Bell size={12} className={isSelected ? 'text-white' : 'text-orange-600'} />
+                        </div>
+                      )}
+                      
+                      <div className="font-semibold text-sm pr-6">{vessel.name}</div>
+                      <div className={`text-xs ${isSelected ? 'opacity-90' : 'opacity-75'} mt-1.5 space-y-0.5`}>
+                        <div>IMO: {vessel.imo_number}</div>
+                        <div>{vessel.type || 'N/A'}</div>
+                        {vessel.speed && <div>Speed: {vessel.speed.toFixed(1)} kts</div>}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-600 text-center">
-        {filteredVessels.length} of {vessels.length} vessels shown
       </div>
     </div>
   );

@@ -8,25 +8,22 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
   const [alertType, setAlertType] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
   useEffect(() => {
     checkSubscriptionStatus();
-  }, [vessel]);
-
-  // Recheck subscription status when component updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkSubscriptionStatus();
-    }, 500);
-    return () => clearInterval(interval);
-  }, [vessel]);
+  }, [vessel.id]); // Only depend on vessel.id, not vessel object
 
   const checkSubscriptionStatus = async () => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem('access_token');
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
 
       const response = await fetch(`${API_URL}/users/subscriptions/`, {
         headers: {
@@ -35,14 +32,17 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
         }
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        setIsLoading(false);
+        return;
+      }
 
       const data = await response.json();
       const results = Array.isArray(data) ? data : (data.results || []);
       
       const subscription = results.find(sub => sub.vessel === vessel.id);
-      if (subscription) {
-        setIsSubscribed(subscription.is_active);
+      if (subscription && subscription.is_active) {
+        setIsSubscribed(true);
         setAlertType(subscription.alert_type);
       } else {
         setIsSubscribed(false);
@@ -50,6 +50,8 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
       }
     } catch (error) {
       console.error('Error checking subscription:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -84,52 +86,17 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
       setAlertType('');
       setShowConfirmDelete(false);
 
-      // Show success toast
-      toast.custom(
-        (t) => (
-          <div className="bg-white rounded-sm shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 gap-4">
-              <p className="text-gray-800 text-sm">
-                <span className="font-bold">Alert Removed</span> from <span className="font-semibold">{vessel.name}</span>
-              </p>
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Close notification"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="h-1 bg-gray-200 overflow-hidden">
-              <div
-                className="h-full bg-red-500 transition-all"
-                style={{
-                  animation: `slideOut 8s linear forwards`,
-                }}
-              />
-            </div>
-          </div>
-        ),
-        {
-          duration: 8000,
-          position: 'top-right'
-        }
-      );
+      // Simple centered toast
+      toast.success('Alert removed successfully', {
+        position: 'top-center',
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Error removing alert:', error);
-      toast.error('Failed to remove alert');
+      toast.error('Failed to remove alert', {
+        position: 'top-center',
+        duration: 3000,
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -181,10 +148,14 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
         </div>
 
         {/* Alert Status or Button */}
-        {isSubscribed ? (
+        {isLoading ? (
+          <div className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-lg mb-4 flex items-center justify-center">
+            <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : isSubscribed ? (
           <div className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CheckCircle size={18} className="text-red-600 flex-shrink-0" />
+              <CheckCircle size={18} className="text-red-600 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-red-900">Alert Active</p>
                 <p className="text-xs text-red-700">Type: {alertType.replace('_', ' ').toUpperCase()}</p>
@@ -296,17 +267,6 @@ const VesselDetailsPanel = ({ vessel, track, onEnableAlerts, onClose }) => {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes slideOut {
-          0% {
-            width: 100%;
-          }
-          100% {
-            width: 0%;
-          }
-        }
-      `}</style>
     </div>
   );
 };

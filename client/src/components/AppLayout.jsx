@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
 import { useNotificationWebSocket } from "../hooks/useNotificationWebSocket.jsx";
 import DarkModeToggle from "./DarkModeToggle";
-import { Ship, Bell, Trash2, CheckCheck, X } from "lucide-react";
+import { Ship, Bell, Trash2, CheckCheck, X, MapPin } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 const navItems = [
@@ -26,53 +26,62 @@ const LogoutLoadingScreen = () => (
   </div>
 );
 
-const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notifications, onMarkAsRead, onDelete, onViewAll, formatTime }) => {
+const NotificationPopup = ({ 
+  isOpen, 
+  onClose, 
+  onMarkAllAsRead, 
+  onClearAll, 
+  notifications, 
+  onMarkAsRead, 
+  onDelete, 
+  onViewAll, 
+  formatTime,
+  onNotificationClick 
+}) => {
   if (!isOpen) return null;
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-end pt-20 pr-4">
-      {/* Overlay to close popup */}
+      {/* Overlay */}
       <div className="fixed inset-0 z-30" onClick={onClose}></div>
 
-      {/* Notification Rectangle Popup */}
-      <div className="relative z-40 w-96 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[600px]">
+      {/* Notification Popup */}
+      <div className="relative z-40 w-96 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[500px]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-linear-to-r from-blue-50 to-cyan-50">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50">
           <div>
-            <h3 className="font-semibold text-slate-900 text-lg">Notifications</h3>
+            <h3 className="font-semibold text-slate-900">Notifications</h3>
             {unreadCount > 0 && (
               <p className="text-xs text-slate-500">{unreadCount} unread</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-200 rounded-lg transition"
+            className="p-1 hover:bg-slate-200 rounded-lg transition"
           >
-            <X className="h-5 w-5 text-slate-600" />
+            <X className="h-4 w-4 text-slate-600" />
           </button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="px-6 py-3 border-b border-slate-100 flex gap-2">
+        {/* Action Buttons - Smaller */}
+        <div className="px-4 py-2 border-b border-slate-100 flex gap-2">
           {unreadCount > 0 && (
             <button
               onClick={onMarkAllAsRead}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-600 transition text-sm font-medium"
-              title="Mark all as read"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-600 transition text-xs font-medium"
             >
-              <CheckCheck className="h-4 w-4" />
-              Mark All Read
+              <CheckCheck className="h-3 w-3" />
+              Mark Read
             </button>
           )}
           {notifications.length > 0 && (
             <button
               onClick={onClearAll}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 transition text-sm font-medium"
-              title="Delete all notifications"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-red-100 hover:bg-red-200 text-red-600 transition text-xs font-medium"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3" />
               Clear All
             </button>
           )}
@@ -81,7 +90,7 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
         {/* Notifications List */}
         <div className="flex-1 overflow-y-auto">
           {notifications.length === 0 ? (
-            <div className="px-6 py-8 text-center text-slate-500">
+            <div className="px-4 py-8 text-center text-slate-500">
               <p className="text-sm">No notifications</p>
               <p className="text-xs text-slate-400 mt-1">You're all caught up! 🎉</p>
             </div>
@@ -89,27 +98,28 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
             notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`px-6 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${
+                onClick={() => onNotificationClick(notification)}
+                className={`px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition cursor-pointer ${
                   notification.is_read ? '' : 'bg-blue-50'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2">
                   {/* Unread Indicator */}
                   {!notification.is_read && (
-                    <div className="h-2 w-2 bg-blue-600 rounded-full mt-2 shrink-0" />
+                    <div className="h-2 w-2 bg-blue-600 rounded-full mt-1.5 shrink-0" />
                   )}
                   
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-sm font-semibold text-slate-900">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <p className="text-xs font-semibold text-slate-900">
                         {notification.type_display || 'NOTIFICATION'}
                       </p>
                       <span className="text-xs text-slate-500 shrink-0">
                         {formatTime(notification.timestamp)}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-600 mb-2 line-clamp-2">
+                    <p className="text-xs text-slate-600 mb-1 line-clamp-2">
                       {notification.message}
                     </p>
                     {notification.vessel_name && (
@@ -117,14 +127,9 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
                         🚢 {notification.vessel_name}
                       </p>
                     )}
-                    {notification.event_type_display && (
-                      <p className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded inline-block mt-2">
-                        {notification.event_type_display}
-                      </p>
-                    )}
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Action Buttons - Smaller */}
                   <div className="flex gap-1 shrink-0">
                     {!notification.is_read && (
                       <button
@@ -132,10 +137,10 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
                           e.stopPropagation();
                           onMarkAsRead(notification.id);
                         }}
-                        className="p-1.5 rounded hover:bg-blue-200 text-blue-600 transition"
+                        className="p-1 rounded hover:bg-blue-200 text-blue-600 transition"
                         title="Mark as read"
                       >
-                        <CheckCheck className="h-3.5 w-3.5" />
+                        <CheckCheck className="h-3 w-3" />
                       </button>
                     )}
                     <button
@@ -143,10 +148,10 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
                         e.stopPropagation();
                         onDelete(notification.id);
                       }}
-                      className="p-1.5 rounded hover:bg-red-200 text-red-600 transition"
-                      title="Delete notification"
+                      className="p-1 rounded hover:bg-red-200 text-red-600 transition"
+                      title="Delete"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
@@ -157,10 +162,10 @@ const NotificationPopup = ({ isOpen, onClose, onMarkAllAsRead, onClearAll, notif
 
         {/* Footer */}
         {notifications.length > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+          <div className="px-4 py-2 border-t border-slate-100 bg-slate-50">
             <button
               onClick={onViewAll}
-              className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium transition py-2"
+              className="w-full text-xs text-blue-600 hover:text-blue-700 font-medium transition py-1.5"
             >
               View All Notifications →
             </button>
@@ -179,6 +184,7 @@ const Navbar = ({ isConnected }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedNotification, setSelectedNotification] = useState(null);
   const user = authAPI.getCurrentUser();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
@@ -214,6 +220,17 @@ const Navbar = ({ isConnected }) => {
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await markNotificationAsRead(notification.id);
+    }
+
+    // Close dropdown and open detail modal
+    setNotificationsOpen(false);
+    setSelectedNotification(notification);
   };
 
   const markNotificationAsRead = async (notificationId) => {
@@ -254,8 +271,8 @@ const Navbar = ({ isConnected }) => {
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       
       toast.success('Notification deleted', {
+        position: 'top-center',
         duration: 2000,
-        icon: '🗑️',
       });
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -282,8 +299,8 @@ const Navbar = ({ isConnected }) => {
       setUnreadCount(0);
 
       toast.success(`Cleared ${data.deleted_count} notifications`, {
+        position: 'top-center',
         duration: 2000,
-        icon: '🗑️',
       });
     } catch (error) {
       console.error('Error clearing notifications:', error);
@@ -307,7 +324,8 @@ const Navbar = ({ isConnected }) => {
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
 
-      toast.success('All marked as read ✓', {
+      toast.success('All marked as read', {
+        position: 'top-center',
         duration: 2000,
       });
     } catch (error) {
@@ -331,6 +349,49 @@ const Navbar = ({ isConnected }) => {
     return date.toLocaleDateString();
   };
 
+  const formatFullDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getEventTypeColor = (type) => {
+    const colors = {
+      'position_update': 'bg-blue-100 text-blue-700',
+      'departure': 'bg-yellow-100 text-yellow-700',
+      'arrival': 'bg-green-100 text-green-700',
+      'alert': 'bg-red-100 text-red-700',
+      'default': 'bg-slate-100 text-slate-700'
+    };
+    return colors[type?.toLowerCase()] || colors.default;
+  };
+
+  const handleViewOnMap = (notification) => {
+    setSelectedNotification(null);
+    if (notification.vessel_id) {
+      navigate('/live-tracking', {
+        state: {
+          selectedVesselId: notification.vessel_id,
+          vesselName: notification.vessel_name
+        }
+      });
+    } else {
+      navigate('/live-tracking');
+    }
+  };
+
+  const handleDeleteFromModal = async (notificationId) => {
+    await deleteNotification(notificationId);
+    setSelectedNotification(null);
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     authAPI.logout();
@@ -343,17 +404,17 @@ const Navbar = ({ isConnected }) => {
     <>
       {isLoggingOut && <LogoutLoadingScreen />}
       
-    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center px-4 py-3 gap-4">
-          {/* Logo and Title - Left */}
+          {/* Logo */}
           <div className="flex items-center gap-3 shrink-0 flex-1">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 text-white grid place-items-center font-bold shadow">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white grid place-items-center font-bold shadow">
               <Ship className="h-5 w-5" />
             </div>
             <h1 className="text-lg font-semibold text-slate-900">MVTPS</h1>
           </div>
 
-          {/* Navigation - Centered */}
+          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-3 text-sm font-medium">
             {navItems.map((item) => (
               <NavLink
@@ -372,31 +433,23 @@ const Navbar = ({ isConnected }) => {
             ))}
           </nav>
 
-          {/* Toolbar - Right */}
+          {/* Toolbar */}
           <div className="flex items-center gap-2 shrink-0 flex-1 justify-end">
-            {/* Notification Bell Button - Opens Rectangle Popup */}
+            {/* Notification Bell */}
             <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative p-2 rounded-lg hover:bg-slate-100 transition text-slate-600 hover:text-slate-900"
-                title="Notifications"
               >
                 <Bell className="h-5 w-5" />
                 
-                {/* Unread Badge - RED */}
                 {unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse">
+                  <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </div>
                 )}
-
-                {/* Connection Indicator */}
-                {isConnected && (
-                  <div className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full animate-pulse border border-white" title="Connected" />
-                )}
               </button>
 
-              {/* Notification Rectangle Popup */}
               <NotificationPopup
                 isOpen={notificationsOpen}
                 onClose={() => setNotificationsOpen(false)}
@@ -410,10 +463,10 @@ const Navbar = ({ isConnected }) => {
                   navigate('/notifications');
                 }}
                 formatTime={formatTime}
+                onNotificationClick={handleNotificationClick}
               />
             </div>
 
-            {/* Dark Mode Toggle */}
             <DarkModeToggle className="shrink-0" />
 
             {/* User Menu */}
@@ -456,7 +509,7 @@ const Navbar = ({ isConnected }) => {
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-medium disabled:opacity-50"
                   >
                     Logout
                   </button>
@@ -466,7 +519,7 @@ const Navbar = ({ isConnected }) => {
           </div>
         </div>
 
-        {/* Mobile Nav - Centered */}
+        {/* Mobile Nav */}
         <div className="md:hidden w-full px-4 pb-3 flex flex-wrap gap-2 text-sm font-medium justify-center">
           {navItems.map((item) => (
             <NavLink
@@ -485,6 +538,137 @@ const Navbar = ({ isConnected }) => {
           ))}
         </div>
       </header>
+
+      {/* Notification Detail Modal */}
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Alert</h2>
+                  <p className="text-sm text-slate-600 mt-0.5">{formatTime(selectedNotification.timestamp)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="p-1.5 hover:bg-slate-200 rounded-lg transition"
+                >
+                  <X className="h-5 w-5 text-slate-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Event Type */}
+              <div>
+                <p className="text-sm font-semibold text-slate-600 mb-2">Event Type:</p>
+                <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-medium ${getEventTypeColor(selectedNotification.event_type)}`}>
+                  {selectedNotification.type_display || selectedNotification.event_type_display || 'Notification'}
+                </span>
+              </div>
+
+              {/* Message */}
+              <div>
+                <p className="text-sm font-semibold text-slate-600 mb-2">Message</p>
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <p className="text-sm text-slate-800 leading-relaxed">
+                    📍 {selectedNotification.message}
+                  </p>
+                </div>
+              </div>
+
+              {/* Vessel Details */}
+              {selectedNotification.vessel_name && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="text-2xl">🚢</div>
+                    <h3 className="font-bold text-slate-900 text-lg">{selectedNotification.vessel_name}</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {selectedNotification.vessel_imo && (
+                      <div>
+                        <p className="text-slate-600 font-medium">IMO Number</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_imo}</p>
+                      </div>
+                    )}
+                    {selectedNotification.vessel_type && (
+                      <div>
+                        <p className="text-slate-600 font-medium">Type</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_type}</p>
+                      </div>
+                    )}
+                    {selectedNotification.vessel_flag && (
+                      <div>
+                        <p className="text-slate-600 font-medium">Flag</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_flag}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-slate-600 font-medium">Status</p>
+                      <p className={`font-semibold ${selectedNotification.is_read ? 'text-slate-600' : 'text-blue-600'}`}>
+                        {selectedNotification.is_read ? 'Read' : 'Unread'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="pt-3 border-t border-slate-200 space-y-1">
+                <p className="text-xs text-slate-500">
+                  <span className="font-medium">ID:</span> {selectedNotification.id}
+                </p>
+                <p className="text-xs text-slate-500">
+                  <span className="font-medium">Created:</span> {formatFullDate(selectedNotification.timestamp)}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
+              <button
+                onClick={() => handleViewOnMap(selectedNotification)}
+                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                <MapPin className="h-4 w-4" />
+                View on Map
+              </button>
+              <button
+                onClick={() => handleDeleteFromModal(selectedNotification.id)}
+                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+              <button
+                onClick={() => setSelectedNotification(null)}
+                className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out;
+            }
+          `}</style>
+        </div>
+      )}
     </>
   );
 };
@@ -507,47 +691,20 @@ const AppLayout = () => {
   });
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      {/* Enhanced Toast Configuration */}
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 transition-colors duration-200">
       <Toaster
-        position="top-right"
-        reverseOrder={false}
-        gutter={12}
+        position="top-center"
+        containerStyle={{ top: 80 }}
         toastOptions={{
           duration: 3000,
           style: {
             background: '#fff',
             color: '#1e293b',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            fontSize: '14px',
             fontWeight: '500',
-            padding: '16px',
-          },
-          success: {
-            duration: 3000,
-            style: {
-              background: '#10b981',
-              color: '#fff',
-              border: 'none',
-            },
-            icon: '✓',
-          },
-          error: {
-            duration: 3000,
-            style: {
-              background: '#ef4444',
-              color: '#fff',
-              border: 'none',
-            },
-            icon: '✕',
-          },
-          loading: {
-            style: {
-              background: '#3b82f6',
-              color: '#fff',
-              border: 'none',
-            },
+            padding: '12px 16px',
           },
         }}
       />

@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from "react";
-import toast from "react-hot-toast";
-import { X, Trash2, CheckCheck, Trash } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+// src/pages/Notifications.jsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CheckCheck, Trash2, Filter, Search, Ship, X, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const NotificationsPage = () => {
+const Notifications = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [filter, setFilter] = useState('all'); // all, unread, read
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
-  const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  // Fetch notifications on mount
   useEffect(() => {
     fetchNotifications();
   }, []);
@@ -20,199 +21,122 @@ const NotificationsPage = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem('access_token');
       if (!token) {
-        toast.error("You must be logged in");
+        toast.error('Please login first');
+        navigate('/login');
         return;
       }
 
       const response = await fetch(`${API_URL}/users/notifications/`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      if (!response.ok) throw new Error("Failed to fetch notifications");
+      if (!response.ok) throw new Error('Failed to fetch notifications');
 
       const data = await response.json();
-      const notificationsList = Array.isArray(data) ? data : data.results || [];
+      const notificationsList = Array.isArray(data) ? data : (data.results || []);
       
       notificationsList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       setNotifications(notificationsList);
-      setLoading(false);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
-      toast.error("Failed to load notifications");
+      console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
+    } finally {
       setLoading(false);
     }
   };
 
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
+
+    // Open detail modal
+    setSelectedNotification(notification);
+  };
+
   const markAsRead = async (notificationId) => {
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_URL}/users/notifications/${notificationId}/mark-read/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      const token = localStorage.getItem('access_token');
+      await fetch(`${API_URL}/users/notifications/${notificationId}/mark-read/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
-
-      if (!response.ok) throw new Error("Failed to mark as read");
+      });
 
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
-      
-      if (selectedNotification?.id === notificationId) {
-        setSelectedNotification({ ...selectedNotification, is_read: true });
-      }
-
-      toast.success("Marked as read ✓", {
-        duration: 2000,
-        style: {
-          background: "#10b981",
-          color: "#fff",
-        },
-      });
     } catch (error) {
-      console.error("Error marking as read:", error);
-      toast.error("Failed to mark as read");
+      console.error('Error marking as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_URL}/users/notifications/mark-all-read/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      const token = localStorage.getItem('access_token');
+      await fetch(`${API_URL}/users/notifications/mark-all-read/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
-
-      if (!response.ok) throw new Error("Failed to mark all as read");
-
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, is_read: true }))
-      );
-
-      toast.success(`All notifications marked as read ✓`, {
-        duration: 2000,
-        style: {
-          background: "#10b981",
-          color: "#fff",
-        },
       });
+
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      toast.success('All notifications marked as read');
     } catch (error) {
-      console.error("Error marking all as read:", error);
-      toast.error("Failed to mark all as read");
+      console.error('Error marking all as read:', error);
+      toast.error('Failed to mark all as read');
     }
   };
 
   const deleteNotification = async (notificationId) => {
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_URL}/users/notifications/${notificationId}/delete/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      const token = localStorage.getItem('access_token');
+      await fetch(`${API_URL}/users/notifications/${notificationId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
-
-      if (!response.ok) throw new Error("Failed to delete notification");
-
-      setNotifications(prev =>
-        prev.filter(n => n.id !== notificationId)
-      );
-
-      if (selectedNotification?.id === notificationId) {
-        setSelectedNotification(null);
-        setShowModal(false);
-      }
-
-      toast.success("Notification deleted", {
-        duration: 2000,
-        icon: "🗑️",
-        style: {
-          background: "#ef4444",
-          color: "#fff",
-        },
       });
+
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      toast.success('Notification deleted');
     } catch (error) {
-      console.error("Error deleting notification:", error);
-      toast.error("Failed to delete notification");
+      console.error('Error deleting notification:', error);
+      toast.error('Failed to delete notification');
     }
   };
 
-  const clearAllNotifications = async () => {
-    if (!window.confirm("Are you sure you want to delete all notifications? This cannot be undone.")) {
-      return;
-    }
+  const clearAll = async () => {
+    if (!window.confirm('Delete all notifications? This cannot be undone.')) return;
 
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_URL}/users/notifications/clear-all/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_URL}/users/notifications/clear-all/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
-
-      if (!response.ok) throw new Error("Failed to clear notifications");
+      });
 
       const data = await response.json();
-
       setNotifications([]);
-      setSelectedNotification(null);
-      setShowModal(false);
-
-      toast.success(`Cleared ${data.deleted_count} notifications`, {
-        duration: 2000,
-        icon: "🗑️",
-        style: {
-          background: "#ef4444",
-          color: "#fff",
-        },
-      });
+      toast.success(`Cleared ${data.deleted_count} notifications`);
     } catch (error) {
-      console.error("Error clearing notifications:", error);
-      toast.error("Failed to clear notifications");
+      console.error('Error clearing all:', error);
+      toast.error('Failed to clear notifications');
     }
-  };
-
-  const handleNotificationClick = (notification) => {
-    setSelectedNotification(notification);
-    setShowModal(true);
-  };
-
-  const goToVessel = (vesselId) => {
-    setShowModal(false);
-    navigate(`/live-tracking?vessel=${vesselId}`);
-    
-    toast.success("Opening vessel in Live Tracking", {
-      duration: 2000,
-      style: {
-        background: "#3b82f6",
-        color: "#fff",
-      },
-    });
   };
 
   const formatTime = (timestamp) => {
@@ -223,47 +147,166 @@ const NotificationsPage = () => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString();
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+    });
   };
+
+  const formatFullDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getEventTypeColor = (type) => {
+    const colors = {
+      'position_update': 'bg-blue-100 text-blue-700',
+      'departure': 'bg-yellow-100 text-yellow-700',
+      'arrival': 'bg-green-100 text-green-700',
+      'alert': 'bg-red-100 text-red-700',
+      'default': 'bg-slate-100 text-slate-700'
+    };
+    return colors[type?.toLowerCase()] || colors.default;
+  };
+
+  const handleViewOnMap = (notification) => {
+    setSelectedNotification(null);
+    if (notification.vessel_id) {
+      navigate('/live-tracking', {
+        state: {
+          selectedVesselId: notification.vessel_id,
+          vesselName: notification.vessel_name
+        }
+      });
+    } else {
+      navigate('/live-tracking');
+    }
+  };
+
+  const handleDeleteFromModal = async (notificationId) => {
+    await deleteNotification(notificationId);
+    setSelectedNotification(null);
+  };
+
+  // Filter notifications
+  const filteredNotifications = notifications.filter(n => {
+    // Filter by read/unread
+    if (filter === 'unread' && n.is_read) return false;
+    if (filter === 'read' && !n.is_read) return false;
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        n.message?.toLowerCase().includes(query) ||
+        n.vessel_name?.toLowerCase().includes(query) ||
+        n.type_display?.toLowerCase().includes(query)
+      );
+    }
+
+    return true;
+  });
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="text-center space-y-4">
-          <div className="h-12 w-12 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin mx-auto" />
-          <p className="text-slate-600 font-medium">Loading notifications...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Loading notifications...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Notifications</h1>
-            <p className="text-slate-600 mt-1">
-              {notifications.length} total
-              {unreadCount > 0 && ` • ${unreadCount} unread`}
-            </p>
+    <div className="max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Bell className="h-6 w-6 text-blue-600" />
+            Notifications
+          </h1>
+          {unreadCount > 0 && (
+            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+              {unreadCount} unread
+            </span>
+          )}
+        </div>
+        <p className="text-slate-600">Stay updated with your vessel alerts and events</p>
+      </div>
+
+      {/* Actions Bar */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search notifications..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-          
-          {/* Action Buttons */}
+
+          {/* Filter */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                filter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter('unread')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                filter === 'unread'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Unread
+            </button>
+            <button
+              onClick={() => setFilter('read')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                filter === 'read'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Read
+            </button>
+          </div>
+
+          {/* Actions */}
           <div className="flex gap-2">
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
-                title="Mark all as read"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition flex items-center gap-1"
               >
                 <CheckCheck className="h-4 w-4" />
                 Mark All Read
@@ -271,73 +314,92 @@ const NotificationsPage = () => {
             )}
             {notifications.length > 0 && (
               <button
-                onClick={clearAllNotifications}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-medium"
-                title="Delete all notifications"
+                onClick={clearAll}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition flex items-center gap-1"
               >
-                <Trash className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 Clear All
               </button>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Notifications List */}
-        {notifications.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <p className="text-slate-500 text-lg">No notifications yet</p>
-            <p className="text-slate-400 text-sm mt-2">You're all caught up!</p>
+      {/* Notifications List */}
+      <div className="space-y-2">
+        {filteredNotifications.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+            <Bell className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-600 font-medium mb-1">No notifications</p>
+            <p className="text-slate-500 text-sm">
+              {searchQuery
+                ? 'No notifications match your search'
+                : filter === 'unread'
+                ? "You're all caught up!"
+                : 'No notifications yet'}
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className={`p-4 rounded-xl border cursor-pointer transition ${
-                  notification.is_read
-                    ? "bg-white border-slate-200 hover:border-slate-300"
-                    : "bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
+          filteredNotifications.map((notification) => (
+            <div
+              key={notification.id}
+              onClick={() => handleNotificationClick(notification)}
+              className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${
+                notification.is_read ? 'border-slate-200' : 'border-blue-300 bg-blue-50'
+              }`}
+            >
+              <div className="p-4">
+                <div className="flex items-start gap-4">
+                  {/* Icon */}
+                  <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    notification.is_read ? 'bg-slate-100' : 'bg-blue-100'
+                  }`}>
+                    <Ship className={`h-5 w-5 ${
+                      notification.is_read ? 'text-slate-600' : 'text-blue-600'
+                    }`} />
+                  </div>
+
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      {!notification.is_read && (
-                        <div className="h-3 w-3 bg-blue-600 rounded-full shrink-0" />
-                      )}
-                      <h3 className="font-semibold text-slate-900 text-lg">
-                        {notification.type_display}
-                      </h3>
-                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
-                        {notification.event_type_display}
-                      </span>
-                    </div>
-
-                    <p className="text-slate-700 mb-2">{notification.message}</p>
-
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                      <span className="font-medium">
-                        🚢 {notification.vessel_name}
-                      </span>
-                      <span className="text-xs">
-                        {notification.vessel_type} • {notification.vessel_flag}
-                      </span>
-                      <span className="text-xs">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">
+                          {notification.type_display || 'Notification'}
+                        </h3>
+                        <p className="text-sm text-slate-600 mt-1">
+                          {notification.message}
+                        </p>
+                      </div>
+                      <span className="text-xs text-slate-500 shrink-0 whitespace-nowrap">
                         {formatTime(notification.timestamp)}
                       </span>
                     </div>
+
+                    {/* Meta */}
+                    <div className="flex items-center gap-3 text-sm">
+                      {notification.vessel_name && (
+                        <span className="text-slate-600 flex items-center gap-1">
+                          <Ship className="h-3.5 w-3.5" />
+                          {notification.vessel_name}
+                        </span>
+                      )}
+                      {notification.event_type_display && (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          {notification.event_type_display}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Right Actions */}
-                  <div className="flex gap-2 shrink-0">
+                  {/* Actions */}
+                  <div className="flex gap-1 shrink-0">
                     {!notification.is_read && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           markAsRead(notification.id);
                         }}
-                        className="p-2 rounded-lg hover:bg-slate-200 transition text-slate-600"
+                        className="p-2 rounded-lg hover:bg-green-100 text-green-600 transition"
                         title="Mark as read"
                       >
                         <CheckCheck className="h-4 w-4" />
@@ -348,141 +410,153 @@ const NotificationsPage = () => {
                         e.stopPropagation();
                         deleteNotification(notification.id);
                       }}
-                      className="p-2 rounded-lg hover:bg-red-100 transition text-red-600"
-                      title="Delete notification"
+                      className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition"
+                      title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         )}
       </div>
 
       {/* Notification Detail Modal */}
-      {showModal && selectedNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-slate-200 bg-linear-to-r from-blue-50 to-cyan-50">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">
-                  {selectedNotification.type_display}
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  {formatTime(selectedNotification.timestamp)}
-                </p>
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Alert</h2>
+                  <p className="text-sm text-slate-600 mt-0.5">{formatTime(selectedNotification.timestamp)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="p-1.5 hover:bg-slate-200 rounded-lg transition"
+                >
+                  <X className="h-5 w-5 text-slate-600" />
+                </button>
               </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-slate-200 rounded-lg transition"
-              >
-                <X className="h-6 w-6 text-slate-600" />
-              </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-6">
-              {/* Event Type Badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-600">Event Type:</span>
-                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-medium">
-                  {selectedNotification.event_type_display}
+            {/* Content */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Event Type */}
+              <div>
+                <p className="text-sm font-semibold text-slate-600 mb-2">Event Type:</p>
+                <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-medium ${getEventTypeColor(selectedNotification.event_type)}`}>
+                  {selectedNotification.type_display || selectedNotification.event_type_display || 'Notification'}
                 </span>
               </div>
 
               {/* Message */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-600 mb-2">Message</h3>
-                <p className="text-slate-900 text-base leading-relaxed bg-slate-50 p-4 rounded-lg">
-                  {selectedNotification.message}
-                </p>
-              </div>
-
-              {/* Vessel Information */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-                <h3 className="font-semibold text-slate-900 text-lg">
-                  🚢 {selectedNotification.vessel_name}
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-slate-600 text-xs">IMO Number</p>
-                    <p className="font-mono font-semibold text-slate-900">
-                      {selectedNotification.vessel_imo}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-600 text-xs">Type</p>
-                    <p className="font-semibold text-slate-900">
-                      {selectedNotification.vessel_type}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-600 text-xs">Flag</p>
-                    <p className="font-semibold text-slate-900">
-                      {selectedNotification.vessel_flag}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-600 text-xs">Status</p>
-                    <p className={`font-semibold ${selectedNotification.is_read ? 'text-slate-500' : 'text-blue-600'}`}>
-                      {selectedNotification.is_read ? 'Read' : 'Unread'}
-                    </p>
-                  </div>
+                <p className="text-sm font-semibold text-slate-600 mb-2">Message</p>
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <p className="text-sm text-slate-800 leading-relaxed">
+                    📍 {selectedNotification.message}
+                  </p>
                 </div>
               </div>
 
-              {/* Meta Information */}
-              <div className="text-xs text-slate-500 space-y-1">
-                <p>ID: {selectedNotification.id}</p>
-                <p>Created: {new Date(selectedNotification.timestamp).toLocaleString()}</p>
+              {/* Vessel Details */}
+              {selectedNotification.vessel_name && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="text-2xl">🚢</div>
+                    <h3 className="font-bold text-slate-900 text-lg">{selectedNotification.vessel_name}</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {selectedNotification.vessel_imo && (
+                      <div>
+                        <p className="text-slate-600 font-medium">IMO Number</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_imo}</p>
+                      </div>
+                    )}
+                    {selectedNotification.vessel_type && (
+                      <div>
+                        <p className="text-slate-600 font-medium">Type</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_type}</p>
+                      </div>
+                    )}
+                    {selectedNotification.vessel_flag && (
+                      <div>
+                        <p className="text-slate-600 font-medium">Flag</p>
+                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_flag}</p>
+                      </div>
+                    )}
+                    {selectedNotification.is_read !== undefined && (
+                      <div>
+                        <p className="text-slate-600 font-medium">Status</p>
+                        <p className={`font-semibold ${selectedNotification.is_read ? 'text-slate-600' : 'text-blue-600'}`}>
+                          {selectedNotification.is_read ? 'Read' : 'Unread'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="pt-3 border-t border-slate-200 space-y-1">
+                <p className="text-xs text-slate-500">
+                  <span className="font-medium">ID:</span> {selectedNotification.id}
+                </p>
+                <p className="text-xs text-slate-500">
+                  <span className="font-medium">Created:</span> {formatFullDate(selectedNotification.timestamp)}
+                </p>
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="sticky bottom-0 flex gap-3 p-6 border-t border-slate-200 bg-slate-50">
-              {!selectedNotification.is_read && (
-                <button
-                  onClick={() => {
-                    markAsRead(selectedNotification.id);
-                    setShowModal(false);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
-                >
-                  <CheckCheck className="h-4 w-4" />
-                  Mark as Read
-                </button>
-              )}
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
               <button
-                onClick={() => goToVessel(selectedNotification.vessel)}
-                className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition font-medium"
+                onClick={() => handleViewOnMap(selectedNotification)}
+                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                View on Map 🗺️
+                <MapPin className="h-4 w-4" />
+                View on Map
               </button>
               <button
-                onClick={() => {
-                  deleteNotification(selectedNotification.id);
-                  setShowModal(false);
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-medium"
+                onClick={() => handleDeleteFromModal(selectedNotification.id)}
+                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete
               </button>
               <button
-                onClick={() => setShowModal(false)}
-                className="flex items-center justify-center px-4 py-2 rounded-lg bg-slate-200 text-slate-900 hover:bg-slate-300 transition font-medium"
+                onClick={() => setSelectedNotification(null)}
+                className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
               >
                 Close
               </button>
             </div>
           </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out;
+            }
+          `}</style>
         </div>
       )}
     </div>
   );
 };
 
-export default NotificationsPage;
+export default Notifications;
