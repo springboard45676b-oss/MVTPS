@@ -79,64 +79,43 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// Map Animation Component - No Glitch Version
-const MapAnimator = ({ vessels, animationKey }) => {
+// Map Animation Component - Fully Reliable
+const MapAnimator = ({ vessels, triggerAnimation }) => {
   const map = useMap();
-  const lastAnimationKey = useRef(-1);
-  const isAnimating = useRef(false);
+  const lastTrigger = useRef(null);
 
   useEffect(() => {
-    // Only animate if we have a new key and vessels are loaded
-    if (animationKey === lastAnimationKey.current || isAnimating.current || vessels.length === 0) {
+    // Don't animate if no trigger change or no vessels
+    if (triggerAnimation === lastTrigger.current || !triggerAnimation || vessels.length === 0) {
       return;
     }
 
-    // Skip first render (animationKey = 0)
-    if (animationKey === 0) {
-      lastAnimationKey.current = animationKey;
-      return;
-    }
-
-    isAnimating.current = true;
-    lastAnimationKey.current = animationKey;
+    lastTrigger.current = triggerAnimation;
 
     // Pick random vessel
     const randomIndex = Math.floor(Math.random() * vessels.length);
     const randomVessel = vessels[randomIndex];
     
     if (!randomVessel || !randomVessel.last_position_lat || !randomVessel.last_position_lon) {
-      isAnimating.current = false;
       return;
     }
 
     const targetLat = randomVessel.last_position_lat;
     const targetLng = randomVessel.last_position_lon;
 
-    // Reset to world view without animation
+    // Immediate reset to world view
     map.setView([20, 0], 2, { animate: false });
 
-    // Wait a bit then fly to target
+    // Small delay then animate to vessel
     const timer = setTimeout(() => {
-      try {
-        map.flyTo([targetLat, targetLng], 6, {
-          duration: 0.8,
-          easeLinearity: 0.7
-        });
+      map.flyTo([targetLat, targetLng], 6, {
+        duration: 0.8,
+        easeLinearity: 0.7
+      });
+    }, 100);
 
-        // Reset animation flag after animation completes
-        setTimeout(() => {
-          isAnimating.current = false;
-        }, 900);
-      } catch (error) {
-        console.error('Animation error:', error);
-        isAnimating.current = false;
-      }
-    }, 150);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [animationKey, vessels, map]);
+    return () => clearTimeout(timer);
+  }, [triggerAnimation, vessels, map]);
 
   return null;
 };
@@ -151,7 +130,7 @@ const LiveTracking = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [animationKey, setAnimationKey] = useState(0);
+  const [mapAnimationTrigger, setMapAnimationTrigger] = useState(null);
   const [subscriptionUpdateKey, setSubscriptionUpdateKey] = useState(0);
   
   const [filters, setFilters] = useState({
@@ -317,9 +296,9 @@ const LiveTracking = () => {
       setVessels(vesselWithPositions);
       setLoading(false);
       
-      // Trigger animation to random vessel after vessels load
+      // Trigger animation with timestamp
       setTimeout(() => {
-        setAnimationKey(prev => prev + 1);
+        setMapAnimationTrigger(Date.now());
       }, 200);
     } catch (error) {
       console.error('Error loading vessels:', error);
@@ -580,7 +559,7 @@ const LiveTracking = () => {
           >
             <MapAnimator 
               vessels={vessels}
-              animationKey={animationKey}
+              triggerAnimation={mapAnimationTrigger}
             />
             
             <TileLayer

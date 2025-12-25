@@ -11,6 +11,7 @@ const Notifications = () => {
   const [filter, setFilter] = useState('all'); // all, unread, read
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -118,8 +119,6 @@ const Notifications = () => {
   };
 
   const clearAll = async () => {
-    if (!window.confirm('Delete all notifications? This cannot be undone.')) return;
-
     try {
       const token = localStorage.getItem('access_token');
       const response = await fetch(`${API_URL}/users/notifications/clear-all/`, {
@@ -132,11 +131,23 @@ const Notifications = () => {
 
       const data = await response.json();
       setNotifications([]);
+      setShowClearAllModal(false);
       toast.success(`Cleared ${data.deleted_count} notifications`);
     } catch (error) {
       console.error('Error clearing all:', error);
       toast.error('Failed to clear notifications');
+      setShowClearAllModal(false);
     }
+  };
+
+  const formatMessage = (message) => {
+    if (!message) return '';
+    
+    // Replace space before 'knots', 'kts', 'km', 'm', 'degrees', etc. with non-breaking space
+    return message
+      .replace(/(\d+\.?\d*)\s+(knots?|kts|km|m|degrees?|°)/gi, '$1\u00A0$2')
+      .replace(/Speed:\s+/gi, 'Speed:\u00A0')
+      .replace(/\|\s+/g, '|\u00A0');
   };
 
   const formatTime = (timestamp) => {
@@ -314,7 +325,7 @@ const Notifications = () => {
             )}
             {notifications.length > 0 && (
               <button
-                onClick={clearAll}
+                onClick={() => setShowClearAllModal(true)}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition flex items-center gap-1"
               >
                 <Trash2 className="h-4 w-4" />
@@ -425,115 +436,162 @@ const Notifications = () => {
 
       {/* Notification Detail Modal */}
       {selectedNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
-            {/* Header */}
-            <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Alert</h2>
-                  <p className="text-sm text-slate-600 mt-0.5">{formatTime(selectedNotification.timestamp)}</p>
+            {/* Header with gradient */}
+            <div className="px-5 py-4 bg-gradient-to-br from-blue-600 to-cyan-600 text-white relative">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  <h2 className="text-lg font-bold">Vessel Alert</h2>
                 </div>
                 <button
                   onClick={() => setSelectedNotification(null)}
-                  className="p-1.5 hover:bg-slate-200 rounded-lg transition"
+                  className="p-1 hover:bg-white/20 rounded-lg transition"
                 >
-                  <X className="h-5 w-5 text-slate-600" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
+              <p className="text-blue-100 text-sm">{formatTime(selectedNotification.timestamp)}</p>
             </div>
 
             {/* Content */}
-            <div className="px-6 py-5 space-y-4">
-              {/* Event Type */}
-              <div>
-                <p className="text-sm font-semibold text-slate-600 mb-2">Event Type:</p>
-                <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-medium ${getEventTypeColor(selectedNotification.event_type)}`}>
-                  {selectedNotification.type_display || selectedNotification.event_type_display || 'Notification'}
-                </span>
-              </div>
-
-              {/* Message */}
-              <div>
-                <p className="text-sm font-semibold text-slate-600 mb-2">Message</p>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <p className="text-sm text-slate-800 leading-relaxed">
-                    📍 {selectedNotification.message}
-                  </p>
-                </div>
-              </div>
-
-              {/* Vessel Details */}
+            <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Vessel Card */}
               {selectedNotification.vessel_name && (
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="text-2xl">🚢</div>
-                    <h3 className="font-bold text-slate-900 text-lg">{selectedNotification.vessel_name}</h3>
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="text-3xl">🚢</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-slate-900 text-base">{selectedNotification.vessel_name}</h3>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mt-1 ${getEventTypeColor(selectedNotification.event_type)}`}>
+                        {selectedNotification.type_display || selectedNotification.event_type_display || 'Alert'}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
                     {selectedNotification.vessel_imo && (
-                      <div>
-                        <p className="text-slate-600 font-medium">IMO Number</p>
-                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_imo}</p>
+                      <div className="bg-white/60 rounded-lg p-2">
+                        <p className="text-slate-500 font-medium mb-0.5">IMO</p>
+                        <p className="text-slate-900 font-bold">{selectedNotification.vessel_imo}</p>
                       </div>
                     )}
                     {selectedNotification.vessel_type && (
-                      <div>
-                        <p className="text-slate-600 font-medium">Type</p>
-                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_type}</p>
+                      <div className="bg-white/60 rounded-lg p-2">
+                        <p className="text-slate-500 font-medium mb-0.5">Type</p>
+                        <p className="text-slate-900 font-bold">{selectedNotification.vessel_type}</p>
                       </div>
                     )}
                     {selectedNotification.vessel_flag && (
-                      <div>
-                        <p className="text-slate-600 font-medium">Flag</p>
-                        <p className="text-slate-900 font-semibold">{selectedNotification.vessel_flag}</p>
+                      <div className="bg-white/60 rounded-lg p-2">
+                        <p className="text-slate-500 font-medium mb-0.5">Flag</p>
+                        <p className="text-slate-900 font-bold">{selectedNotification.vessel_flag}</p>
                       </div>
                     )}
-                    {selectedNotification.is_read !== undefined && (
-                      <div>
-                        <p className="text-slate-600 font-medium">Status</p>
-                        <p className={`font-semibold ${selectedNotification.is_read ? 'text-slate-600' : 'text-blue-600'}`}>
-                          {selectedNotification.is_read ? 'Read' : 'Unread'}
-                        </p>
-                      </div>
-                    )}
+                    <div className="bg-white/60 rounded-lg p-2">
+                      <p className="text-slate-500 font-medium mb-0.5">Status</p>
+                      <p className={`font-bold ${selectedNotification.is_read ? 'text-slate-600' : 'text-blue-600'}`}>
+                        {selectedNotification.is_read ? 'Read' : 'Unread'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Metadata */}
-              <div className="pt-3 border-t border-slate-200 space-y-1">
-                <p className="text-xs text-slate-500">
-                  <span className="font-medium">ID:</span> {selectedNotification.id}
-                </p>
-                <p className="text-xs text-slate-500">
-                  <span className="font-medium">Created:</span> {formatFullDate(selectedNotification.timestamp)}
+              {/* Message */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Message</p>
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <p className="text-sm text-slate-700 leading-relaxed text-center">
+                    {formatMessage(selectedNotification.message)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Timestamp only */}
+              <div className="text-right">
+                <p className="text-xs text-slate-400">
+                  {formatFullDate(selectedNotification.timestamp)}
                 </p>
               </div>
             </div>
 
             {/* Footer Actions */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex gap-2">
               <button
                 onClick={() => handleViewOnMap(selectedNotification)}
-                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="flex-1 px-3 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm shadow-sm"
               >
                 <MapPin className="h-4 w-4" />
                 View on Map
               </button>
               <button
                 onClick={() => handleDeleteFromModal(selectedNotification.id)}
-                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm shadow-sm"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete
               </button>
               <button
                 onClick={() => setSelectedNotification(null)}
-                className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
+                className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition text-sm"
               >
                 Close
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out;
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Clear All Confirmation Modal */}
+      {showClearAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+            <div className="px-5 py-3 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Trash2 className="h-4 w-4 text-red-600" />
+                Clear All Notifications
+              </h3>
+            </div>
+            
+            <div className="px-5 py-4 text-center">
+              <p className="text-slate-800 text-base font-medium">
+                Clear all <span className="font-bold text-red-600">{notifications.length} notifications</span>?
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex gap-2">
+              <button
+                onClick={() => setShowClearAllModal(false)}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearAll}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-sm"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear All
               </button>
             </div>
           </div>

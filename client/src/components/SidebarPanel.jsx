@@ -22,6 +22,8 @@ const SidebarPanel = ({
   const [selectedAlerts, setSelectedAlerts] = useState(new Set());
   const [showAlertManagement, setShowAlertManagement] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -74,83 +76,91 @@ const SidebarPanel = ({
       return;
     }
 
-    if (!window.confirm(`Remove all ${subscribedVessels.size} active alerts?`)) {
-      return;
-    }
+    setConfirmAction({
+      type: 'all',
+      count: subscribedVessels.size,
+      onConfirm: async () => {
+        try {
+          const token = localStorage.getItem('access_token');
+          
+          for (const vesselId of subscribedVessels) {
+            await fetch(`${API_URL}/users/subscriptions/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                vessel: vesselId,
+                alert_type: 'all',
+                is_active: false
+              })
+            });
+          }
 
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      for (const vesselId of subscribedVessels) {
-        await fetch(`${API_URL}/users/subscriptions/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            vessel: vesselId,
-            alert_type: 'all',
-            is_active: false
-          })
-        });
+          setSubscribedVessels(new Set());
+          toast.success('All alerts removed', {
+            position: 'top-center',
+            duration: 3000,
+          });
+          setShowConfirmModal(false);
+        } catch (error) {
+          console.error('Error removing alerts:', error);
+          toast.error('Failed to remove alerts', {
+            position: 'top-center',
+            duration: 3000,
+          });
+        }
       }
-
-      setSubscribedVessels(new Set());
-      toast.success('All alerts removed', {
-        position: 'top-center',
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Error removing alerts:', error);
-      toast.error('Failed to remove alerts', {
-        position: 'top-center',
-        duration: 3000,
-      });
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleRemoveSelectedAlerts = async () => {
     if (selectedAlerts.size === 0) return;
 
-    if (!window.confirm(`Remove ${selectedAlerts.size} selected alert(s)?`)) {
-      return;
-    }
+    setConfirmAction({
+      type: 'selected',
+      count: selectedAlerts.size,
+      onConfirm: async () => {
+        try {
+          const token = localStorage.getItem('access_token');
+          
+          for (const vesselId of selectedAlerts) {
+            await fetch(`${API_URL}/users/subscriptions/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                vessel: vesselId,
+                alert_type: 'all',
+                is_active: false
+              })
+            });
+          }
 
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      for (const vesselId of selectedAlerts) {
-        await fetch(`${API_URL}/users/subscriptions/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            vessel: vesselId,
-            alert_type: 'all',
-            is_active: false
-          })
-        });
+          const newSubscribed = new Set(subscribedVessels);
+          selectedAlerts.forEach(id => newSubscribed.delete(id));
+          setSubscribedVessels(newSubscribed);
+          setSelectedAlerts(new Set());
+          
+          toast.success('Selected alerts removed', {
+            position: 'top-center',
+            duration: 3000,
+          });
+          setShowConfirmModal(false);
+        } catch (error) {
+          console.error('Error removing alerts:', error);
+          toast.error('Failed to remove alerts', {
+            position: 'top-center',
+            duration: 3000,
+          });
+        }
       }
-
-      const newSubscribed = new Set(subscribedVessels);
-      selectedAlerts.forEach(id => newSubscribed.delete(id));
-      setSubscribedVessels(newSubscribed);
-      setSelectedAlerts(new Set());
-      
-      toast.success('Selected alerts removed', {
-        position: 'top-center',
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Error removing alerts:', error);
-      toast.error('Failed to remove alerts', {
-        position: 'top-center',
-        duration: 3000,
-      });
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const toggleAlertSelection = (vesselId) => {
@@ -418,6 +428,69 @@ const SidebarPanel = ({
           )}
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+            <div className="px-5 py-3 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                Confirm Removal
+              </h3>
+            </div>
+            
+            <div className="px-5 py-4 text-center">
+              <p className="text-slate-800 text-base font-medium">
+                Remove{' '}
+                <span className="font-bold text-red-600">
+                  {confirmAction.type === 'all' ? `all ${confirmAction.count}` : confirmAction.count}{' '}
+                  alert{confirmAction.count > 1 ? 's' : ''}
+                </span>
+                ?
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                You can re-enable alerts anytime from vessel details.
+              </p>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex gap-2">
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmAction(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAction.onConfirm}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-sm"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out;
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,14 @@
+{
+  "tailwindCSS.lint.cssConflict": "ignore",
+  "tailwindCSS.lint.recommendedVariantOrder": "ignore",
+  "tailwindCSS.validate": false,
+  "css.validate": false,
+  "tailwindCSS.experimental.classRegex": [
+    ["className\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]"],
+    ["class\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]"]
+  ],
+  "tailwindCSS.emmetCompletions": false,
+  "editor.quickSuggestions": {
+    "strings": false
+  }
+}
