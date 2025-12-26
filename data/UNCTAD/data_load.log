@@ -1,0 +1,11 @@
+2025-12-26 13:23:12,195 - INFO - Starting UNCTAD data loading process...
+2025-12-26 13:23:12,195 - INFO - Loading CSV file: cleaned_US_PortCallsArrivals.csv
+2025-12-26 13:23:12,204 - INFO - Loaded 102 rows from CSV
+2025-12-26 13:23:12,205 - INFO - Starting data validation...
+2025-12-26 13:23:12,213 - INFO - Removed 0 rows with missing year
+2025-12-26 13:23:12,220 - INFO - After validation: 102 valid rows remaining
+2025-12-26 13:23:12,220 - INFO - Connecting to PostgreSQL...
+2025-12-26 13:23:12,292 - ERROR - PostgreSQL error: connection to server at "localhost" (::1), port 5432 failed: FATAL:  password authentication failed for user "postgres"
+
+2025-12-26 13:23:12,292 - ERROR - Data loading failed or no data inserted
+2025-12-26 13:23:12,292 - INFO - Process completed.

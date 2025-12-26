@@ -1,92 +1,87 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ValidationError
 
-# -------------------------
-# USER MODEL
-# -------------------------
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('operator', 'Operator'),
         ('analyst', 'Analyst'),
         ('admin', 'Admin'),
     ]
-    role = models.CharField(
-        max_length=20,
-        choices=ROLE_CHOICES,
-        null=True,
-        blank=True
-    )
-
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='operator')
+    company = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    
     def __str__(self):
         return f"{self.username} ({self.role})"
 
-# -------------------------
-# PORT MODEL
-# -------------------------
 class Port(models.Model):
     name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-
+    code = models.CharField(max_length=10, unique=True)
+    country = models.CharField(max_length=100)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    
     def __str__(self):
-        return f"{self.name} - {self.location}"
+        return f"{self.name} ({self.code})"
 
-# -------------------------
-# VESSEL MODEL
-# -------------------------
 class Vessel(models.Model):
+    VESSEL_TYPES = [
+        ('cargo', 'Cargo Ship'),
+        ('tanker', 'Tanker'),
+        ('container', 'Container Ship'),
+        ('passenger', 'Passenger Ship'),
+        ('fishing', 'Fishing Vessel'),
+    ]
+    
     name = models.CharField(max_length=100)
-    vessel_type = models.CharField(max_length=50)
+    imo = models.CharField(max_length=20, unique=True)
+    vessel_type = models.CharField(max_length=20, choices=VESSEL_TYPES)
+    flag = models.CharField(max_length=50)
     capacity = models.PositiveIntegerField()
-    current_port = models.ForeignKey(
-        Port, on_delete=models.SET_NULL, null=True, blank=True
-    )
-
+    current_port = models.ForeignKey(Port, on_delete=models.SET_NULL, null=True, blank=True)
+    
     def __str__(self):
         return self.name
 
-# -------------------------
-# VOYAGE MODEL
-# -------------------------
 class Voyage(models.Model):
+    STATUS_CHOICES = [
+        ('planned', 'Planned'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
     vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE)
-    origin = models.ForeignKey(Port, related_name="origin", on_delete=models.CASCADE)
-    destination = models.ForeignKey(Port, related_name="destination", on_delete=models.CASCADE)
-    departure_date = models.DateField()
-    arrival_date = models.DateField()
-
-    def clean(self):
-        if self.arrival_date < self.departure_date:
-            raise ValidationError("Arrival date cannot be before departure date")
-
+    origin = models.ForeignKey(Port, related_name="voyages_from", on_delete=models.CASCADE)
+    destination = models.ForeignKey(Port, related_name="voyages_to", on_delete=models.CASCADE)
+    departure_date = models.DateTimeField()
+    estimated_arrival = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned')
+    
     def __str__(self):
-        return f"{self.vessel} {self.origin} → {self.destination}"
+        return f"{self.vessel.name}: {self.origin.code} → {self.destination.code}"
 
-# -------------------------
-# EVENT MODEL
-# -------------------------
 class Event(models.Model):
-    voyage = models.ForeignKey(Voyage, on_delete=models.CASCADE, related_name='events')
+    EVENT_TYPES = [
+        ('weather', 'Weather Alert'),
+        ('maintenance', 'Maintenance'),
+        ('incident', 'Incident'),
+    ]
+    
+    title = models.CharField(max_length=200)
     description = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-timestamp']
-
-    def __str__(self):
-        return f"{self.timestamp.strftime('%Y-%m-%d %H:%M')} - {self.description[:50]}"
-
-# -------------------------
-# NOTIFICATION MODEL
-# -------------------------
-class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    message = models.TextField()
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    vessel = models.ForeignKey(Vessel, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    read = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ['-created_at']
-
+    
     def __str__(self):
-        return f"Notification for {self.user.username}: {self.message[:30]}"
+        return self.title
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Notification for {self.user.username}"

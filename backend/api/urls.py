@@ -1,25 +1,27 @@
 from django.urls import path, include
-from rest_framework import routers
-from .views import PortViewSet, VesselViewSet, VoyageViewSet, CurrentUserView, UserRegistrationView
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
+from .views import (
+    CustomTokenObtainPairView, RegisterView, UserProfileView,
+    PortViewSet, VesselViewSet, VoyageViewSet, EventViewSet, NotificationViewSet
+)
 
-# -------------------------
-# DRF Router for viewsets
-# -------------------------
-router = routers.DefaultRouter()
-router.register(r"ports", PortViewSet, basename="port")
-router.register(r"vessels", VesselViewSet, basename="vessel")
-router.register(r"voyages", VoyageViewSet, basename="voyage")
+router = DefaultRouter()
+router.register(r'ports', PortViewSet)
+router.register(r'vessels', VesselViewSet)
+router.register(r'voyages', VoyageViewSet)
+router.register(r'events', EventViewSet)
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
-# -------------------------
-# URL Patterns
-# -------------------------
 urlpatterns = [
-    # DRF viewsets: list, retrieve, create, update, delete
-    path("", include(router.urls)),
-
-    # Current authenticated user info: /api/me/
-    path("me/", CurrentUserView.as_view(), name="current-user"),
-
-    # User registration endpoint: /api/register/
-    path("register/", UserRegistrationView.as_view(), name="register"),
+    # Authentication
+    path('auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/register/', RegisterView.as_view(), name='register'),
+    
+    # User Profile
+    path('auth/profile/', UserProfileView.as_view(), name='user_profile'),
+    
+    # API Routes
+    path('', include(router.urls)),
 ]

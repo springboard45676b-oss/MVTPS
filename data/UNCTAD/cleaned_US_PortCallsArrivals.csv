@@ -1,0 +1,103 @@
+port_name,country,year,port_calls,avg_time_spent_hours
+Port of Sydney,Australia,2018,124058.0,36.0
+Port of Vancouver,Canada,2018,173066.0,36.0
+Port of Shanghai,China,2018,480770.0,36.0
+Port of Rijeka,Croatia,2018,136756.0,36.0
+Port of Copenhagen,Denmark,2018,227284.0,36.0
+Port of Le Havre,France,2018,143410.0,36.0
+Port of Hamburg,Germany,2018,213226.0,36.0
+Port of Piraeus,Greece,2018,310144.0,36.0
+Port of Jakarta,Indonesia,2018,300858.0,36.0
+Port of Genoa,Italy,2018,459860.0,36.0
+Port of Tokyo,Japan,2018,531036.0,36.0
+Port of Busan,"Korea, Republic of",2018,143204.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2018,247452.0,36.0
+Port of Oslo,Norway,2018,1048938.0,36.0
+Port of Manila,Philippines,2018,74968.0,36.0
+Port of St. Petersburg,Russian Federation,2018,162374.0,36.0
+Port of Barcelona,Spain,2018,279434.0,36.0
+Port of Sydney,Australia,2019,132152.0,36.0
+Port of Vancouver,Canada,2019,208660.0,36.0
+Port of Shanghai,China,2019,509736.0,36.0
+Port of Rijeka,Croatia,2019,142046.0,36.0
+Port of Copenhagen,Denmark,2019,226340.0,36.0
+Port of Le Havre,France,2019,144028.0,36.0
+Port of Hamburg,Germany,2019,217268.0,36.0
+Port of Piraeus,Greece,2019,319166.0,36.0
+Port of Jakarta,Indonesia,2019,350484.0,36.0
+Port of Genoa,Italy,2019,466162.0,36.0
+Port of Tokyo,Japan,2019,561748.0,36.0
+Port of Busan,"Korea, Republic of",2019,191984.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2019,248118.0,36.0
+Port of Oslo,Norway,2019,1172322.0,36.0
+Port of Manila,Philippines,2019,95012.0,36.0
+Port of St. Petersburg,Russian Federation,2019,142824.0,36.0
+Port of Barcelona,Spain,2019,285546.0,36.0
+Port of Sydney,Australia,2020,116948.0,36.0
+Port of Vancouver,Canada,2020,206594.0,36.0
+Port of Shanghai,China,2020,522538.0,36.0
+Port of Rijeka,Croatia,2020,120396.0,36.0
+Port of Copenhagen,Denmark,2020,204356.0,36.0
+Port of Le Havre,France,2020,117074.0,36.0
+Port of Hamburg,Germany,2020,176890.0,36.0
+Port of Piraeus,Greece,2020,273436.0,36.0
+Port of Jakarta,Indonesia,2020,333156.0,36.0
+Port of Genoa,Italy,2020,400148.0,36.0
+Port of Tokyo,Japan,2020,519166.0,36.0
+Port of Busan,"Korea, Republic of",2020,147126.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2020,234840.0,36.0
+Port of Oslo,Norway,2020,1168842.0,36.0
+Port of Manila,Philippines,2020,77280.0,36.0
+Port of St. Petersburg,Russian Federation,2020,134876.0,36.0
+Port of Barcelona,Spain,2020,210092.0,36.0
+Port of Sydney,Australia,2021,109718.0,36.0
+Port of Vancouver,Canada,2021,223868.0,36.0
+Port of Shanghai,China,2021,520928.0,36.0
+Port of Rijeka,Croatia,2021,146580.0,36.0
+Port of Copenhagen,Denmark,2021,213120.0,36.0
+Port of Le Havre,France,2021,132206.0,36.0
+Port of Hamburg,Germany,2021,191172.0,36.0
+Port of Piraeus,Greece,2021,307118.0,36.0
+Port of Jakarta,Indonesia,2021,363316.0,36.0
+Port of Genoa,Italy,2021,460194.0,36.0
+Port of Tokyo,Japan,2021,545446.0,36.0
+Port of Busan,"Korea, Republic of",2021,189188.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2021,243300.0,36.0
+Port of Oslo,Norway,2021,1393654.0,36.0
+Port of Manila,Philippines,2021,92676.0,36.0
+Port of St. Petersburg,Russian Federation,2021,128812.0,36.0
+Port of Barcelona,Spain,2021,237022.0,36.0
+Port of Sydney,Australia,2022,94824.0,36.0
+Port of Vancouver,Canada,2022,234970.0,36.0
+Port of Shanghai,China,2022,472858.0,36.0
+Port of Rijeka,Croatia,2022,157436.0,36.0
+Port of Copenhagen,Denmark,2022,220060.0,36.0
+Port of Le Havre,France,2022,133638.0,36.0
+Port of Hamburg,Germany,2022,205000.0,36.0
+Port of Piraeus,Greece,2022,343406.0,36.0
+Port of Jakarta,Indonesia,2022,393150.0,36.0
+Port of Genoa,Italy,2022,474390.0,36.0
+Port of Tokyo,Japan,2022,578138.0,36.0
+Port of Busan,"Korea, Republic of",2022,199884.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2022,262100.0,36.0
+Port of Oslo,Norway,2022,1612330.0,36.0
+Port of Manila,Philippines,2022,103212.0,36.0
+Port of St. Petersburg,Russian Federation,2022,114592.0,36.0
+Port of Barcelona,Spain,2022,274380.0,36.0
+Port of Sydney,Australia,2023,93456.0,36.0
+Port of Vancouver,Canada,2023,249258.0,36.0
+Port of Shanghai,China,2023,526920.0,36.0
+Port of Rijeka,Croatia,2023,162088.0,36.0
+Port of Copenhagen,Denmark,2023,217902.0,36.0
+Port of Le Havre,France,2023,144048.0,36.0
+Port of Hamburg,Germany,2023,213510.0,36.0
+Port of Piraeus,Greece,2023,343902.0,36.0
+Port of Jakarta,Indonesia,2023,400994.0,36.0
+Port of Genoa,Italy,2023,484164.0,36.0
+Port of Tokyo,Japan,2023,587926.0,36.0
+Port of Busan,"Korea, Republic of",2023,211000.0,36.0
+Port of Rotterdam,Netherlands (Kingdom of the),2023,266588.0,36.0
+Port of Oslo,Norway,2023,1855708.0,36.0
+Port of Manila,Philippines,2023,121530.0,36.0
+Port of St. Petersburg,Russian Federation,2023,122350.0,36.0
+Port of Barcelona,Spain,2023,284206.0,36.0

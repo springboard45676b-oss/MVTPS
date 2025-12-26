@@ -1,0 +1,6 @@
+# Additional requirements for UNCTAD data processing
+pandas>=1.5.0
+numpy>=1.21.0
+openpyxl>=3.0.9  # For Excel file support if needed
+matplotlib>=3.5.0  # For data visualization
+seaborn>=0.11.0  # For statistical plotting

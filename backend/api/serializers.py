@@ -2,122 +2,63 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, Port, Vessel, Voyage, Event, Notification
 
-
-# =========================
-# USER SERIALIZER (READ-ONLY)
-# =========================
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "role"]
-        read_only_fields = ["id", "username", "role"]
+        fields = ['id', 'email', 'role', 'company']
+        read_only_fields = ['id']
 
-
-# =========================
-# USER REGISTRATION SERIALIZER
-# =========================
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password],
-    )
-    role = serializers.ChoiceField(
-        choices=User.ROLE_CHOICES,
-        default="operator",
-        required=False,
-    )
-
+class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["username", "password", "email", "role"]
+        fields = ['id', 'email', 'company']
+        read_only_fields = ['id']
 
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+    
+    class Meta:
+        model = User
+        fields = ['email', 'password', 'role', 'company']
+    
     def create(self, validated_data):
-        role = validated_data.get("role", "operator")
-
-        # 🚨 SECURITY RULE
-        # Users MUST NOT self-register as admin
-        if role not in ["operator", "analyst"]:
-            role = "operator"
-
-        user = User.objects.create_user(
-            username=validated_data["username"],
-            password=validated_data["password"],
-            email=validated_data.get("email"),
-            role=role,
-        )
+        # Use email as username
+        validated_data['username'] = validated_data['email']
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
         return user
 
-
-# =========================
-# PORT SERIALIZER
-# =========================
 class PortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Port
-        fields = "__all__"
+        fields = '__all__'
 
-
-# =========================
-# VESSEL SERIALIZER
-# =========================
 class VesselSerializer(serializers.ModelSerializer):
-    current_port_name = serializers.CharField(
-        source="current_port.name",
-        read_only=True,
-        default=None
-    )
-
+    current_port_name = serializers.CharField(source='current_port.name', read_only=True)
+    
     class Meta:
         model = Vessel
-        fields = [
-            "id",
-            "name",
-            "vessel_type",
-            "capacity",
-            "current_port",
-            "current_port_name",
-        ]
+        fields = ['id', 'name', 'imo', 'vessel_type', 'flag', 'capacity', 'current_port', 'current_port_name']
 
-
-# =========================
-# VOYAGE SERIALIZER
-# =========================
 class VoyageSerializer(serializers.ModelSerializer):
-    vessel_name = serializers.CharField(source="vessel.name", read_only=True)
-    origin_name = serializers.CharField(source="origin.name", read_only=True)
-    destination_name = serializers.CharField(source="destination.name", read_only=True)
-
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    origin_name = serializers.CharField(source='origin.name', read_only=True)
+    destination_name = serializers.CharField(source='destination.name', read_only=True)
+    
     class Meta:
         model = Voyage
-        fields = [
-            "id",
-            "vessel",
-            "vessel_name",
-            "origin",
-            "origin_name",
-            "destination",
-            "destination_name",
-            "departure_date",
-            "arrival_date",
-        ]
+        fields = ['id', 'vessel', 'vessel_name', 'origin', 'origin_name', 'destination', 'destination_name', 'departure_date', 'estimated_arrival', 'status']
 
-
-# =========================
-# EVENT SERIALIZER
-# =========================
 class EventSerializer(serializers.ModelSerializer):
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    
     class Meta:
         model = Event
-        fields = "__all__"
-        read_only_fields = ["timestamp"]
+        fields = ['id', 'title', 'description', 'event_type', 'vessel', 'vessel_name', 'created_at']
 
-
-# =========================
-# NOTIFICATION SERIALIZER
-# =========================
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = "__all__"
-        read_only_fields = ["created_at"]
+        fields = ['id', 'message', 'is_read', 'created_at']
