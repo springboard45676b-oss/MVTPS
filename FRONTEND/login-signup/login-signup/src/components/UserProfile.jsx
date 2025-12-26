@@ -1,19 +1,81 @@
 import { useState } from 'react';
+import ChangePassword from './ChangePassword';
+import { useEffect } from 'react';
+
 
 export default function UserProfile() {
   const [form, setForm] = useState({
-    username: localStorage.getItem('username'),
-    email: localStorage.getItem('email') || '',
-    role: localStorage.getItem('user_role'),
+    // username: localStorage.getItem('username'),
+    // email: localStorage.getItem('email') || '',
+    // role: localStorage.getItem('user_role'),
   });
 
   const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    alert('Profile update API will be added here (Step-2)');
+useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+
+      const res = await fetch('http://127.0.0.1:8000/api/profile/', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      setForm({
+        username: data.username,
+        email: data.email,
+        role: localStorage.getItem('user_role'),
+      });
+    } catch (err) {
+      console.error('Profile load failed');
+    }
   };
+
+  fetchProfile();
+}, []);
+
+  // const handleSave = () => {
+  //   alert('Profile update API will be added here (Step-2)');
+  // };
+const handleSave = async () => {
+  try {
+    const token = localStorage.getItem('access_token');
+
+    const res = await fetch('http://127.0.0.1:8000/api/profile/', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        username: form.username,
+        email: form.email,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert('Update failed');
+      return;
+    }
+
+    // update localStorage
+    localStorage.setItem('username', form.username);
+    localStorage.setItem('email', form.email);
+
+    alert('Profile updated successfully ✅');
+  } catch (err) {
+    console.error(err);
+    alert('Server error');
+  }
+};
 
   return (
     <div className="max-w-xl mx-auto bg-white p-6 rounded-xl shadow-lg">
@@ -55,7 +117,8 @@ export default function UserProfile() {
         >
           Save Changes
         </button>
-      </div>
     </div>
+    <ChangePassword />
+      </div>
   );
 }

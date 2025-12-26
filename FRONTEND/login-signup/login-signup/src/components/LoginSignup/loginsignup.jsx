@@ -1218,7 +1218,7 @@ const LoginSignup = () => {
       <div className="w-full max-w-md">
         <div className="bg-white shadow-lg rounded-2xl overflow-hidden">
           <div className="p-5 border-b">
-            <h1 className="text-2xl font-bold text-gray-800">Welcome</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Welcome to MVTPS</h1>
             <p className="text-sm text-gray-500 mt-1">Login or create an account to continue</p>
 
             <div className="mt-4 bg-gray-100 rounded-lg p-1 w-full flex gap-1">

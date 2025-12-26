@@ -139,3 +139,51 @@ def vessel_positions(request, imo_number):
 
     serializer = VesselPositionSerializer(positions, many=True)
     return Response(serializer.data)
+
+
+# Additional views for vessel data can be added here in the future.
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.contrib.auth.models import User
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    user = request.user
+
+    if request.method == 'GET':
+        return Response({
+            "username": user.username,
+            "email": user.email,
+            "role": user.userprofile.role
+        })
+
+    if request.method == 'PUT':
+        user.username = request.data.get('username', user.username)
+        user.email = request.data.get('email', user.email)
+        user.save()
+
+        return Response({
+            "message": "Profile updated successfully"
+        })
+
+
+# Additional views for vessel data can be added here in the future.
+from django.contrib.auth import authenticate
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+
+    if not user.check_password(old_password):
+        return Response({"error": "Old password is incorrect"}, status=400)
+
+    user.set_password(new_password)
+    user.save()
+
+    return Response({"message": "Password changed successfully"})

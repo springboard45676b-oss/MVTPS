@@ -508,3 +508,27 @@ def test_api(request):
             'refresh': '/api/token/refresh/'
         }
     }, status=status.HTTP_200_OK)
+
+
+
+# # from django.shortcuts
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .serializers import UserUpdateSerializer
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    user = request.user
+
+    if request.method == 'GET':
+        serializer = UserUpdateSerializer(user)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Profile updated successfully"})
+        return Response(serializer.errors, status=400)
