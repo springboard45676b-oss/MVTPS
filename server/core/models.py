@@ -130,10 +130,13 @@ class Vessel(models.Model):
         return f"{self.name} ({self.imo_number})"
 
 
+# Add these fields to your Port model in server/core/models.py
+
 class Port(models.Model):
     """
-    Port model matching ERD schema exactly:
+    Port model matching ERD schema with coordinates:
     - id, name, location, country, congestion_score, avg_wait_time, arrivals, departures, last_update
+    - latitude, longitude (NEW FIELDS for map visualization)
     """
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
@@ -143,6 +146,10 @@ class Port(models.Model):
     arrivals = models.IntegerField(default=0)
     departures = models.IntegerField(default=0)
     last_update = models.DateTimeField(auto_now=True)
+    
+    # NEW FIELDS for geographic coordinates
+    latitude = models.FloatField(null=True, blank=True, help_text='Port latitude coordinate')
+    longitude = models.FloatField(null=True, blank=True, help_text='Port longitude coordinate')
 
     class Meta:
         db_table = 'core_port'

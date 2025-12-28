@@ -28,6 +28,18 @@ from .views import (
     MarkAllNotificationsAsReadAPI,
     ClearAllNotificationsAPI,
     DeleteNotificationAPI,
+    # Port views
+    PortListAPI,
+    PortDetailAPI,
+    PortStatisticsAPI,
+    # Voyage views
+    VoyageListAPI,
+    VoyageDetailAPI,
+    VoyagesByVesselAPI,
+    VoyagesByPortAPI,
+    ActiveVoyagesAPI,
+    # Mock data generation
+    GeneratePortVoyageMockDataAPI,
 )
 
 urlpatterns = [
@@ -55,6 +67,22 @@ urlpatterns = [
     path('vessels/bulk/current-positions/', BulkVesselPositionsAPI.as_view(), name='bulk-vessel-positions'),
     
     # ============================================
+    # PORT ENDPOINTS - /api/ports/*
+    # ============================================
+    path('ports/', PortListAPI.as_view(), name='port-list'),
+    path('ports/<int:pk>/', PortDetailAPI.as_view(), name='port-detail'),
+    path('ports/<int:port_id>/statistics/', PortStatisticsAPI.as_view(), name='port-statistics'),
+    
+    # ============================================
+    # VOYAGE ENDPOINTS - /api/voyages/*
+    # ============================================
+    path('voyages/', VoyageListAPI.as_view(), name='voyage-list'),
+    path('voyages/<int:pk>/', VoyageDetailAPI.as_view(), name='voyage-detail'),
+    path('voyages/vessel/<int:vessel_id>/', VoyagesByVesselAPI.as_view(), name='voyages-by-vessel'),
+    path('voyages/port/<int:port_id>/', VoyagesByPortAPI.as_view(), name='voyages-by-port'),
+    path('voyages/active/', ActiveVoyagesAPI.as_view(), name='active-voyages'),
+    
+    # ============================================
     # SUBSCRIPTION & ALERT ENDPOINTS - /api/users/*
     # ============================================
     path('users/subscriptions/', UserVesselSubscriptionsAPI.as_view(), name='user-subscriptions'),
@@ -73,8 +101,9 @@ urlpatterns = [
     path('users/notifications/clear-all/', ClearAllNotificationsAPI.as_view(), name='clear-all-notifications'),
     
     # ============================================
-    # DATA GENERATION - /api/*
+    # MOCK DATA GENERATION - /api/*
     # ============================================
     path('generate-mock-data/', GenerateRealisticMockDataAPI.as_view(), name='generate-mock-data'),
     path('generate-realistic-mock-data/', GenerateRealisticMockDataAPI.as_view(), name='generate-realistic-mock-data'),
+    path('generate-port-voyage-mock-data/', GeneratePortVoyageMockDataAPI.as_view(), name='generate-port-voyage-mock-data'),
 ]

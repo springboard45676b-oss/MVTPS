@@ -8,7 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-from django.db.models import Max, OuterRef, F
+from django.db.models import Max, OuterRef, F, Q, Avg, Count
 from datetime import timedelta
 import random
 import logging
@@ -796,4 +796,364 @@ class AlertMarkAsReadAPI(APIView):
             return Response(
                 {'error': 'Alert not found'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        
+# Add these imports at the top of your views.py file (around line 40):
+from .models import Port, Voyage
+
+# Add these to your serializers import section (around line 34):
+# You need to add these serializers to your serializers.py FIRST!
+# Then uncomment these imports:
+# from .serializers import (
+#     PortSerializer, 
+#     PortDetailedSerializer, 
+#     VoyageSerializer, 
+#     VoyageDetailedSerializer
+# )
+
+# For now, create simple inline serializers to make it work immediately:
+from rest_framework import serializers
+
+class PortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Port
+        fields = '__all__'
+
+class VoyageSerializer(serializers.ModelSerializer):
+    vessel_name = serializers.CharField(source='vessel.name', read_only=True)
+    vessel_imo = serializers.CharField(source='vessel.imo_number', read_only=True)
+    vessel_type = serializers.CharField(source='vessel.type', read_only=True)
+    port_from_name = serializers.CharField(source='port_from.name', read_only=True)
+    port_from_country = serializers.CharField(source='port_from.country', read_only=True)
+    port_to_name = serializers.CharField(source='port_to.name', read_only=True)
+    port_to_country = serializers.CharField(source='port_to.country', read_only=True)
+    duration_days = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = Voyage
+        fields = (
+            'id', 'vessel', 'vessel_name', 'vessel_imo', 'vessel_type',
+            'port_from', 'port_from_name', 'port_from_country',
+            'port_to', 'port_to_name', 'port_to_country',
+            'departure_time', 'arrival_time', 'duration_days',
+            'status', 'status_display'
+        )
+    
+    def get_duration_days(self, obj):
+        if obj.arrival_time and obj.departure_time:
+            delta = obj.arrival_time - obj.departure_time
+            return round(delta.total_seconds() / 86400, 1)
+        return None
+
+# ============================================
+# PORT VIEWS - REPLACE YOUR EXISTING PORT VIEWS WITH THESE
+# ============================================
+
+class PortListAPI(generics.ListAPIView):
+    """
+    List all ports with filtering and search
+    GET /api/ports/
+    """
+    queryset = Port.objects.all().order_by('-congestion_score')
+    serializer_class = PortSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['name', 'location', 'country']
+    ordering_fields = ['name', 'congestion_score', 'avg_wait_time', 'arrivals', 'departures']
+    filterset_fields = ['country']
+    
+    def list(self, request, *args, **kwargs):
+        """Add statistics to response"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Calculate statistics
+        total_ports = queryset.count()
+        avg_congestion = queryset.aggregate(Avg('congestion_score'))['congestion_score__avg']
+        avg_wait_time = queryset.aggregate(Avg('avg_wait_time'))['avg_wait_time__avg']
+        
+        # Congestion levels
+        low_congestion = queryset.filter(congestion_score__lt=3).count()
+        moderate_congestion = queryset.filter(congestion_score__gte=3, congestion_score__lt=6).count()
+        high_congestion = queryset.filter(congestion_score__gte=6, congestion_score__lt=8).count()
+        critical_congestion = queryset.filter(congestion_score__gte=8).count()
+        
+        serializer = self.get_serializer(queryset, many=True)
+        
+        return Response({
+            'count': total_ports,
+            'statistics': {
+                'avg_congestion_score': round(avg_congestion, 2) if avg_congestion else 0,
+                'avg_wait_time_hours': round(avg_wait_time, 2) if avg_wait_time else 0,
+                'congestion_levels': {
+                    'low': low_congestion,
+                    'moderate': moderate_congestion,
+                    'high': high_congestion,
+                    'critical': critical_congestion
+                }
+            },
+            'results': serializer.data
+        })
+
+
+class PortDetailAPI(generics.RetrieveAPIView):
+    """
+    Get detailed information about a specific port
+    GET /api/ports/{id}/
+    """
+    queryset = Port.objects.all()
+    serializer_class = PortSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class PortStatisticsAPI(APIView):
+    """
+    Get comprehensive port statistics and analytics
+    GET /api/ports/{id}/statistics/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, port_id):
+        try:
+            port = Port.objects.get(id=port_id)
+        except Port.DoesNotExist:
+            return Response(
+                {'error': 'Port not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get voyage statistics
+        total_arrivals = Voyage.objects.filter(port_to=port).count()
+        total_departures = Voyage.objects.filter(port_from=port).count()
+        
+        # Recent activity (last 30 days)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_arrivals = Voyage.objects.filter(
+            port_to=port,
+            arrival_time__gte=thirty_days_ago
+        ).count()
+        recent_departures = Voyage.objects.filter(
+            port_from=port,
+            departure_time__gte=thirty_days_ago
+        ).count()
+        
+        # Active voyages (in progress to/from this port)
+        active_to_port = Voyage.objects.filter(
+            port_to=port,
+            status='in_progress'
+        ).count()
+        active_from_port = Voyage.objects.filter(
+            port_from=port,
+            status='in_progress'
+        ).count()
+        
+        # Calculate efficiency metrics
+        on_time_arrivals = Voyage.objects.filter(
+            port_to=port,
+            status='completed'
+        ).count()
+        
+        return Response({
+            'port': {
+                'id': port.id,
+                'name': port.name,
+                'location': port.location,
+                'country': port.country
+            },
+            'congestion': {
+                'score': port.congestion_score,
+                'level': 'critical' if port.congestion_score >= 8 else 
+                        'high' if port.congestion_score >= 6 else
+                        'moderate' if port.congestion_score >= 3 else 'low',
+                'avg_wait_time_hours': port.avg_wait_time
+            },
+            'traffic': {
+                'total': {
+                    'arrivals': total_arrivals,
+                    'departures': total_departures,
+                    'total': total_arrivals + total_departures
+                },
+                'last_30_days': {
+                    'arrivals': recent_arrivals,
+                    'departures': recent_departures,
+                    'total': recent_arrivals + recent_departures
+                },
+                'current_activity': {
+                    'incoming_vessels': active_to_port,
+                    'outgoing_vessels': active_from_port,
+                    'total_active': active_to_port + active_from_port
+                }
+            },
+            'performance': {
+                'completed_arrivals': on_time_arrivals,
+                'turnover_rate': round((port.departures / port.arrivals * 100), 2) if port.arrivals > 0 else 0
+            }
+        })
+
+
+# ============================================
+# VOYAGE VIEWS - REPLACE YOUR EXISTING VOYAGE VIEWS WITH THESE
+# ============================================
+
+class VoyageListAPI(generics.ListAPIView):
+    """
+    List all voyages with filtering
+    GET /api/voyages/
+    """
+    queryset = Voyage.objects.all().select_related(
+        'vessel', 'port_from', 'port_to'
+    ).order_by('-departure_time')
+    serializer_class = VoyageSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['vessel__name', 'vessel__imo_number', 'port_from__name', 'port_to__name']
+    ordering_fields = ['departure_time', 'arrival_time', 'status']
+    filterset_fields = ['status', 'vessel', 'port_from', 'port_to']
+    
+    def get_queryset(self):
+        """Add custom filtering"""
+        queryset = super().get_queryset()
+        
+        # Filter by date range
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        if start_date:
+            queryset = queryset.filter(departure_time__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(departure_time__lte=end_date)
+        
+        # Filter by vessel
+        vessel_id = self.request.query_params.get('vessel_id')
+        if vessel_id:
+            queryset = queryset.filter(vessel_id=vessel_id)
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """Add statistics"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Calculate statistics
+        total_voyages = queryset.count()
+        by_status = {
+            'scheduled': queryset.filter(status='scheduled').count(),
+            'in_progress': queryset.filter(status='in_progress').count(),
+            'completed': queryset.filter(status='completed').count(),
+            'cancelled': queryset.filter(status='cancelled').count()
+        }
+        
+        serializer = self.get_serializer(queryset, many=True)
+        
+        return Response({
+            'count': total_voyages,
+            'statistics': {
+                'by_status': by_status
+            },
+            'results': serializer.data
+        })
+
+
+class VoyageDetailAPI(generics.RetrieveAPIView):
+    """
+    Get detailed information about a specific voyage
+    GET /api/voyages/{id}/
+    """
+    queryset = Voyage.objects.all().select_related(
+        'vessel', 'port_from', 'port_to'
+    )
+    serializer_class = VoyageSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class VoyagesByVesselAPI(generics.ListAPIView):
+    """
+    Get all voyages for a specific vessel
+    GET /api/voyages/vessel/{vessel_id}/
+    """
+    serializer_class = VoyageSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        vessel_id = self.kwargs.get('vessel_id')
+        return Voyage.objects.filter(
+            vessel_id=vessel_id
+        ).select_related('vessel', 'port_from', 'port_to').order_by('-departure_time')
+
+
+class VoyagesByPortAPI(generics.ListAPIView):
+    """
+    Get all voyages to/from a specific port
+    GET /api/voyages/port/{port_id}/?direction=arrivals|departures|all
+    """
+    serializer_class = VoyageSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        port_id = self.kwargs.get('port_id')
+        direction = self.request.query_params.get('direction', 'all')
+        
+        if direction == 'arrivals':
+            return Voyage.objects.filter(port_to_id=port_id)
+        elif direction == 'departures':
+            return Voyage.objects.filter(port_from_id=port_id)
+        else:  # all
+            return Voyage.objects.filter(
+                Q(port_from_id=port_id) | Q(port_to_id=port_id)
+            ).select_related('vessel', 'port_from', 'port_to').order_by('-departure_time')
+
+
+class ActiveVoyagesAPI(generics.ListAPIView):
+    """
+    Get all currently active (in_progress) voyages
+    GET /api/voyages/active/
+    """
+    serializer_class = VoyageSerializer  # ✅ FIXED
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return Voyage.objects.filter(
+            status='in_progress'
+        ).select_related('vessel', 'port_from', 'port_to').order_by('arrival_time')
+
+
+# ============================================
+# MOCK DATA GENERATION VIEW
+# ============================================
+
+class GeneratePortVoyageMockDataAPI(APIView):
+    """
+    Generate mock port and voyage data
+    POST /api/generate-port-voyage-mock-data/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Generate 15 ports and 15 voyages"""
+        try:
+            # Only admins can generate mock data
+            # if request.user.role != 'admin':
+            #     return Response(
+            #         {'error': 'Only admins can generate mock data'},
+            #         status=status.HTTP_403_FORBIDDEN
+            #     )
+            
+            from .mock_data_generator import MockDataGenerator
+            result = MockDataGenerator.generate_all_mock_data()
+            
+            return Response({
+                'success': True,
+                'message': 'Mock data generated successfully',
+                'data': {
+                    'ports_created': len(result['ports']),
+                    'voyages_created': len(result['voyages']),
+                    'summary': result['summary']
+                }
+            }, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            logger.error(f"Error generating mock data: {str(e)}")
+            return Response(
+                {'error': f'Failed to generate mock data: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
