@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Anchor, MapPin, AlertCircle, TrendingUp, TrendingDown, Clock, RefreshCw, Activity } from 'lucide-react';
+import { Anchor, MapPin, AlertCircle, TrendingUp, TrendingDown, Clock, RefreshCw, Activity, Search, X, ChevronDown, Filter } from 'lucide-react';
 
-// Toast Component
+// Improved Toast Component
 const Toast = ({ message, type = 'success', onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -11,27 +11,27 @@ const Toast = ({ message, type = 'success', onClose }) => {
   }, [onClose]);
 
   return (
-    <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300">
-      <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 ${
+    <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className={`px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 backdrop-blur-sm ${
         type === 'success' 
-          ? 'bg-white text-gray-800 border border-gray-200' 
-          : 'bg-red-50 text-red-800 border border-red-200'
+          ? 'bg-white/95 text-gray-800' 
+          : 'bg-red-50/95 text-red-800'
       }`}>
         {type === 'success' && (
-          <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
         )}
         {type === 'error' && (
-          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
         )}
-        <span className="font-medium">{message}</span>
+        <span className="font-medium text-sm">{message}</span>
       </div>
     </div>
   );
@@ -41,7 +41,7 @@ const Ports = () => {
   const [ports, setPorts] = useState([]);
   const [filteredPorts, setFilteredPorts] = useState([]);
   const [selectedPort, setSelectedPort] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [congestionFilter, setCongestionFilter] = useState('all');
@@ -57,7 +57,6 @@ const Ports = () => {
     setToast(null);
     setTimeout(() => {
       setToast({ message, type });
-      setTimeout(() => setToast(null), 3000);
     }, 10);
   };
 
@@ -99,11 +98,6 @@ const Ports = () => {
       setPorts(portsList);
       setStatistics(data.statistics);
       setLoading(false);
-      
-      // Only show toast if ports were actually loaded (not on initial silent load)
-      if (portsList.length > 0) {
-        // Don't show success toast on initial load, only on refresh
-      }
     } catch (error) {
       console.error('Error loading ports:', error);
       showToast('Failed to load ports', 'error');
@@ -134,16 +128,15 @@ const Ports = () => {
     }
   };
 
-
-
   const applyFilters = () => {
     let filtered = ports;
 
     if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(port =>
-        port.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        port.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        port.location.toLowerCase().includes(searchQuery.toLowerCase())
+        port.name.toLowerCase().includes(searchLower) ||
+        port.country.toLowerCase().includes(searchLower) ||
+        port.location.toLowerCase().includes(searchLower)
       );
     }
 
@@ -160,6 +153,14 @@ const Ports = () => {
 
     setFilteredPorts(filtered);
   };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setCongestionFilter('all');
+    setCountryFilter('all');
+  };
+
+  const activeFilterCount = [congestionFilter !== 'all', countryFilter !== 'all'].filter(Boolean).length;
 
   const getCongestionLevel = (score) => {
     if (score < 3) return 'low';
@@ -197,19 +198,8 @@ const Ports = () => {
 
   const uniqueCountries = [...new Set(ports.map(p => p.country))].sort();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading ports...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-8">
       {/* Toast Notification */}
       {toast && (
         <Toast 
@@ -233,7 +223,7 @@ const Ports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Low Congestion</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels.low}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels?.low || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                   <Activity className="w-6 h-6 text-emerald-600" />
@@ -245,7 +235,7 @@ const Ports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Moderate</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels.moderate}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels?.moderate || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-amber-600" />
@@ -257,7 +247,7 @@ const Ports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">High</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels.high}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels?.high || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-orange-600" />
@@ -269,7 +259,7 @@ const Ports = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Critical</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels.critical}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.congestion_levels?.critical || 0}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-red-600" />
@@ -279,102 +269,144 @@ const Ports = () => {
           </div>
         )}
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="p-4">
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search by port name, location, or country..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                Filters
-                <svg className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+        {/* Search and Filter */}
+        <div className="space-y-4 mb-6">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search by port name, location, or country..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              )}
             </div>
 
-            {isFilterOpen && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Filter Ports</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Congestion Level
-                    </label>
-                    <select
-                      value={congestionFilter}
-                      onChange={(e) => setCongestionFilter(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">All Levels</option>
-                      <option value="low">Low</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="high">High</option>
-                      <option value="critical">Critical</option>
-                    </select>
-                  </div>
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition ${
+                isFilterOpen
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Filter size={18} />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-white text-blue-600 text-xs font-bold rounded-full">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown
+                size={18}
+                className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <select
-                      value={countryFilter}
-                      onChange={(e) => setCountryFilter(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">All Countries</option>
-                      {uniqueCountries.map(country => (
-                        <option key={country} value={country}>{country}</option>
-                      ))}
-                    </select>
-                  </div>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 transition ${
+                loading 
+                  ? 'bg-blue-600' 
+                  : 'bg-blue-500 hover:bg-blue-600 disabled:opacity-50'
+              }`}
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+
+          {/* Expandable Filter Panel */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isFilterOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 space-y-4">
+              {/* Filter Header */}
+              <div className="flex justify-between items-center pb-4 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  Filter Ports
+                  {activeFilterCount > 0 && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                      {activeFilterCount} active
+                    </span>
+                  )}
+                </h3>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Reset All
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Congestion Level Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Congestion Level
+                  </label>
+                  <select
+                    value={congestionFilter}
+                    onChange={(e) => setCongestionFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setIsFilterOpen(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                {/* Country Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <select
+                    value={countryFilter}
+                    onChange={(e) => setCountryFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
                   >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      applyFilters();
-                      setIsFilterOpen(false);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Apply Filters
-                  </button>
+                    <option value="all">All Countries</option>
+                    {uniqueCountries.map(country => (
+                      <option key={country} value={country}>{country}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -388,7 +420,7 @@ const Ports = () => {
                 </h2>
               </div>
 
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                 {filteredPorts.map(port => {
                   const CongestionIcon = getCongestionIcon(port.congestion_score);
                   return (
@@ -428,7 +460,7 @@ const Ports = () => {
                             <Clock className="w-4 h-4 text-gray-400" />
                             <span className="text-xs text-gray-600">Wait Time</span>
                           </div>
-                          <p className="text-lg font-semibold text-gray-900">{port.avg_wait_time.toFixed(1)}h</p>
+                          <p className="text-lg font-semibold text-gray-900">{port.avg_wait_time?.toFixed(1) || 0}h</p>
                         </div>
 
                         <div className="bg-gray-50 p-3 rounded-lg">
@@ -436,7 +468,7 @@ const Ports = () => {
                             <TrendingDown className="w-4 h-4 text-emerald-600" />
                             <span className="text-xs text-gray-600">Arrivals</span>
                           </div>
-                          <p className="text-lg font-semibold text-emerald-700">{port.arrivals}</p>
+                          <p className="text-lg font-semibold text-emerald-700">{port.arrivals || 0}</p>
                         </div>
 
                         <div className="bg-gray-50 p-3 rounded-lg">
@@ -444,7 +476,7 @@ const Ports = () => {
                             <TrendingUp className="w-4 h-4 text-blue-600" />
                             <span className="text-xs text-gray-600">Departures</span>
                           </div>
-                          <p className="text-lg font-semibold text-blue-700">{port.departures}</p>
+                          <p className="text-lg font-semibold text-blue-700">{port.departures || 0}</p>
                         </div>
                       </div>
                     </div>
@@ -495,19 +527,19 @@ const Ports = () => {
                         <div>
                           <p className="text-xs text-gray-600 mb-1">Score</p>
                           <p className="text-2xl font-bold text-gray-900">
-                            {portDetails.congestion.score.toFixed(1)}
+                            {portDetails.congestion?.score?.toFixed(1) || 0}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-600 mb-1">Level</p>
                           <p className="text-sm font-semibold text-gray-900 capitalize">
-                            {portDetails.congestion.level}
+                            {portDetails.congestion?.level || 'N/A'}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-600 mb-1">Wait Time</p>
                           <p className="text-sm font-semibold text-gray-900">
-                            {portDetails.congestion.avg_wait_time_hours.toFixed(1)}h
+                            {portDetails.congestion?.avg_wait_time_hours?.toFixed(1) || 0}h
                           </p>
                         </div>
                       </div>
@@ -521,11 +553,11 @@ const Ports = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Arrivals</p>
-                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic.total.arrivals}</p>
+                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic?.total?.arrivals || 0}</p>
                             </div>
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Departures</p>
-                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic.total.departures}</p>
+                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic?.total?.departures || 0}</p>
                             </div>
                           </div>
                         </div>
@@ -535,11 +567,11 @@ const Ports = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Arrivals</p>
-                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic.last_30_days.arrivals}</p>
+                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic?.last_30_days?.arrivals || 0}</p>
                             </div>
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Departures</p>
-                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic.last_30_days.departures}</p>
+                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic?.last_30_days?.departures || 0}</p>
                             </div>
                           </div>
                         </div>
@@ -549,11 +581,11 @@ const Ports = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Incoming</p>
-                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic.current_activity.incoming_vessels}</p>
+                              <p className="text-lg font-bold text-blue-700">{portDetails.traffic?.current_activity?.incoming_vessels || 0}</p>
                             </div>
                             <div className="bg-white p-3 rounded">
                               <p className="text-xs text-gray-600">Outgoing</p>
-                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic.current_activity.outgoing_vessels}</p>
+                              <p className="text-lg font-bold text-emerald-700">{portDetails.traffic?.current_activity?.outgoing_vessels || 0}</p>
                             </div>
                           </div>
                         </div>
@@ -566,13 +598,13 @@ const Ports = () => {
                         <div>
                           <p className="text-xs text-gray-600 mb-1">Completed Arrivals</p>
                           <p className="text-xl font-bold text-gray-900">
-                            {portDetails.performance.completed_arrivals}
+                            {portDetails.performance?.completed_arrivals || 0}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-600 mb-1">Turnover Rate</p>
                           <p className="text-xl font-bold text-gray-900">
-                            {portDetails.performance.turnover_rate}%
+                            {portDetails.performance?.turnover_rate || 0}%
                           </p>
                         </div>
                       </div>

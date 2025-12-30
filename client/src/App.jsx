@@ -1,15 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import LoginRegister from './pages/LoginRegister';
 import VesselsPage from './pages/Vessels';
 import PortsPage from './pages/Ports';
 import VoyagesPage from './pages/Voyages';
-import EventsPage from './pages/Events';
 import NotificationsPage from './pages/Notifications';
 import LiveTrackingPage from './pages/LiveTracking';
 import ProfilePage from './pages/Profile';
 import ProfileEditPage from './pages/ProfileEdit';
 import AppLayout from './components/AppLayout';
+import LoadingAnimation from './components/LoadingAnimation';
 import { authAPI } from './services/api';
 
 const Dashboard = ({ title }) => {
@@ -17,8 +17,6 @@ const Dashboard = ({ title }) => {
     { title: 'Vessels', desc: 'Fleet overview and positions', to: '/vessels' },
     { title: 'Ports', desc: 'Port stats & congestion', to: '/ports' },
     { title: 'Voyages', desc: 'Schedules and statuses', to: '/voyages' },
-    { title: 'Events', desc: 'Operational events', to: '/events' },
-    { title: 'Notifications', desc: 'Alerts and updates', to: '/notifications' },
   ];
   return (
     <div className="space-y-6">
@@ -62,58 +60,80 @@ const PageTitleUpdater = () => {
   return null;
 };
 
+// Global Loading Context Component
+const GlobalLoadingProvider = ({ children }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Show loading on route change
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  return (
+    <>
+      {isLoading && <LoadingAnimation message="Loading Page" subtitle="Please wait..." />}
+      {children}
+    </>
+  );
+};
+
 const App = () => {
   return (
     <Router>
       <PageTitleUpdater />
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route 
-          path="/login" 
-          element={
-            authAPI.isAuthenticated() ? (
-              <Navigate to="/admin/dashboard" replace />
-            ) : (
-              <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
-                <LoginRegister />
-              </main>
-            )
-          } 
-        />
-        <Route 
-          path="/register" 
-          element={
-            authAPI.isAuthenticated() ? (
-              <Navigate to="/admin/dashboard" replace />
-            ) : (
-              <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
-                <LoginRegister />
-              </main>
-            )
-          } 
-        />
-        
-        {/* Protected routes */}
-        <Route element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }>
-          <Route path="/admin/dashboard" element={<Dashboard title="Admin Dashboard" />} />
-          <Route path="/operator/dashboard" element={<Dashboard title="Operator Dashboard" />} />
-          <Route path="/analyst/dashboard" element={<Dashboard title="Analyst Dashboard" />} />
-          <Route path="/vessels" element={<VesselsPage />} />
-          <Route path="/ports" element={<PortsPage />} />
-          <Route path="/voyages" element={<VoyagesPage />} />
-          <Route path="/events" element={<EventsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/live-tracking" element={<LiveTrackingPage />} />
+      <GlobalLoadingProvider>
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route 
+            path="/login" 
+            element={
+              authAPI.isAuthenticated() ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+                  <LoginRegister />
+                </main>
+              )
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              authAPI.isAuthenticated() ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+                  <LoginRegister />
+                </main>
+              )
+            } 
+          />
           
-          {/* Profile routes */}
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/edit" element={<ProfileEditPage />} />
-        </Route>
-      </Routes>
+          {/* Protected routes */}
+          <Route element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="/admin/dashboard" element={<Dashboard title="Admin Dashboard" />} />
+            <Route path="/operator/dashboard" element={<Dashboard title="Operator Dashboard" />} />
+            <Route path="/analyst/dashboard" element={<Dashboard title="Analyst Dashboard" />} />
+            <Route path="/vessels" element={<VesselsPage />} />
+            <Route path="/ports" element={<PortsPage />} />
+            <Route path="/voyages" element={<VoyagesPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/live-tracking" element={<LiveTrackingPage />} />
+            
+            {/* Profile routes */}
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<ProfileEditPage />} />
+          </Route>
+        </Routes>
+      </GlobalLoadingProvider>
     </Router>
   );
 };

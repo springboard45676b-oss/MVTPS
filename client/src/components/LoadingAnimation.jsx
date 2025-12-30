@@ -1,9 +1,9 @@
 // src/components/LoadingAnimation.jsx
 import React from 'react';
 
-const LoadingAnimation = () => {
+const LoadingAnimation = ({ message = 'Loading Data', subtitle = 'Please wait...' }) => {
   return (
-    <div className="fixed inset-0 top-[73px] `bg-gradient-to-br` from-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center z-50">
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -49,31 +49,76 @@ const LoadingAnimation = () => {
       `}</style>
 
       <div className="flex flex-col items-center gap-8">
+        {/* Main circular loader */}
         <div className="relative w-32 h-32">
+          {/* Outer pulsing ring */}
           <div className="absolute inset-0 rounded-full pulse-ring border-4 border-blue-400"></div>
-          <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120" style={{ filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3))' }}>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="#e0e7ff" strokeWidth="3" />
-            <circle cx="60" cy="60" r="54" fill="none" stroke="url(#gradient)" strokeWidth="3" strokeLinecap="round" className="dash-circle" strokeDasharray="1000" />
+
+          {/* SVG circular progress */}
+          <svg
+            className="w-32 h-32 -rotate-90"
+            viewBox="0 0 120 120"
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3))' }}
+          >
+            {/* Background circle */}
+            <circle
+              cx="60"
+              cy="60"
+              r="54"
+              fill="none"
+              stroke="#e0e7ff"
+              strokeWidth="3"
+            />
+            {/* Animated circle */}
+            <circle
+              cx="60"
+              cy="60"
+              r="54"
+              fill="none"
+              stroke="url(#gradient)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="dash-circle"
+              strokeDasharray="1000"
+            />
             <defs>
-              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient
+                id="gradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
                 <stop offset="0%" stopColor="#3b82f6" />
                 <stop offset="100%" stopColor="#06b6d4" />
               </linearGradient>
             </defs>
           </svg>
+
+          {/* Inner spinning dot */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full `bg-gradient-to-br` from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
           </div>
         </div>
 
+        {/* Text content */}
         <div className="floating text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Loading Fleet Data</h2>
-          <p className="text-slate-600">Connecting to database...</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            {message}
+          </h2>
+          <p className="text-slate-600">{subtitle}</p>
         </div>
 
+        {/* Animated dots */}
         <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="w-2 h-2 rounded-full bg-blue-500" style={{ animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite` }}></div>
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-blue-500"
+              style={{
+                animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
+              }}
+            ></div>
           ))}
         </div>
       </div>

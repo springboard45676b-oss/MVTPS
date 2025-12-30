@@ -1,133 +1,7 @@
-// client/src/pages/Vessels.jsx - Updated with destination field
-import React, { useState, useEffect, useRef } from 'react';
-import { Anchor, MapPin, Ship, TrendingUp, RefreshCw, Zap, AlertCircle } from 'lucide-react';
+// client/src/pages/Vessels.jsx - Updated without inline LoadingAnimation
+import React, { useState, useEffect } from 'react';
+import { Anchor, MapPin, Ship, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react';
 import VesselSearchFilter from '../components/VesselSearchFilter';
-
-// Beautiful Loading Animation Component
-const LoadingAnimation = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse-ring {
-          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-          70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-
-        @keyframes dash {
-          0% { stroke-dashoffset: 1000; }
-          100% { stroke-dashoffset: 0; }
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scale(0.8); }
-          50% { opacity: 1; transform: scale(1); }
-        }
-
-        .spinner-circle {
-          animation: spin 3s linear infinite;
-        }
-
-        .pulse-ring {
-          animation: pulse-ring 2s infinite;
-        }
-
-        .floating {
-          animation: float 2s ease-in-out infinite;
-        }
-
-        .dash-circle {
-          animation: dash 2s ease-in-out infinite;
-        }
-      `}</style>
-
-      <div className="flex flex-col items-center gap-8">
-        {/* Main circular loader */}
-        <div className="relative w-32 h-32">
-          {/* Outer pulsing ring */}
-          <div className="absolute inset-0 rounded-full pulse-ring border-4 border-blue-400"></div>
-
-          {/* SVG circular progress */}
-          <svg
-            className="w-32 h-32 -rotate-90"
-            viewBox="0 0 120 120"
-            style={{ filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3))' }}
-          >
-            {/* Background circle */}
-            <circle
-              cx="60"
-              cy="60"
-              r="54"
-              fill="none"
-              stroke="#e0e7ff"
-              strokeWidth="3"
-            />
-            {/* Animated circle */}
-            <circle
-              cx="60"
-              cy="60"
-              r="54"
-              fill="none"
-              stroke="url(#gradient)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              className="dash-circle"
-              strokeDasharray="1000"
-            />
-            <defs>
-              <linearGradient
-                id="gradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor="#3b82f6" />
-                <stop offset="100%" stopColor="#06b6d4" />
-              </linearGradient>
-            </defs>
-          </svg>
-
-          {/* Inner spinning dot */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 spinner-circle shadow-lg"></div>
-          </div>
-        </div>
-
-        {/* Text content */}
-        <div className="floating text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            Loading Fleet Data
-          </h2>
-          <p className="text-slate-600">Connecting to database...</p>
-        </div>
-
-        {/* Animated dots */}
-        <div className="flex gap-2">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-blue-500"
-              style={{
-                animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
-              }}
-            ></div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const VesselsPage = () => {
   const [allVessels, setAllVessels] = useState([]);
@@ -136,10 +10,8 @@ const VesselsPage = () => {
   const [track, setTrack] = useState([]);
   const [vesselStats, setVesselStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [generating, setGenerating] = useState(false);
-  const refreshIntervalRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -155,22 +27,6 @@ const VesselsPage = () => {
   useEffect(() => {
     loadVessels();
   }, []);
-
-  // Auto-refresh selected vessel data
-  useEffect(() => {
-    if (!autoRefresh || !selectedVessel) return;
-
-    refreshIntervalRef.current = setInterval(() => {
-      loadVesselTrack(selectedVessel.id);
-      loadVesselStats(selectedVessel.id);
-    }, 10000); // Refresh every 10 seconds
-
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [autoRefresh, selectedVessel]);
 
   // Load vessel details when selected
   useEffect(() => {
@@ -272,51 +128,13 @@ const VesselsPage = () => {
     }
   };
 
-  const generateMockData = async () => {
-    try {
-      setGenerating(true);
-      const token = localStorage.getItem('access_token');
-      
-      if (!token) {
-        setMessage({ type: 'error', text: 'You must be logged in' });
-        setGenerating(false);
-        return;
-      }
-      
-      const response = await fetch(`${API_URL}/generate-realistic-mock-data/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ num_vessels: 5 })
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to generate mock data');
-      }
-      
-      const data = await response.json();
-      setMessage({ 
-        type: 'success', 
-        text: `Generated ${data.vessels.length} vessels with realistic routes` 
-      });
-      
-      await loadVessels();
-    } catch (error) {
-      console.error('Error generating mock data:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to generate mock data' });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const manualRefresh = async () => {
     if (selectedVessel) {
+      setRefreshing(true);
       await loadVesselTrack(selectedVessel.id);
       await loadVesselStats(selectedVessel.id);
       setMessage({ type: 'success', text: 'Data refreshed' });
+      setRefreshing(false);
     }
   };
 
@@ -327,11 +145,6 @@ const VesselsPage = () => {
       setSelectedVessel(filtered.length > 0 ? filtered[0] : null);
     }
   };
-
-  // Use beautiful loading animation
-  if (loading && allVessels.length === 0) {
-    return <LoadingAnimation />;
-  }
 
   return (
     <div className="space-y-6 pb-6">
@@ -344,46 +157,34 @@ const VesselsPage = () => {
         <div className="flex gap-2">
           <button
             onClick={manualRefresh}
-            disabled={!selectedVessel}
-            className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 flex items-center gap-2 transition"
+            disabled={!selectedVessel || refreshing}
+            className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 transition ${
+              refreshing 
+                ? 'bg-blue-600' 
+                : 'bg-blue-500 hover:bg-blue-600 disabled:opacity-50'
+            }`}
           >
-            <RefreshCw size={16} /> Refresh
-          </button>
-          <button
-            onClick={generateMockData}
-            disabled={generating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition"
-          >
-            <Zap size={16} /> {generating ? 'Generating...' : 'Generate Data'}
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /> 
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Toast Notification - Fixed Position */}
       {message.text && (
-        <div className={`p-4 rounded-lg flex items-center gap-2 transition ${
-          message.type === 'error' 
-            ? 'bg-red-100 text-red-700' 
-            : 'bg-green-100 text-green-700'
+        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-5 py-2 rounded-lg flex items-center gap-2 shadow-md z-50 bg-white text-black transition-all duration-300 ease-in-out ${
+          message.text ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
         }`}>
-          <AlertCircle size={18} />
-          <span>{message.text}</span>
+          {message.type === 'error' ? (
+            <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+          ) : (
+            <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          )}
+          <span className="font-medium text-sm">{message.text}</span>
         </div>
       )}
-
-      {/* Auto-Refresh Toggle */}
-      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-        <input
-          type="checkbox"
-          id="autoRefresh"
-          checked={autoRefresh}
-          onChange={(e) => setAutoRefresh(e.target.checked)}
-          className="w-4 h-4 cursor-pointer"
-        />
-        <label htmlFor="autoRefresh" className="text-sm text-slate-700 cursor-pointer">
-          Auto-refresh every 10 seconds {autoRefresh && <span className="ml-2 text-green-600">●</span>}
-        </label>
-      </div>
 
       {/* Search and Filter */}
       <VesselSearchFilter vessels={allVessels} onFiltersChange={handleFilterChange} />
@@ -531,7 +332,7 @@ const VesselsPage = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {track.slice(0, 12).map((pos, idx) => (
+                        {track.map((pos, idx) => (
                           <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition">
                             <td className="py-2 px-2 text-xs font-mono text-slate-600">
                               {new Date(pos.timestamp).toLocaleTimeString()}
@@ -548,11 +349,6 @@ const VesselsPage = () => {
                         ))}
                       </tbody>
                     </table>
-                    {track.length > 12 && (
-                      <div className="text-center py-2 text-xs text-slate-500">
-                        Showing 12 of {track.length} records
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

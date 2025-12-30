@@ -235,19 +235,6 @@ const VesselSearchFilter = ({ vessels, onFiltersChange }) => {
           </div>
         </div>
       </div>
-
-      {/* Results Summary */}
-      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <div className="text-sm text-blue-900">
-          Showing <span className="font-semibold">{filteredVessels.length}</span> of{' '}
-          <span className="font-semibold">{vessels.length}</span> vessels
-        </div>
-        {filteredVessels.length === 0 && vessels.length > 0 && (
-          <div className="text-sm text-blue-700">
-            No vessels match your filters
-          </div>
-        )}
-      </div>
     </div>
   );
 };
