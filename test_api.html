@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Maritime Platform API Test</h1>
+    
+    <div>
+        <h2>Test Login</h2>
+        <button onclick="testLogin()">Test Login with admin/admin123</button>
+        <div id="loginResult"></div>
+    </div>
+    
+    <div>
+        <h2>Test Registration</h2>
+        <button onclick="testRegister()">Test Registration</button>
+        <div id="registerResult"></div>
+    </div>
+
+    <script>
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('loginResult').innerHTML = 
+                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = 
+                    `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testRegister() {
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/register/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'testuser2',
+                        email: 'test2@example.com',
+                        password: 'testpass123',
+                        password_confirm: 'testpass123',
+                        first_name: 'Test',
+                        last_name: 'User2',
+                        role: 'operator'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('registerResult').innerHTML = 
+                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+            } catch (error) {
+                document.getElementById('registerResult').innerHTML = 
+                    `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
