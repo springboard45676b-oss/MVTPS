@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Analytics API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚢 Maritime Analytics API Test</h1>
+    <p>This page tests the analytics API endpoints directly from the browser.</p>
+    
+    <div>
+        <button onclick="login()">1. Login</button>
+        <button onclick="testDashboard()">2. Test Dashboard</button>
+        <button onclick="testVesselAnalytics()">3. Test Vessel Analytics</button>
+        <button onclick="testFleetComposition()">4. Test Fleet Composition</button>
+        <button onclick="testVoyages()">5. Test Voyages</button>
+        <button onclick="testNotifications()">6. Test Notifications</button>
+        <button onclick="testAll()">🚀 Test All</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        let authToken = '';
+        
+        function addResult(title, success, data) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <h3>${success ? '✅' : '❌'} ${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            results.appendChild(div);
+        }
+        
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'testuser', password: 'testpass123' })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.tokens.access;
+                    addResult('Login', true, { message: 'Login successful', user: data.user.username });
+                } else {
+                    const error = await response.text();
+                    addResult('Login', false, { error: `HTTP ${response.status}`, details: error });
+                }
+            } catch (error) {
+                addResult('Login', false, { error: error.message });
+            }
+        }
+        
+        async function apiCall(endpoint, title) {
+            if (!authToken) {
+                addResult(title, false, { error: 'Please login first' });
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(title, true, data);
+                } else {
+                    const error = await response.text();
+                    addResult(title, false, { error: `HTTP ${response.status}`, details: error });
+                }
+            } catch (error) {
+                addResult(title, false, { error: error.message });
+            }
+        }
+        
+        async function testDashboard() {
+            await apiCall('/analytics/dashboard/', 'Dashboard Analytics');
+        }
+        
+        async function testVesselAnalytics() {
+            await apiCall('/analytics/vessels/', 'Vessel Analytics');
+        }
+        
+        async function testFleetComposition() {
+            await apiCall('/analytics/fleet-composition/', 'Fleet Composition');
+        }
+        
+        async function testVoyages() {
+            await apiCall('/analytics/voyages/', 'Voyages');
+        }
+        
+        async function testNotifications() {
+            await apiCall('/notifications/', 'Notifications');
+        }
+        
+        async function testAll() {
+            document.getElementById('results').innerHTML = '';
+            await login();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testDashboard();
+            await testVesselAnalytics();
+            await testFleetComposition();
+            await testVoyages();
+            await testNotifications();
+        }
+        
+        // Auto-run test on page load
+        window.onload = () => {
+            console.log('🚢 Maritime Analytics API Test Page Loaded');
+            console.log('Click "Test All" to run all tests');
+        };
+    </script>
+</body>
+</html>
