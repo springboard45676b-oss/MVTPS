@@ -1,8 +1,3 @@
-/* MaritimeDashboard.css
-   Converted from Tailwind classes to external CSS.
-   Basic responsive breakpoints: sm ~ 640px, md ~ 768px, lg ~ 1024px
-*/
-
 :root{
   --bg-from: #f8fafc; /* gray-50 */
   --bg-to: #f3f4f6;   /* gray-100 */
@@ -333,3 +328,4 @@
   background: #d90404;
   transform: scale(1.05);
 }
+ 

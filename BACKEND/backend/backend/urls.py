@@ -34,6 +34,7 @@ urlpatterns = [
     # path('accounts/', include('accounts.urls')),
     path('api/', include('accounts.urls')),
     path('api/', include('api.urls')),
+    path('api/ports/', include('ports.urls')),
 ]
 
 # Serve React's index.html for the root URL only if the build exists

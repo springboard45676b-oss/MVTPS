@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Ship, Anchor, Activity, MapPin, AlertTriangle, TrendingUp, Users, BarChart3, Menu, X, LogOut, Waves, Navigation, Bell } from 'lucide-react';
 // 17/12/2025 - MaritimeDashboard.jsx
 // Add to imports
+// import logo from "./mvtps.svg" ;
 import VesselMap from './VesselMap';
 import UserProfile from './UserProfile';
 
@@ -206,6 +207,7 @@ const TopNavbar = ({ activeTab, setActiveTab, username, userRole, onLogout }) =>
         {/* LEFT: Logo */}
         <div className="flex items-center gap-2">
           <Waves className="w-7 h-7" />
+          {/* <img src={logo} alt="" /> */}
           <span className="font-bold text-lg">MaritimeTrack</span>
         </div>
 

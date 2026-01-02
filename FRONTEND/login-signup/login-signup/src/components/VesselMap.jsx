@@ -23,33 +23,73 @@ const shipIcon = new L.Icon({
   iconAnchor: [15, 15],
 });
 
+const greenPortIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+});
+
+const yellowPortIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+});
+
+const redPortIcon = new L.Icon({
+  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+});
+
+
 function VesselMap() {
+
+
+
   const [vessels, setVessels] = useState([]);
+  const [ports, setPorts] = useState([]);
+
   const [filters, setFilters] = useState({
     type: 'ALL',
     cargo: 'ALL',
     flag: 'ALL',
   });
+  // Fetch vessels on
+  const getPortIcon = (score) => {
+   const normalizedScore = score * 10; // 0–10 → 0–100
 
-  const fetchVessels = async () => {
-    try {
-      const res = await fetch('http://127.0.0.1:8000/api/vessels/');
-      const data = await res.json();
-      setVessels(data);
-    } catch (error) {
-      console.error('Error fetching vessels:', error);
-    }
+  if (normalizedScore > 60) return redPortIcon;
+  if (normalizedScore > 30) return yellowPortIcon;
+  return greenPortIcon;
   };
 
-  // useEffect(() => {
-  //   fetchVessels(); // initial load
 
-  //   const interval = setInterval(() => {
-  //     fetchVessels(); // poll every 10 sec
-  //   }, 10000);
+  const fetchPorts = async () => {
+  try {
+    const res = await fetch('http://127.0.0.1:8000/api/ports/');
+    if (!res.ok) throw new Error('Port API failed');
 
-  //   return () => clearInterval(interval); // cleanup
-  // }, []);
+    const data = await res.json();
+
+    const validPorts = data.filter(
+      p =>
+        typeof p.location_lat === 'number' &&
+        typeof p.location_lon === 'number'
+    );
+
+    setPorts(validPorts);
+  } catch (err) {
+    console.error('Port fetch error:', err);
+    setPorts([]);
+  }
+};
+
+
+
+
+
+
+
   useEffect(() => {
     let intervalId;
 
@@ -90,10 +130,18 @@ function VesselMap() {
     };
 
     // Initial load
-    fetchVessels();
+    // fetchVessels();
+    // fetchPorts();
 
+    const loadData = async () => {
+      await fetchVessels();  // existing logic
+      await fetchPorts();    // ✅ NEW
+    };
+
+    // Initial load
+    loadData();
     // Poll every 10 seconds
-    intervalId = setInterval(fetchVessels, 10000);
+    intervalId = setInterval(loadData, 10000);
 
     // Cleanup
     return () => clearInterval(intervalId);
@@ -164,17 +212,33 @@ function VesselMap() {
 
       <MapContainer center={[20, 72]} zoom={5} style={{ height: '70vh', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* PORT MARKERS */}
+        {ports.map(port => (
+          <Marker
+            key={`port-${port.id}`}
+            position={[port.location_lat, port.location_lon]}
+            icon={getPortIcon(port.congestion_score)}
+          >
+            <Popup>
+              <strong>{port.name}</strong><br />
+              Country: {port.country}<br />
+              Congestion Score: {port.congestion_score}<br />
+              Status: {port.status || 'Normal'}
+            </Popup>
+          </Marker>
+        ))}
+
 
 
         {filteredVessels.map(vessel => (
 
           <Marker
             // key={vessel.imo_number}
-            key= {`${vessel.imo_number}-${vessel.last_course}`}
+            key={`${vessel.imo_number}`}
             position={[vessel.last_position_lat, vessel.last_position_lon]}
             icon={shipIcon}
             rotationAngle={Number(vessel.last_course) || 0}
-            
+
             rotationOrigin="center"
           >
             <Popup>
@@ -184,6 +248,7 @@ function VesselMap() {
               Cargo: {vessel.normalized_cargo || vessel.cargo_type || 'N/A'}
             </Popup>
           </Marker>
+
         ))}
       </MapContainer>
     </div>
