@@ -7,25 +7,11 @@ import { Ship, Anchor, Activity, MapPin, AlertTriangle, TrendingUp, Users, BarCh
 // import logo from "./mvtps.svg" ;
 import VesselMap from './VesselMap';
 import UserProfile from './UserProfile';
+import Ports from './Ports';
 
 
-// Add to the tab rendering function
-// const renderContent = () => {
-//   switch (activeTab) {
-//     case 'overview':
-//       return <OverviewTab />;
-//     case 'vessels':
-//       return <VesselsTab />;
-//     case 'ports':
-//       return <PortsTab />;
-//     case 'analytics':
-//       return <AnalyticsTab />;
-//     case 'map':  // NEW
-//       return <div className="h-[calc(100vh-200px)]"><VesselMap /></div>;
-//     default:
-//       return <OverviewTab />;
-//   }
-// };
+
+
 
 // // Update sidebar menu items
 const menuItems = [
@@ -44,14 +30,7 @@ const mockVesselData = [
   { id: 5, name: 'Atlantic Wave', imo: 'IMO9876547', type: 'Tanker', status: 'In Transit', location: 'Bay of Bengal', lat: 16.5, lon: 82.3 },
 ];
 
-const mockPortData = [
-  { id: 1, name: 'Mumbai Port', country: 'India', congestion: 68, vessels: 24, avgWait: 3.2 },
-  { id: 2, name: 'Chennai Port', country: 'India', congestion: 45, vessels: 18, avgWait: 2.1 },
-  { id: 3, name: 'Kandla Port', country: 'India', congestion: 82, vessels: 31, avgWait: 4.5 },
-  { id: 4, name: 'Visakhapatnam Port', country: 'India', congestion: 55, vessels: 22, avgWait: 2.8 },
-  { id: 5, name: 'Kochi Port', country: 'India', congestion: 38, vessels: 15, avgWait: 1.9 },
-  { id: 6, name: 'Kolkata Port', country: 'India', congestion: 72, vessels: 28, avgWait: 3.7 },
-];
+
 
 const mockEvents = [
   { id: 1, type: 'Weather Alert', vessel: 'Pacific Star', severity: 'high', time: '2 hours ago' },
@@ -77,115 +56,6 @@ const StatCard = ({ icon: Icon, title, value, subtitle, color, bgColor }) => (
   </div>
 );
 
-// const DashboardHeader = ({ username, userRole, onLogout, onMenuToggle }) => (
-//   <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white shadow-xl">
-//     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-//       <div className="flex items-center justify-between">
-//         <div className="flex items-center gap-3">
-//           <button onClick={onMenuToggle} className="lg:hidden p-2 hover:bg-blue-700 rounded-lg transition-colors">
-//             <Menu className="w-6 h-6" />
-//           </button>
-//           <div className="flex items-center gap-3">
-//             <div className="bg-white bg-opacity-20 p-2 rounded-lg backdrop-blur-sm">
-//               <Waves className="w-7 h-7" />
-//             </div>
-//             <div>
-//               <h1 className="text-xl sm:text-2xl font-bold">Maritime Tracking</h1>
-//               <p className="text-blue-200 text-xs sm:text-sm hidden sm:block">Port Analytics & Safety Platform</p>
-//             </div>
-//           </div>
-//         </div>
-//         <div className="flex items-center gap-2 sm:gap-4">
-//           <button className="relative p-2 hover:bg-blue-700 rounded-lg transition-colors">
-//             <Bell className="w-5 h-5" />
-//             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-//           </button>
-//           <div className="text-right hidden md:block">
-//             <p className="font-semibold text-sm">{username}</p>
-//             <p className="text-blue-200 text-xs uppercase">{userRole}</p>
-//           </div>
-//           <button
-//             onClick={onLogout}
-//             className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-3 sm:px-4 py-2 rounded-lg transition-colors font-medium text-sm"
-//           >
-//             <LogOut className="w-4 h-4" />
-//             <span className="hidden sm:inline">Logout</span>
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   </div>
-// );
-
-// const Sidebar = ({ isOpen, onClose, activeTab, setActiveTab, userRole }) => {
-//   const menuItems = [
-//     { id: 'overview', label: 'Overview', icon: Activity },
-//     { id: 'vessels', label: 'Vessels', icon: Ship },
-//     { id: 'map', label: 'Live Map', icon: MapPin }, // ✅ FIX
-//     { id: 'ports', label: 'Ports', icon: Anchor },
-//     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-//   ];
-
-//   if (userRole === 'admin') {
-//     menuItems.push({ id: 'users', label: 'User Management', icon: Users });
-//   }
-
-//   return (
-//     <>
-//       {isOpen && (
-//         <div
-//           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-//           onClick={onClose}
-//         />
-//       )}
-
-//       <div className={`fixed lg:static inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out z-50 w-64 bg-white shadow-2xl`}>
-//         <div className="p-4 border-b border-gray-200 lg:hidden">
-//           <div className="flex items-center justify-between">
-//             <h2 className="font-bold text-lg text-gray-800">Navigation</h2>
-//             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-//               <X className="w-5 h-5" />
-//             </button>
-//           </div>
-//         </div>
-
-//         <div className="hidden lg:block p-6 border-b border-gray-200">
-//           <div className="flex items-center gap-3">
-//             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-//               <Users className="w-6 h-6 text-blue-600" />
-//             </div>
-//             <div>
-//               <p className="font-semibold text-gray-800 text-sm">Dashboard</p>
-//               <p className="text-gray-500 text-xs uppercase">{userRole}</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         <nav className="p-4">
-//           {menuItems.map((item) => {
-//             const Icon = item.icon;
-//             return (
-//               <button
-//                 key={item.id}
-//                 onClick={() => {
-//                   setActiveTab(item.id);
-//                   onClose();
-//                 }}
-//                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all duration-200 ${activeTab === item.id
-//                     ? 'bg-blue-600 text-white shadow-lg scale-105'
-//                     : 'text-gray-700 hover:bg-gray-100 hover:scale-102'
-//                   }`}
-//               >
-//                 <Icon className="w-5 h-5" />
-//                 <span className="font-medium">{item.label}</span>
-//               </button>
-//             );
-//           })}
-//         </nav>
-//       </div>
-//     </>
-//   );
-// };
 
 // Overview Tab
 const TopNavbar = ({ activeTab, setActiveTab, username, userRole, onLogout }) => {
@@ -448,62 +318,62 @@ const VesselsTab = () => (
 );
 
 // Ports Tab
-const PortsTab = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-          <Anchor className="w-6 sm:w-7 h-6 sm:h-7 text-blue-600" />
-          Port Analytics
-        </h2>
-      </div>
+// const PortsTab = () => (
+//   <div className="space-y-6">
+//     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+//       <div className="flex items-center justify-between mb-6">
+//         <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+//           <Anchor className="w-6 sm:w-7 h-6 sm:h-7 text-blue-600" />
+//           Port Analytics
+//         </h2>
+//       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {mockPortData.map((port) => (
-          <div key={port.id} className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-lg">{port.name}</h3>
-                <p className="text-gray-600 text-sm">{port.country}</p>
-              </div>
-              <MapPin className="w-5 h-5 text-blue-600" />
-            </div>
+//       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+//         {mockPortData.map((port) => (
+//           <div key={port.id} className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+//             <div className="flex items-start justify-between mb-4">
+//               <div>
+//                 <h3 className="font-bold text-lg">{port.name}</h3>
+//                 <p className="text-gray-600 text-sm">{port.country}</p>
+//               </div>
+//               <MapPin className="w-5 h-5 text-blue-600" />
+//             </div>
 
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-600">Congestion</span>
-                  <span className={`font-bold ${port.congestion > 70 ? 'text-red-600' :
-                    port.congestion > 50 ? 'text-yellow-600' : 'text-green-600'
-                    }`}>{port.congestion}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all duration-300 ${port.congestion > 70 ? 'bg-red-500' :
-                      port.congestion > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                    style={{ width: `${port.congestion}%` }}
-                  />
-                </div>
-              </div>
+//             <div className="space-y-3">
+//               <div>
+//                 <div className="flex items-center justify-between mb-1">
+//                   <span className="text-sm text-gray-600">Congestion</span>
+//                   <span className={`font-bold ${port.congestion > 70 ? 'text-red-600' :
+//                     port.congestion > 50 ? 'text-yellow-600' : 'text-green-600'
+//                     }`}>{port.congestion}%</span>
+//                 </div>
+//                 <div className="w-full bg-gray-200 rounded-full h-2">
+//                   <div
+//                     className={`h-2 rounded-full transition-all duration-300 ${port.congestion > 70 ? 'bg-red-500' :
+//                       port.congestion > 50 ? 'bg-yellow-500' : 'bg-green-500'
+//                       }`}
+//                     style={{ width: `${port.congestion}%` }}
+//                   />
+//                 </div>
+//               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200">
-                <div>
-                  <p className="text-gray-600 text-xs mb-1">Vessels</p>
-                  <p className="font-bold text-lg">{port.vessels}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 text-xs mb-1">Avg Wait</p>
-                  <p className="font-bold text-lg">{port.avgWait}h</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
+//               <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200">
+//                 <div>
+//                   <p className="text-gray-600 text-xs mb-1">Vessels</p>
+//                   <p className="font-bold text-lg">{port.vessels}</p>
+//                 </div>
+//                 <div>
+//                   <p className="text-gray-600 text-xs mb-1">Avg Wait</p>
+//                   <p className="font-bold text-lg">{port.avgWait}h</p>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   </div>
+// );
 
 // Analytics Tab
 const AnalyticsTab = () => (
@@ -540,19 +410,15 @@ const AnalyticsTab = () => (
 
 // Main Dashboard Component
 export default function MaritimeDashboard() {
+
+  const [selectedPort, setSelectedPort] = useState(null);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const username = localStorage.getItem('username') || 'User';
   const userRole = localStorage.getItem('user_role') || 'operator';
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem('jwt');
-  //   localStorage.removeItem('user_role');
-  //   localStorage.removeItem('username');
-  //   window.location.href = '/';
-  // };
-  // In MaritimeDashboard.jsx, update the handleLogout function:
 
 
 
@@ -587,7 +453,7 @@ export default function MaritimeDashboard() {
       case 'map':
         return (
           <div style={{ height: '70vh', width: '100%' }}>
-            <VesselMap />
+            <VesselMap selectedPort={selectedPort} />
           </div>
         );
 
@@ -595,7 +461,15 @@ export default function MaritimeDashboard() {
         return <VesselsTab />;
 
       case 'ports':
-        return <PortsTab />;
+        // return <Ports onPortSelect={setSelectedPort}/>;
+        return (
+          <Ports
+            onPortSelect={(port) => {
+              setSelectedPort(port);
+              setActiveTab('map'); // ✅ switch to map
+            }}
+          />
+        );
 
       case 'analytics':
         return <AnalyticsTab />;

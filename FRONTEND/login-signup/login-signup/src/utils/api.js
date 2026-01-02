@@ -88,7 +88,8 @@ export const apiRequest = async (endpoint, options = {}) => {
       response = await fetch(`${API_BASE_URL}${endpoint}`, mergedOptions);
     }
 
-    return response;
+    // return response;
+    return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
     throw error;

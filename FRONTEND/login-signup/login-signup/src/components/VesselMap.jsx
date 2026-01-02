@@ -1,7 +1,7 @@
 
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 // import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
@@ -42,7 +42,9 @@ const redPortIcon = new L.Icon({
 });
 
 
-function VesselMap() {
+// function VesselMap() {
+function VesselMap({ selectedPort }) {
+
 
 
 
@@ -56,33 +58,33 @@ function VesselMap() {
   });
   // Fetch vessels on
   const getPortIcon = (score) => {
-   const normalizedScore = score * 10; // 0–10 → 0–100
+    const normalizedScore = score * 10; // 0–10 → 0–100
 
-  if (normalizedScore > 60) return redPortIcon;
-  if (normalizedScore > 30) return yellowPortIcon;
-  return greenPortIcon;
+    if (normalizedScore > 60) return redPortIcon;
+    if (normalizedScore > 30) return yellowPortIcon;
+    return greenPortIcon;
   };
 
 
   const fetchPorts = async () => {
-  try {
-    const res = await fetch('http://127.0.0.1:8000/api/ports/');
-    if (!res.ok) throw new Error('Port API failed');
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/ports/');
+      if (!res.ok) throw new Error('Port API failed');
 
-    const data = await res.json();
+      const data = await res.json();
 
-    const validPorts = data.filter(
-      p =>
-        typeof p.location_lat === 'number' &&
-        typeof p.location_lon === 'number'
-    );
+      const validPorts = data.filter(
+        p =>
+          typeof p.location_lat === 'number' &&
+          typeof p.location_lon === 'number'
+      );
 
-    setPorts(validPorts);
-  } catch (err) {
-    console.error('Port fetch error:', err);
-    setPorts([]);
-  }
-};
+      setPorts(validPorts);
+    } catch (err) {
+      console.error('Port fetch error:', err);
+      setPorts([]);
+    }
+  };
 
 
 
@@ -162,7 +164,21 @@ function VesselMap() {
 
     return true;
   });
+// porttab-> map live :
+function FlyToPort({ selectedPort }) {
+  const map = useMap();
 
+  useEffect(() => {
+    if (selectedPort?.lat && selectedPort?.lon) {
+      map.flyTo([selectedPort.lat, selectedPort.lon], 8, {
+        duration: 1.5,
+      });
+    }
+  }, [selectedPort, map]);
+
+  return null;
+}
+// =====================
 
   return (
     <div>
@@ -211,6 +227,7 @@ function VesselMap() {
       </div>
 
       <MapContainer center={[20, 72]} zoom={5} style={{ height: '70vh', width: '100%' }}>
+        <FlyToPort selectedPort={selectedPort} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {/* PORT MARKERS */}
         {ports.map(port => (
