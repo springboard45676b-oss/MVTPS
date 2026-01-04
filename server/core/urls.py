@@ -1,3 +1,5 @@
+# server/core/urls.py - Replace your existing urls.py with this
+
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
@@ -28,11 +30,11 @@ from .views import (
     MarkAllNotificationsAsReadAPI,
     ClearAllNotificationsAPI,
     DeleteNotificationAPI,
-    # Port views
+    # Port views - NEW
     PortListAPI,
     PortDetailAPI,
     PortStatisticsAPI,
-    # Voyage views
+    # Voyage views - NEW
     VoyageListAPI,
     VoyageDetailAPI,
     VoyagesByVesselAPI,

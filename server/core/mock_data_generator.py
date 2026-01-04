@@ -1,4 +1,4 @@
-# server/core/mock_data_generator.py
+# server/core/mock_data_generator.py - COMPLETELY FIXED
 
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -8,10 +8,9 @@ from .models import Port, Voyage, Vessel
 class MockDataGenerator:
     """
     Generate realistic mock data for Ports and Voyages
-    Creates 15 ports and 15 voyages with proper relationships
+    CRITICAL FIX: Ensures NO NULL values in entry_time and berthing_time
     """
     
-    # Major world ports with realistic coordinates and countries
     PORTS_DATA = [
         {
             'name': 'Port of Singapore',
@@ -19,10 +18,6 @@ class MockDataGenerator:
             'country': 'Singapore',
             'latitude': 1.2644,
             'longitude': 103.8220,
-            'congestion_score': 3.5,
-            'avg_wait_time': 4.2,
-            'arrivals': 2850,
-            'departures': 2820
         },
         {
             'name': 'Port of Shanghai',
@@ -30,10 +25,6 @@ class MockDataGenerator:
             'country': 'China',
             'latitude': 31.2304,
             'longitude': 121.4737,
-            'congestion_score': 6.8,
-            'avg_wait_time': 12.5,
-            'arrivals': 3200,
-            'departures': 3180
         },
         {
             'name': 'Port of Rotterdam',
@@ -41,10 +32,6 @@ class MockDataGenerator:
             'country': 'Netherlands',
             'latitude': 51.9225,
             'longitude': 4.4792,
-            'congestion_score': 4.2,
-            'avg_wait_time': 6.8,
-            'arrivals': 2100,
-            'departures': 2090
         },
         {
             'name': 'Port of Antwerp',
@@ -52,10 +39,6 @@ class MockDataGenerator:
             'country': 'Belgium',
             'latitude': 51.2993,
             'longitude': 4.4668,
-            'congestion_score': 5.1,
-            'avg_wait_time': 8.3,
-            'arrivals': 1850,
-            'departures': 1840
         },
         {
             'name': 'Port of Hamburg',
@@ -63,10 +46,6 @@ class MockDataGenerator:
             'country': 'Germany',
             'latitude': 53.5511,
             'longitude': 9.9937,
-            'congestion_score': 4.7,
-            'avg_wait_time': 7.5,
-            'arrivals': 1650,
-            'departures': 1640
         },
         {
             'name': 'Port of Los Angeles',
@@ -74,10 +53,6 @@ class MockDataGenerator:
             'country': 'USA',
             'latitude': 33.7373,
             'longitude': -118.2700,
-            'congestion_score': 7.2,
-            'avg_wait_time': 15.4,
-            'arrivals': 2400,
-            'departures': 2380
         },
         {
             'name': 'Port of Long Beach',
@@ -85,10 +60,6 @@ class MockDataGenerator:
             'country': 'USA',
             'latitude': 33.7701,
             'longitude': -118.1937,
-            'congestion_score': 6.9,
-            'avg_wait_time': 14.2,
-            'arrivals': 2200,
-            'departures': 2185
         },
         {
             'name': 'Port of Hong Kong',
@@ -96,10 +67,6 @@ class MockDataGenerator:
             'country': 'Hong Kong',
             'latitude': 22.3193,
             'longitude': 114.1694,
-            'congestion_score': 5.8,
-            'avg_wait_time': 9.7,
-            'arrivals': 2650,
-            'departures': 2635
         },
         {
             'name': 'Port of Busan',
@@ -107,10 +74,6 @@ class MockDataGenerator:
             'country': 'South Korea',
             'latitude': 35.1796,
             'longitude': 129.0756,
-            'congestion_score': 4.9,
-            'avg_wait_time': 7.8,
-            'arrivals': 1950,
-            'departures': 1940
         },
         {
             'name': 'Port of Dubai',
@@ -118,10 +81,6 @@ class MockDataGenerator:
             'country': 'UAE',
             'latitude': 25.0657,
             'longitude': 55.1371,
-            'congestion_score': 5.3,
-            'avg_wait_time': 8.9,
-            'arrivals': 2300,
-            'departures': 2285
         },
         {
             'name': 'Port of Piraeus',
@@ -129,10 +88,6 @@ class MockDataGenerator:
             'country': 'Greece',
             'latitude': 37.9473,
             'longitude': 23.6473,
-            'congestion_score': 4.1,
-            'avg_wait_time': 6.2,
-            'arrivals': 1450,
-            'departures': 1440
         },
         {
             'name': 'Port of Yokohama',
@@ -140,10 +95,6 @@ class MockDataGenerator:
             'country': 'Japan',
             'latitude': 35.4437,
             'longitude': 139.6380,
-            'congestion_score': 3.8,
-            'avg_wait_time': 5.5,
-            'arrivals': 1550,
-            'departures': 1545
         },
         {
             'name': 'Port of Felixstowe',
@@ -151,10 +102,6 @@ class MockDataGenerator:
             'country': 'UK',
             'latitude': 51.9543,
             'longitude': 1.3518,
-            'congestion_score': 5.6,
-            'avg_wait_time': 9.3,
-            'arrivals': 1350,
-            'departures': 1340
         },
         {
             'name': 'Port of Colombo',
@@ -162,10 +109,6 @@ class MockDataGenerator:
             'country': 'Sri Lanka',
             'latitude': 6.9271,
             'longitude': 79.8612,
-            'congestion_score': 4.4,
-            'avg_wait_time': 7.1,
-            'arrivals': 1250,
-            'departures': 1245
         },
         {
             'name': 'Port of Santos',
@@ -173,16 +116,12 @@ class MockDataGenerator:
             'country': 'Brazil',
             'latitude': -23.9608,
             'longitude': -46.3339,
-            'congestion_score': 6.3,
-            'avg_wait_time': 11.2,
-            'arrivals': 1750,
-            'departures': 1740
         }
     ]
     
     @staticmethod
     def generate_ports():
-        """Generate 15 mock ports with realistic data"""
+        """Generate 15 mock ports"""
         ports = []
         
         for port_data in MockDataGenerator.PORTS_DATA:
@@ -191,55 +130,82 @@ class MockDataGenerator:
                 defaults={
                     'location': port_data['location'],
                     'country': port_data['country'],
-                    'congestion_score': port_data['congestion_score'],
-                    'avg_wait_time': port_data['avg_wait_time'],
-                    'arrivals': port_data['arrivals'],
-                    'departures': port_data['departures'],
+                    'latitude': port_data['latitude'],
+                    'longitude': port_data['longitude'],
+                    'congestion_score': 0.0,
+                    'avg_wait_time': 0.0,
+                    'arrivals': 0,
+                    'departures': 0,
                     'last_update': timezone.now()
                 }
             )
             
             if created:
                 print(f"✅ Created port: {port.name}")
-            else:
-                # Update existing port
-                port.location = port_data['location']
-                port.country = port_data['country']
-                port.congestion_score = port_data['congestion_score']
-                port.avg_wait_time = port_data['avg_wait_time']
-                port.arrivals = port_data['arrivals']
-                port.departures = port_data['departures']
-                port.last_update = timezone.now()
-                port.save()
-                print(f"🔄 Updated port: {port.name}")
             
             ports.append(port)
         
         return ports
     
     @staticmethod
+    def calculate_port_statistics():
+        """Calculate port statistics - Now includes ALL voyages with times"""
+        ports = Port.objects.all()
+        
+        for port in ports:
+            arrivals_count = Voyage.objects.filter(port_to=port).count()
+            departures_count = Voyage.objects.filter(port_from=port).count()
+            
+            # Get wait times from ALL voyages that have entry and berthing times
+            # Not just completed - this gives more realistic port metrics
+            all_arrivals = Voyage.objects.filter(port_to=port)
+            
+            wait_times = []
+            for voyage in all_arrivals:
+                if voyage.entry_time and voyage.berthing_time:
+                    wait_delta = voyage.berthing_time - voyage.entry_time
+                    wait_hours = wait_delta.total_seconds() / 3600
+                    if wait_hours > 0:  # Only count positive wait times
+                        wait_times.append(wait_hours)
+            
+            if wait_times:
+                avg_wait_time = sum(wait_times) / len(wait_times)
+            else:
+                # If no wait times available, set a default based on port size
+                avg_wait_time = random.uniform(8.0, 18.0)
+            
+            # Congestion score: 0-10 scale based on wait time
+            # 0h = 0, 30h+ = 10
+            congestion_score = min((avg_wait_time / 30.0) * 10.0, 10.0)
+            
+            port.arrivals = arrivals_count
+            port.departures = departures_count
+            port.avg_wait_time = round(avg_wait_time, 2)
+            port.congestion_score = round(congestion_score, 2)
+            port.last_update = timezone.now()
+            port.save()
+            
+            print(f"📊 {port.name}: Arrivals={arrivals_count}, Avg Wait={avg_wait_time:.2f}h, Congestion={congestion_score:.2f}")
+    
+    @staticmethod
     def generate_voyages(num_voyages=15):
         """
-        Generate realistic voyages between ports
-        Creates voyages with proper departure/arrival times and statuses
+        Generate voyages with GUARANTEED NO NULL VALUES
+        CRITICAL FIX: Always set entry_time and berthing_time for ALL voyages
         """
-        # Get all ports
         ports = list(Port.objects.all())
         if len(ports) < 2:
-            print("❌ Need at least 2 ports to create voyages")
+            print("❌ Need at least 2 ports")
             return []
         
-        # Get all vessels
         vessels = list(Vessel.objects.all())
         if len(vessels) == 0:
-            print("❌ No vessels found. Please create vessels first.")
+            print("❌ No vessels found")
             return []
         
         voyages = []
-        statuses = ['scheduled', 'in_progress', 'completed', 'cancelled']
-        status_weights = [0.15, 0.35, 0.45, 0.05]  # More completed, fewer cancelled
+        now = timezone.now()
         
-        # Generate voyage routes (common shipping routes)
         common_routes = [
             ('Port of Singapore', 'Port of Rotterdam'),
             ('Port of Shanghai', 'Port of Los Angeles'),
@@ -265,83 +231,196 @@ class MockDataGenerator:
             except Port.DoesNotExist:
                 continue
             
-            # Randomly select a vessel
             vessel = random.choice(vessels)
             
-            # Generate realistic dates
-            # Voyages from past month to next month
-            days_offset = random.randint(-30, 30)
-            departure_time = timezone.now() + timedelta(days=days_offset)
-            
-            # Travel duration: 10-30 days depending on distance
-            travel_days = random.randint(10, 30)
-            arrival_time = departure_time + timedelta(days=travel_days)
-            
-            # Determine status based on dates
-            now = timezone.now()
-            if departure_time > now:
-                status = 'scheduled'
-            elif departure_time <= now < arrival_time:
+            # Distribute statuses more evenly: 40% completed, 30% in_progress, 30% scheduled
+            rand = random.random()
+            if rand < 0.4:
+                status = 'completed'
+            elif rand < 0.7:
                 status = 'in_progress'
             else:
-                # Random status for completed voyages
-                status = random.choices(
-                    ['completed', 'cancelled'],
-                    weights=[0.95, 0.05]
-                )[0]
+                status = 'scheduled'
             
-            voyage, created = Voyage.objects.get_or_create(
+            # Generate times based on status
+            travel_days = random.randint(10, 30)
+            wait_hours = random.uniform(6.0, 24.0)  # Increased range for more variety
+            
+            if status == 'scheduled':
+                # SCHEDULED: Future departure
+                days_ahead = random.randint(1, 30)
+                departure_time = now + timedelta(days=days_ahead)
+                arrival_time = departure_time + timedelta(days=travel_days)
+                
+                # Set planned times for scheduled voyages
+                entry_time = arrival_time - timedelta(hours=random.randint(12, 48))
+                berthing_time = entry_time + timedelta(hours=wait_hours)
+                
+            elif status == 'in_progress':
+                # IN PROGRESS: Past departure, future arrival
+                days_ago = random.randint(1, 15)
+                departure_time = now - timedelta(days=days_ago)
+                arrival_time = departure_time + timedelta(days=travel_days)
+                
+                # Already entered port, currently waiting
+                entry_time = now - timedelta(hours=random.randint(1, 48))
+                berthing_time = entry_time + timedelta(hours=wait_hours)
+                
+            else:  # completed
+                # COMPLETED: Both departure and arrival in the past
+                days_ago = random.randint(1, 60)
+                arrival_time = now - timedelta(days=days_ago)
+                departure_time = arrival_time - timedelta(days=travel_days)
+                
+                # CRITICAL: Calculate backwards from arrival to ensure logical times
+                berthing_time = arrival_time - timedelta(hours=random.randint(2, 12))
+                entry_time = berthing_time - timedelta(hours=wait_hours)
+            
+            # Double check: entry_time must be before berthing_time
+            if entry_time and berthing_time and entry_time >= berthing_time:
+                berthing_time = entry_time + timedelta(hours=wait_hours)
+            
+            # Create or update voyage
+            voyage, created = Voyage.objects.update_or_create(
                 vessel=vessel,
                 port_from=port_from,
                 port_to=port_to,
                 departure_time=departure_time,
                 defaults={
                     'arrival_time': arrival_time,
+                    'entry_time': entry_time,
+                    'berthing_time': berthing_time,
                     'status': status
                 }
             )
             
-            if created:
-                print(f"✅ Created voyage: {vessel.name} from {port_from.name} to {port_to.name} ({status})")
-            else:
-                print(f"🔄 Voyage already exists: {vessel.name} from {port_from.name} to {port_to.name}")
+            if created or True:  # Always log for verification
+                wait = (berthing_time - entry_time).total_seconds() / 3600
+                print(f"✅ [{status.upper()}] {vessel.name}: {port_from.name} → {port_to.name}")
+                print(f"   Entry: {entry_time.strftime('%Y-%m-%d %H:%M')} | Berthing: {berthing_time.strftime('%Y-%m-%d %H:%M')} | Wait: {wait:.1f}h")
             
             voyages.append(voyage)
         
         return voyages
     
     @staticmethod
+    def fix_existing_null_values():
+        """
+        Fix any existing voyages with NULL entry_time or berthing_time
+        """
+        print("\n🔧 FIXING EXISTING NULL VALUES...")
+        
+        voyages_with_nulls = Voyage.objects.filter(
+            entry_time__isnull=True
+        ) | Voyage.objects.filter(
+            berthing_time__isnull=True
+        )
+        
+        fixed_count = 0
+        for voyage in voyages_with_nulls:
+            wait_hours = random.uniform(6.0, 24.0)
+            
+            # Calculate times based on status and arrival_time
+            if voyage.status == 'completed' and voyage.arrival_time:
+                # For completed: work backwards from arrival
+                berthing_time = voyage.arrival_time - timedelta(hours=random.randint(2, 12))
+                entry_time = berthing_time - timedelta(hours=wait_hours)
+            elif voyage.status == 'in_progress':
+                # For in progress: entry is recent, berthing is soon
+                now = timezone.now()
+                entry_time = now - timedelta(hours=random.randint(1, 48))
+                berthing_time = entry_time + timedelta(hours=wait_hours)
+            else:
+                # For scheduled: use future times based on arrival
+                if voyage.arrival_time:
+                    entry_time = voyage.arrival_time - timedelta(hours=random.randint(12, 48))
+                    berthing_time = entry_time + timedelta(hours=wait_hours)
+                else:
+                    # Fallback to departure time
+                    entry_time = voyage.departure_time + timedelta(days=random.randint(10, 25))
+                    berthing_time = entry_time + timedelta(hours=wait_hours)
+            
+            voyage.entry_time = entry_time
+            voyage.berthing_time = berthing_time
+            voyage.save()
+            
+            fixed_count += 1
+            wait_calc = (berthing_time - entry_time).total_seconds() / 3600
+            print(f"   ✓ Fixed: {voyage.vessel.name} [{voyage.status}] - Wait: {wait_calc:.1f}h")
+        
+        print(f"✅ Fixed {fixed_count} voyages with NULL values\n")
+        return fixed_count
+    
+    @staticmethod
     def generate_all_mock_data():
-        """Generate all mock data: ports and voyages"""
-        print("\n" + "="*60)
-        print("🚢 GENERATING MOCK PORT AND VOYAGE DATA")
-        print("="*60 + "\n")
+        """Generate all mock data"""
+        print("\n" + "="*70)
+        print("🚢 GENERATING MOCK DATA - ZERO NULL VALUES GUARANTEED")
+        print("="*70 + "\n")
         
-        # Generate ports
-        print("📍 Generating 15 Ports...")
+        print("📍 Generating Ports...")
         ports = MockDataGenerator.generate_ports()
-        print(f"\n✅ Generated {len(ports)} ports\n")
+        print(f"✅ {len(ports)} ports created\n")
         
-        # Generate voyages
-        print("🛳️  Generating 15 Voyages...")
+        print("🛳️  Generating Voyages...")
         voyages = MockDataGenerator.generate_voyages(15)
-        print(f"\n✅ Generated {len(voyages)} voyages\n")
+        print(f"✅ {len(voyages)} voyages created\n")
         
-        # Summary
-        print("="*60)
-        print("📊 MOCK DATA GENERATION SUMMARY")
-        print("="*60)
+        print("🔧 Fixing any existing NULL values...")
+        fixed = MockDataGenerator.fix_existing_null_values()
+        
+        print("📊 Calculating Statistics...")
+        MockDataGenerator.calculate_port_statistics()
+        print("✅ Statistics calculated\n")
+        
+        # VERIFICATION
+        print("="*70)
+        print("✅ VERIFICATION - Checking for NULL values")
+        print("="*70)
+        
+        all_voyages = Voyage.objects.all()
+        null_entry = all_voyages.filter(entry_time__isnull=True).count()
+        null_berthing = all_voyages.filter(berthing_time__isnull=True).count()
+        
+        print(f"\nTotal Voyages: {all_voyages.count()}")
+        print(f"Voyages with NULL entry_time: {null_entry}")
+        print(f"Voyages with NULL berthing_time: {null_berthing}")
+        
+        if null_entry == 0 and null_berthing == 0:
+            print("\n🎉 SUCCESS! NO NULL VALUES FOUND!")
+        else:
+            print(f"\n⚠️  WARNING: {null_entry + null_berthing} NULL values still exist")
+            print("Running fix again...")
+            MockDataGenerator.fix_existing_null_values()
+        
+        # Show sample data
+        print("\n" + "="*70)
+        print("📋 SAMPLE VOYAGE DATA")
+        print("="*70)
+        for v in Voyage.objects.all()[:5]:
+            if v.entry_time and v.berthing_time:
+                wait = (v.berthing_time - v.entry_time).total_seconds() / 3600
+                print(f"\n{v.vessel.name} [{v.status}]")
+                print(f"  Entry:    {v.entry_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"  Berthing: {v.berthing_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"  Wait:     {wait:.2f} hours")
+            else:
+                print(f"\n❌ {v.vessel.name}: STILL HAS NULL VALUES!")
+        
+        print("\n" + "="*70)
         print(f"Total Ports: {Port.objects.count()}")
         print(f"Total Voyages: {Voyage.objects.count()}")
         print(f"Total Vessels: {Vessel.objects.count()}")
-        print("="*60 + "\n")
+        print("="*70 + "\n")
         
         return {
             'ports': ports,
             'voyages': voyages,
+            'fixed_count': fixed,
             'summary': {
                 'total_ports': Port.objects.count(),
                 'total_voyages': Voyage.objects.count(),
-                'total_vessels': Vessel.objects.count()
+                'total_vessels': Vessel.objects.count(),
+                'null_values': null_entry + null_berthing
             }
         }

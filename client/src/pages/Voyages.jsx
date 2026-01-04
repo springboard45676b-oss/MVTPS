@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Ship, Calendar, MapPin, Clock, RefreshCw, TrendingUp, Search, X, ChevronDown, Filter } from 'lucide-react';
 
-// Improved Toast Component
 const Toast = ({ message, type = 'success', onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -165,6 +164,7 @@ const Voyages = () => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -190,7 +190,6 @@ const Voyages = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {/* Toast Notification */}
       {toast && (
         <Toast 
           message={toast.message} 
@@ -200,15 +199,25 @@ const Voyages = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Voyage Management</h1>
           <p className="mt-2 text-gray-600">Track and monitor vessel voyages across routes</p>
         </div>
 
-        {/* Statistics Cards */}
         {statistics && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Voyages</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{voyages.length}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Ship className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -259,7 +268,6 @@ const Voyages = () => {
           </div>
         )}
 
-        {/* Search and Filter */}
         <div className="space-y-4 mb-6">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -316,14 +324,12 @@ const Voyages = () => {
             </button>
           </div>
 
-          {/* Expandable Filter Panel */}
           <div
             className={`overflow-hidden transition-all duration-300 ease-in-out ${
               isFilterOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}
           >
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 space-y-4">
-              {/* Filter Header */}
               <div className="flex justify-between items-center pb-4 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   Filter Voyages
@@ -343,9 +349,7 @@ const Voyages = () => {
                 )}
               </div>
 
-              {/* Filter Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Status Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
@@ -363,7 +367,6 @@ const Voyages = () => {
                   </select>
                 </div>
 
-                {/* Vessel Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Vessel
@@ -381,7 +384,6 @@ const Voyages = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => setIsFilterOpen(false)}
@@ -401,16 +403,26 @@ const Voyages = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Voyages List */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Voyages ({filteredVoyages.length})
-                </h2>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ minHeight: '800px', maxHeight: '1000px' }}>
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <h2 className="text-lg font-semibold text-gray-900">Voyages</h2>
               </div>
 
-              <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+              {/* SCROLLABLE CONTAINER WITH HIDDEN SCROLLBAR */}
+              <div 
+                className="divide-y divide-gray-200 overflow-y-auto flex-1"
+                style={{ 
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
+                }}
+              >
+                <style>{`
+                  div::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+
                 {filteredVoyages.map(voyage => {
                   const progress = calculateProgress(voyage);
                   return (
@@ -478,18 +490,17 @@ const Voyages = () => {
                     </div>
                   );
                 })}
-              </div>
 
-              {filteredVoyages.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Ship className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No voyages found matching your filters</p>
-                </div>
-              )}
+                {filteredVoyages.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    <Ship className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No voyages found matching your filters</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Voyage Details Panel */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-24">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -514,6 +525,37 @@ const Voyages = () => {
 
                     <div className="bg-gray-50 p-4 rounded-lg space-y-4">
                       <h4 className="font-semibold text-gray-900">Route Information</h4>
+
+                      {(selectedVoyage.entry_time || selectedVoyage.berthing_time) && (
+                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 text-blue-800 mb-3">
+                            <Clock className="w-4 h-4" />
+                            <span className="font-semibold text-sm">Port Timeline</span>
+                          </div>
+                          <div className="space-y-3">
+                            {selectedVoyage.entry_time && (
+                              <div>
+                                <p className="text-xs font-semibold text-blue-700 mb-1">Entry Time</p>
+                                <p className="text-sm text-blue-900">{formatDate(selectedVoyage.entry_time)}</p>
+                              </div>
+                            )}
+                            {selectedVoyage.berthing_time && (
+                              <div>
+                                <p className="text-xs font-semibold text-blue-700 mb-1">Berthing Time</p>
+                                <p className="text-sm text-blue-900">{formatDate(selectedVoyage.berthing_time)}</p>
+                              </div>
+                            )}
+                            {selectedVoyage.wait_time_hours !== null && selectedVoyage.wait_time_hours !== undefined && (
+                              <div className="pt-3 border-t border-blue-200">
+                                <p className="text-xs font-semibold text-blue-700 mb-1">Wait Time</p>
+                                <p className="text-sm font-bold text-blue-900">
+                                  {selectedVoyage.wait_time_hours.toFixed(1)} hours
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="space-y-4">
                         <div>
@@ -565,13 +607,19 @@ const Voyages = () => {
                       <h4 className="font-semibold text-gray-900 mb-3">Vessel Information</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Type:</span>
-                          <span className="font-medium text-gray-900">{selectedVoyage.vessel_type || 'N/A'}</span>
+                          <span className="text-gray-600">Vessel Name:</span>
+                          <span className="font-medium text-gray-900">{selectedVoyage.vessel_name}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">IMO Number:</span>
                           <span className="font-mono font-medium text-gray-900">{selectedVoyage.vessel_imo}</span>
                         </div>
+                        {selectedVoyage.vessel_type && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Type:</span>
+                            <span className="font-medium text-gray-900">{selectedVoyage.vessel_type}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

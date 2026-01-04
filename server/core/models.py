@@ -160,8 +160,12 @@ class Port(models.Model):
 
 class Voyage(models.Model):
     """
-    Voyage model matching ERD schema exactly:
+    Voyage model matching ERD schema with wait time calculation fields:
     - id, vessel_id, port_from, port_to, departure_time, arrival_time, status
+    - entry_time (NEW) - When vessel enters the destination port
+    - berthing_time (NEW) - When vessel docks at the destination port
+    
+    Wait Time Calculation: berthing_time - entry_time (in hours)
     """
     STATUS_CHOICES = [
         ('scheduled', 'Scheduled'),
@@ -176,6 +180,18 @@ class Voyage(models.Model):
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    
+    # NEW FIELDS for wait time calculation
+    entry_time = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text='When vessel enters the destination port'
+    )
+    berthing_time = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text='When vessel docks at the destination port'
+    )
 
     class Meta:
         ordering = ['-departure_time']
@@ -183,6 +199,21 @@ class Voyage(models.Model):
 
     def __str__(self):
         return f"{self.vessel.name} from {self.port_from} to {self.port_to}"
+    
+    @property
+    def wait_time_hours(self):
+        """
+        Calculate wait time in hours: berthing_time - entry_time
+        Returns None if times are not set
+        """
+        if self.entry_time and self.berthing_time:
+            delta = self.berthing_time - self.entry_time
+            return round(delta.total_seconds() / 3600, 2)
+        return None
+    
+    def __str__(self):
+        wait_time = f" (Wait: {self.wait_time_hours}h)" if self.wait_time_hours else ""
+        return f"{self.vessel.name} from {self.port_from} to {self.port_to}{wait_time}"
 
 
 class Event(models.Model):

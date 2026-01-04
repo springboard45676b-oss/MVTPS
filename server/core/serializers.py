@@ -599,9 +599,10 @@ class NotificationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Message cannot be empty')
         return value
     
-# Add these serializers to your existing server/core/serializers.py file
+# Add these updated serializers to your server/core/serializers.py
 
 from .models import Port, Voyage
+from rest_framework import serializers
 
 # ============================================
 # PORT SERIALIZERS
@@ -658,7 +659,7 @@ class PortSerializer(serializers.ModelSerializer):
 
 class PortDetailedSerializer(serializers.ModelSerializer):
     """
-    Detailed port serializer with statistics and recent voyages
+    Detailed port serializer with statistics, wait times, and recent voyages
     """
     congestion_level = serializers.SerializerMethodField()
     status_indicator = serializers.SerializerMethodField()
@@ -666,6 +667,7 @@ class PortDetailedSerializer(serializers.ModelSerializer):
     turnover_rate = serializers.SerializerMethodField()
     recent_arrivals = serializers.SerializerMethodField()
     recent_departures = serializers.SerializerMethodField()
+    statistics = serializers.SerializerMethodField()
     
     class Meta:
         model = Port
@@ -685,6 +687,7 @@ class PortDetailedSerializer(serializers.ModelSerializer):
             'turnover_rate',
             'last_update',
             'status_indicator',
+            'statistics',
             'recent_arrivals',
             'recent_departures'
         )
@@ -722,10 +725,54 @@ class PortDetailedSerializer(serializers.ModelSerializer):
             return 0
         return round((obj.departures / obj.arrivals) * 100, 2)
     
+    def get_statistics(self, obj):
+        """Get comprehensive port statistics"""
+        completed_arrivals = Voyage.objects.filter(
+            port_to=obj,
+            status='completed'
+        )
+        
+        wait_times = []
+        for voyage in completed_arrivals:
+            if voyage.wait_time_hours is not None:
+                wait_times.append(voyage.wait_time_hours)
+        
+        return {
+            'congestion': {
+                'score': round(obj.congestion_score, 2),
+                'level': self.get_congestion_level(obj),
+                'avg_wait_time_hours': round(obj.avg_wait_time, 2)
+            },
+            'traffic': {
+                'total': {
+                    'arrivals': obj.arrivals,
+                    'departures': obj.departures
+                },
+                'last_30_days': {
+                    'arrivals': obj.arrivals,  # In production, filter by date
+                    'departures': obj.departures
+                },
+                'current_activity': {
+                    'incoming_vessels': Voyage.objects.filter(
+                        port_to=obj,
+                        status='in_progress'
+                    ).count(),
+                    'outgoing_vessels': Voyage.objects.filter(
+                        port_from=obj,
+                        status='in_progress'
+                    ).count()
+                }
+            },
+            'performance': {
+                'completed_arrivals': completed_arrivals.count(),
+                'turnover_rate': round((obj.departures / obj.arrivals * 100) if obj.arrivals > 0 else 0, 2),
+                'avg_wait_time_hours': round(obj.avg_wait_time, 2)
+            }
+        }
+    
     def get_recent_arrivals(self, obj):
         """Get last 5 vessels that arrived at this port"""
         from django.utils import timezone
-        from datetime import timedelta
         
         recent_voyages = Voyage.objects.filter(
             port_to=obj,
@@ -737,7 +784,8 @@ class PortDetailedSerializer(serializers.ModelSerializer):
             'vessel_name': v.vessel.name,
             'vessel_imo': v.vessel.imo_number,
             'arrival_time': v.arrival_time.isoformat(),
-            'from_port': v.port_from.name
+            'from_port': v.port_from.name,
+            'wait_time_hours': v.wait_time_hours
         } for v in recent_voyages]
     
     def get_recent_departures(self, obj):
@@ -764,7 +812,7 @@ class PortDetailedSerializer(serializers.ModelSerializer):
 
 class VoyageSerializer(serializers.ModelSerializer):
     """
-    Serializer for Voyage model with vessel and port details
+    Serializer for Voyage model with vessel and port details + wait time
     """
     vessel_name = serializers.CharField(source='vessel.name', read_only=True)
     vessel_imo = serializers.CharField(source='vessel.imo_number', read_only=True)
@@ -774,6 +822,7 @@ class VoyageSerializer(serializers.ModelSerializer):
     port_to_name = serializers.CharField(source='port_to.name', read_only=True)
     port_to_country = serializers.CharField(source='port_to.country', read_only=True)
     duration_days = serializers.SerializerMethodField()
+    wait_time_hours = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     
     class Meta:
@@ -792,7 +841,10 @@ class VoyageSerializer(serializers.ModelSerializer):
             'port_to_country',
             'departure_time',
             'arrival_time',
+            'entry_time',
+            'berthing_time',
             'duration_days',
+            'wait_time_hours',
             'status',
             'status_display'
         )
@@ -804,16 +856,21 @@ class VoyageSerializer(serializers.ModelSerializer):
             delta = obj.arrival_time - obj.departure_time
             return round(delta.total_seconds() / 86400, 1)
         return None
+    
+    def get_wait_time_hours(self, obj):
+        """Return calculated wait time in hours"""
+        return obj.wait_time_hours
 
 
 class VoyageDetailedSerializer(serializers.ModelSerializer):
     """
-    Detailed voyage serializer with full vessel info and route details
+    Detailed voyage serializer with full vessel info, route details, and wait time
     """
     vessel_details = serializers.SerializerMethodField()
     port_from_details = serializers.SerializerMethodField()
     port_to_details = serializers.SerializerMethodField()
     duration_days = serializers.SerializerMethodField()
+    wait_time_hours = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     progress_percentage = serializers.SerializerMethodField()
     estimated_position = serializers.SerializerMethodField()
@@ -830,7 +887,10 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
             'port_to_details',
             'departure_time',
             'arrival_time',
+            'entry_time',
+            'berthing_time',
             'duration_days',
+            'wait_time_hours',
             'status',
             'status_display',
             'progress_percentage',
@@ -862,7 +922,9 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
             'location': port.location,
             'country': port.country,
             'congestion_score': port.congestion_score,
-            'avg_wait_time': port.avg_wait_time
+            'avg_wait_time': port.avg_wait_time,
+            'latitude': port.latitude,
+            'longitude': port.longitude
         }
     
     def get_port_to_details(self, obj):
@@ -874,7 +936,9 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
             'location': port.location,
             'country': port.country,
             'congestion_score': port.congestion_score,
-            'avg_wait_time': port.avg_wait_time
+            'avg_wait_time': port.avg_wait_time,
+            'latitude': port.latitude,
+            'longitude': port.longitude
         }
     
     def get_duration_days(self, obj):
@@ -883,6 +947,10 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
             delta = obj.arrival_time - obj.departure_time
             return round(delta.total_seconds() / 86400, 1)
         return None
+    
+    def get_wait_time_hours(self, obj):
+        """Return calculated wait time in hours"""
+        return obj.wait_time_hours
     
     def get_progress_percentage(self, obj):
         """Calculate voyage progress percentage for in_progress voyages"""
@@ -910,18 +978,12 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
         if obj.status != 'in_progress':
             return None
         
-        # This is a simple linear interpolation
-        # In reality, you'd use actual position data
-        progress = self.get_progress_percentage(obj)
-        if progress is None:
-            return None
-        
-        # Get vessel's current position if available
         vessel = obj.vessel
         if vessel.last_position_lat and vessel.last_position_lon:
             return {
                 'latitude': vessel.last_position_lat,
-                'longitude': vessel.last_position_lon
+                'longitude': vessel.last_position_lon,
+                'timestamp': vessel.last_update
             }
         
         return None

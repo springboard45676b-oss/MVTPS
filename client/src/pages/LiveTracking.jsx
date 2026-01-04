@@ -1,6 +1,6 @@
 // src/pages/LiveTracking.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from 'react-leaflet';
 import { useLocation } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { divIcon } from 'leaflet';
@@ -52,20 +52,6 @@ const COUNTRY_LOCATIONS = {
   'New Zealand': { lat: -36.8485, lng: 174.7633, continent: 'Oceania' },
 };
 
-// Major ports by city name
-const PORT_LOCATIONS = {
-  'Singapore': { lat: 1.3521, lng: 103.8198 },
-  'Shanghai': { lat: 31.2304, lng: 121.4737 },
-  'Rotterdam': { lat: 51.9225, lng: 4.4792 },
-  'Hamburg': { lat: 53.5511, lng: 9.9937 },
-  'Los Angeles': { lat: 33.7373, lng: -118.2700 },
-  'New York': { lat: 40.6895, lng: -74.0447 },
-  'Dubai': { lat: 25.2048, lng: 55.2708 },
-  'Hong Kong': { lat: 22.3193, lng: 114.1694 },
-  'Busan': { lat: 35.1796, lng: 129.0756 },
-  'Tokyo': { lat: 35.6762, lng: 139.6503 },
-};
-
 // Calculate distance between two coordinates (in km)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Earth's radius in km
@@ -79,20 +65,18 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// Map Animation Component - Fully Reliable
+// Map Animation Component
 const MapAnimator = ({ vessels, triggerAnimation }) => {
   const map = useMap();
   const lastTrigger = useRef(null);
 
   useEffect(() => {
-    // Don't animate if no trigger change or no vessels
     if (triggerAnimation === lastTrigger.current || !triggerAnimation || vessels.length === 0) {
       return;
     }
 
     lastTrigger.current = triggerAnimation;
 
-    // Pick random vessel
     const randomIndex = Math.floor(Math.random() * vessels.length);
     const randomVessel = vessels[randomIndex];
     
@@ -103,10 +87,8 @@ const MapAnimator = ({ vessels, triggerAnimation }) => {
     const targetLat = randomVessel.last_position_lat;
     const targetLng = randomVessel.last_position_lon;
 
-    // Immediate reset to world view
     map.setView([20, 0], 2, { animate: false });
 
-    // Small delay then animate to vessel
     const timer = setTimeout(() => {
       map.flyTo([targetLat, targetLng], 6, {
         duration: 0.8,
@@ -125,6 +107,8 @@ const LiveTracking = () => {
   const [filteredVessels, setFilteredVessels] = useState([]);
   const [selectedVessel, setSelectedVessel] = useState(null);
   const [track, setTrack] = useState([]);
+  const [ports, setPorts] = useState([]);
+  const [voyages, setVoyages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -144,6 +128,8 @@ const LiveTracking = () => {
 
   useEffect(() => {
     loadVessels();
+    loadPorts();
+    loadVoyages();
   }, []);
 
   // Handle navigation from notifications
@@ -153,13 +139,11 @@ const LiveTracking = () => {
       if (vessel) {
         setSelectedVessel(vessel);
         
-        // Show toast
         toast.success(`Viewing ${location.state.vesselName || vessel.name}`, {
           position: 'top-center',
           duration: 3000,
         });
 
-        // Clear navigation state
         window.history.replaceState({}, document.title);
       }
     }
@@ -209,54 +193,66 @@ const LiveTracking = () => {
     setFilteredVessels(filtered);
   }, [searchQuery, filters, vessels]);
 
-  // Determine vessel state based on location and speed
-  const determineVesselState = (vessel) => {
-    const PROXIMITY_THRESHOLD = 200; // km - within 200km considered "near"
+  // Determine vessel state based on voyages and ports
+  const determineVesselState = (vessel, allVoyages, allPorts) => {
+    const PROXIMITY_THRESHOLD = 50; // km
     
-    // Check if near flag country (departure)
-    if (vessel.flag && COUNTRY_LOCATIONS[vessel.flag]) {
-      const flagLocation = COUNTRY_LOCATIONS[vessel.flag];
-      const distanceToFlag = calculateDistance(
-        vessel.last_position_lat,
-        vessel.last_position_lon,
-        flagLocation.lat,
-        flagLocation.lng
-      );
-      
-      if (distanceToFlag < PROXIMITY_THRESHOLD && vessel.speed < 5) {
-        return 'departure';
-      }
-    }
+    // Check active voyages for this vessel
+    const activeVoyage = allVoyages.find(v => 
+      v.vessel === vessel.id && v.status === 'in_progress'
+    );
 
-    // Check if near destination (arrival)
-    if (vessel.destination) {
-      // Try to match destination with known ports
-      const destLower = vessel.destination.toLowerCase();
-      let destinationLocation = null;
-      
-      for (const [portName, location] of Object.entries(PORT_LOCATIONS)) {
-        if (destLower.includes(portName.toLowerCase())) {
-          destinationLocation = location;
-          break;
-        }
-      }
-
-      if (destinationLocation) {
-        const distanceToDest = calculateDistance(
+    if (activeVoyage) {
+      // Check if near departure port
+      const departurePort = allPorts.find(p => p.id === activeVoyage.port_from);
+      if (departurePort && departurePort.latitude && departurePort.longitude) {
+        const distanceToDeparture = calculateDistance(
           vessel.last_position_lat,
           vessel.last_position_lon,
-          destinationLocation.lat,
-          destinationLocation.lng
+          departurePort.latitude,
+          departurePort.longitude
         );
         
-        if (distanceToDest < PROXIMITY_THRESHOLD && vessel.speed < 10) {
-          return 'arrival';
+        if (distanceToDeparture < PROXIMITY_THRESHOLD && vessel.speed < 5) {
+          return { state: 'departure', port: departurePort, voyage: activeVoyage };
+        }
+      }
+
+      // Check if near arrival port
+      const arrivalPort = allPorts.find(p => p.id === activeVoyage.port_to);
+      if (arrivalPort && arrivalPort.latitude && arrivalPort.longitude) {
+        const distanceToArrival = calculateDistance(
+          vessel.last_position_lat,
+          vessel.last_position_lon,
+          arrivalPort.latitude,
+          arrivalPort.longitude
+        );
+        
+        if (distanceToArrival < PROXIMITY_THRESHOLD && vessel.speed < 10) {
+          return { state: 'arrival', port: arrivalPort, voyage: activeVoyage };
+        }
+      }
+
+      return { state: 'in_transit', voyage: activeVoyage };
+    }
+
+    // Check if near any port (not on active voyage)
+    for (const port of allPorts) {
+      if (port.latitude && port.longitude) {
+        const distanceToPort = calculateDistance(
+          vessel.last_position_lat,
+          vessel.last_position_lon,
+          port.latitude,
+          port.longitude
+        );
+        
+        if (distanceToPort < PROXIMITY_THRESHOLD) {
+          return { state: 'at_port', port };
         }
       }
     }
 
-    // Default to ocean if not near any port
-    return 'ocean';
+    return { state: 'ocean' };
   };
 
   const loadVessels = async () => {
@@ -283,20 +279,11 @@ const LiveTracking = () => {
       const data = await response.json();
       const vesselList = Array.isArray(data) ? data : (data.results || []);
       
-      const vesselWithPositions = vesselList
-        .filter(v => v.last_position_lat && v.last_position_lon)
-        .map(v => ({
-          ...v,
-          state: determineVesselState(v),
-          continent: v.flag && COUNTRY_LOCATIONS[v.flag] 
-            ? COUNTRY_LOCATIONS[v.flag].continent 
-            : null
-        }));
+      const vesselWithPositions = vesselList.filter(v => v.last_position_lat && v.last_position_lon);
       
       setVessels(vesselWithPositions);
       setLoading(false);
       
-      // Trigger animation with timestamp
       setTimeout(() => {
         setMapAnimationTrigger(Date.now());
       }, 200);
@@ -307,6 +294,52 @@ const LiveTracking = () => {
         duration: 3000,
       });
       setLoading(false);
+    }
+  };
+
+  const loadPorts = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/ports/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to load ports');
+      
+      const data = await response.json();
+      const portsList = Array.isArray(data) ? data : (data.results || []);
+      
+      setPorts(portsList);
+    } catch (error) {
+      console.error('Error loading ports:', error);
+    }
+  };
+
+  const loadVoyages = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/voyages/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to load voyages');
+      
+      const data = await response.json();
+      const voyagesList = Array.isArray(data) ? data : (data.results || []);
+      
+      setVoyages(voyagesList);
+    } catch (error) {
+      console.error('Error loading voyages:', error);
     }
   };
 
@@ -342,52 +375,10 @@ const LiveTracking = () => {
     }
   };
 
-  const triggerStateBasedAlerts = async (updatedVessels) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      const subResponse = await fetch(`${API_URL}/users/subscriptions/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!subResponse.ok) return;
-
-      const subData = await subResponse.json();
-      const subscriptions = Array.isArray(subData) ? subData : (subData.results || []);
-      
-      updatedVessels.forEach(vessel => {
-        const subscription = subscriptions.find(sub => 
-          sub.vessel === vessel.id && sub.is_active
-        );
-
-        if (!subscription) return;
-
-        const { alert_type } = subscription;
-
-        const shouldAlert = 
-          alert_type === 'all' ||
-          (alert_type === 'position_update' && vessel.state === 'ocean') ||
-          (alert_type === 'departure' && vessel.state === 'departure') ||
-          (alert_type === 'arrival' && vessel.state === 'arrival');
-
-        if (shouldAlert) {
-          console.log(`Alert triggered for ${vessel.name} - State: ${vessel.state}`);
-        }
-      });
-    } catch (error) {
-      console.error('Error triggering alerts:', error);
-    }
-  };
-
   const handleUpdatePositions = async () => {
     setUpdating(true);
     try {
       const token = localStorage.getItem('access_token');
-      
-      const updatedVessels = [];
       
       for (const vessel of vessels) {
         const latitude = 20 + Math.random() * 40;
@@ -409,27 +400,13 @@ const LiveTracking = () => {
             source: 'api'
           })
         });
-
-        const updatedVessel = {
-          ...vessel,
-          last_position_lat: latitude,
-          last_position_lon: longitude,
-          speed,
-          course
-        };
-        
-        updatedVessel.state = determineVesselState(updatedVessel);
-        updatedVessels.push(updatedVessel);
       }
-      
-      await triggerStateBasedAlerts(updatedVessels);
       
       toast.success('Fleet data refreshed successfully', {
         position: 'top-center',
         duration: 3000,
       });
       
-      // Reload vessels and trigger animation to random vessel
       await loadVessels();
       
     } catch (error) {
@@ -444,29 +421,63 @@ const LiveTracking = () => {
   };
 
   const handleSubscriptionChange = () => {
-    // Trigger sidebar to refresh subscriptions
     setSubscriptionUpdateKey(prev => prev + 1);
-    
-    // Reload vessels data
     loadVessels();
     
-    // Reload track if vessel selected
     if (selectedVessel) {
       loadVesselTrack(selectedVessel.id);
     }
   };
 
-  const VesselMarkerIcon = (state, course = 0, isSelected = false) => {
+  // Get congestion color for ports
+  const getPortCongestionColor = (congestionScore) => {
+    if (congestionScore < 3) return '#10b981'; // green - low
+    if (congestionScore < 6) return '#f59e0b'; // amber - moderate
+    if (congestionScore < 8) return '#f97316'; // orange - high
+    return '#ef4444'; // red - critical
+  };
+
+  // Port marker icon - ROUND SHAPE
+  const PortMarkerIcon = (port) => {
+    const color = getPortCongestionColor(port.congestion_score || 0);
+    const size = 30;
+    
+    return divIcon({
+      html: `
+        <div style="
+          width: ${size}px;
+          height: ${size}px;
+          background: ${color};
+          border: 3px solid white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          font-size: 18px;
+        ">⚓</div>
+      `,
+      className: '',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2]
+    });
+  };
+
+  // Vessel marker icon with state
+  const VesselMarkerIcon = (vesselState, course = 0, isSelected = false) => {
     const size = isSelected ? 50 : 40;
     const courseAngle = course || 0;
     
     const stateColors = {
       ocean: '#3b82f6',
+      in_transit: '#3b82f6',
       departure: '#f59e0b',
-      arrival: '#10b981'
+      arrival: '#10b981',
+      at_port: '#8b5cf6'
     };
     
-    const bgColor = isSelected ? '#dc2626' : (stateColors[state] || stateColors.ocean);
+    const bgColor = isSelected ? '#dc2626' : (stateColors[vesselState] || stateColors.ocean);
     
     return divIcon({
       html: `
@@ -492,10 +503,37 @@ const LiveTracking = () => {
     });
   };
 
-  const mapCenter = filteredVessels.length > 0
+  // Enhance vessels with state information
+  const enhancedVessels = filteredVessels.map(vessel => ({
+    ...vessel,
+    ...determineVesselState(vessel, voyages, ports)
+  }));
+
+  // Get active voyage routes
+  const activeVoyageRoutes = voyages
+    .filter(v => v.status === 'in_progress')
+    .map(voyage => {
+      const fromPort = ports.find(p => p.id === voyage.port_from);
+      const toPort = ports.find(p => p.id === voyage.port_to);
+      
+      if (fromPort?.latitude && fromPort?.longitude && toPort?.latitude && toPort?.longitude) {
+        return {
+          id: voyage.id,
+          positions: [
+            [fromPort.latitude, fromPort.longitude],
+            [toPort.latitude, toPort.longitude]
+          ],
+          vessel: vessels.find(v => v.id === voyage.vessel)
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  const mapCenter = enhancedVessels.length > 0
     ? {
-        lat: filteredVessels.reduce((sum, v) => sum + v.last_position_lat, 0) / filteredVessels.length,
-        lng: filteredVessels.reduce((sum, v) => sum + v.last_position_lon, 0) / filteredVessels.length
+        lat: enhancedVessels.reduce((sum, v) => sum + v.last_position_lat, 0) / enhancedVessels.length,
+        lng: enhancedVessels.reduce((sum, v) => sum + v.last_position_lon, 0) / enhancedVessels.length
       }
     : { lat: 20, lng: 0 };
 
@@ -567,7 +605,77 @@ const LiveTracking = () => {
               attribution='&copy; OpenStreetMap contributors'
             />
 
-            {filteredVessels.map(vessel => (
+            {/* Port Markers - Always visible */}
+            {ports.map(port => {
+              if (!port.latitude || !port.longitude) return null;
+              
+              return (
+                <React.Fragment key={`port-${port.id}`}>
+                  <Marker
+                    position={[port.latitude, port.longitude]}
+                    icon={PortMarkerIcon(port)}
+                  >
+                    <Popup>
+                      <div className="w-64 text-sm">
+                        <div className="font-bold text-lg mb-3 text-blue-600">{port.name}</div>
+                        <div className="space-y-2 text-slate-700">
+                          <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Location:</span>
+                            <span>{port.location}, {port.country}</span>
+                          </div>
+                          <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Congestion:</span>
+                            <span className="font-semibold" style={{ color: getPortCongestionColor(port.congestion_score || 0) }}>
+                              {(port.congestion_score || 0).toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Wait Time:</span>
+                            <span>{(port.avg_wait_time || 0).toFixed(1)}h</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Arrivals/Departures:</span>
+                            <span>{port.arrivals || 0} / {port.departures || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                  {/* Port radius circle */}
+                  <Circle
+                    center={[port.latitude, port.longitude]}
+                    radius={50000} // 50km
+                    pathOptions={{ 
+                      color: getPortCongestionColor(port.congestion_score || 0), 
+                      fillColor: getPortCongestionColor(port.congestion_score || 0),
+                      fillOpacity: 0.1,
+                      weight: 1
+                    }}
+                  />
+                </React.Fragment>
+              );
+            })}
+
+            {/* Voyage Route Lines - Colorful and always visible */}
+            {activeVoyageRoutes.map((route, index) => {
+              // Cycle through vibrant colors
+              const colors = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
+              const color = colors[index % colors.length];
+              
+              return (
+                <Polyline
+                  key={`voyage-${route.id}`}
+                  positions={route.positions}
+                  color={color}
+                  weight={3}
+                  opacity={0.6}
+                  dashArray="10, 10"
+                />
+              );
+            })}
+
+            {/* Vessel Markers */}
+            {enhancedVessels.map(vessel => (
               <React.Fragment key={vessel.id}>
                 <Marker
                   position={[vessel.last_position_lat, vessel.last_position_lon]}
@@ -587,9 +695,15 @@ const LiveTracking = () => {
                           <span>{vessel.type || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between border-b pb-2">
-                          <span className="font-semibold">Flag:</span>
-                          <span>{vessel.flag || 'N/A'}</span>
+                          <span className="font-semibold">Status:</span>
+                          <span className="capitalize font-semibold">{vessel.state?.replace('_', ' ')}</span>
                         </div>
+                        {vessel.port && (
+                          <div className="flex justify-between border-b pb-2">
+                            <span className="font-semibold">Port:</span>
+                            <span>{vessel.port.name}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between border-b pb-2">
                           <span className="font-semibold">Speed:</span>
                           <span className="font-semibold text-blue-600">{vessel.speed?.toFixed(1) || 'N/A'} kts</span>
@@ -605,8 +719,9 @@ const LiveTracking = () => {
               </React.Fragment>
             ))}
 
+            {/* Selected vessel track */}
             {routeCoordinates.length > 1 && (
-              <Polyline positions={routeCoordinates} color="#3b82f6" weight={2} opacity={0.6} />
+              <Polyline positions={routeCoordinates} color="#dc2626" weight={3} opacity={0.7} />
             )}
           </MapContainer>
         </div>
