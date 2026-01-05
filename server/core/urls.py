@@ -1,4 +1,4 @@
-# server/core/urls.py - Replace your existing urls.py with this
+# server/core/urls.py - Complete and corrected
 
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -30,11 +30,11 @@ from .views import (
     MarkAllNotificationsAsReadAPI,
     ClearAllNotificationsAPI,
     DeleteNotificationAPI,
-    # Port views - NEW
+    # Port views
     PortListAPI,
     PortDetailAPI,
     PortStatisticsAPI,
-    # Voyage views - NEW
+    # Voyage views
     VoyageListAPI,
     VoyageDetailAPI,
     VoyagesByVesselAPI,
@@ -42,6 +42,8 @@ from .views import (
     ActiveVoyagesAPI,
     # Mock data generation
     GeneratePortVoyageMockDataAPI,
+    PiracyZoneListAPI,
+    CountryViewSet,  # ViewSet for countries
 )
 
 urlpatterns = [
@@ -101,6 +103,17 @@ urlpatterns = [
     path('users/notifications/mark-all-read/', MarkAllNotificationsAsReadAPI.as_view(), name='mark-all-notifications-read'),
     path('users/notifications/<int:notification_id>/delete/', DeleteNotificationAPI.as_view(), name='delete-notification'),
     path('users/notifications/clear-all/', ClearAllNotificationsAPI.as_view(), name='clear-all-notifications'),
+    
+    # ============================================
+    # PIRACY ZONES ENDPOINT - /api/piracy-zones/
+    # ============================================
+    path('piracy-zones/', PiracyZoneListAPI.as_view(), name='piracy-zones'),
+    
+    # ============================================
+    # COUNTRIES ENDPOINT - /api/countries/
+    # ============================================
+    path('countries/', CountryViewSet.as_view({'get': 'list'}), name='countries-list'),
+    path('countries/<int:pk>/', CountryViewSet.as_view({'get': 'retrieve'}), name='country-detail'),
     
     # ============================================
     # MOCK DATA GENERATION - /api/*

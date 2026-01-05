@@ -22,7 +22,10 @@ from .models import (
     VesselAlert,
     Notification,
     Port,
-    Voyage
+    Voyage,
+    PiracyZone,
+    Country
+    
 )
 
 try:
@@ -52,6 +55,9 @@ from .serializers import (
     VesselSubscriptionSerializer,
     VesselAlertSerializer,
     NotificationSerializer,
+    PiracyZoneSerializer,
+    CountrySerializer
+    
 )
 
 from .services import VesselPositionService
@@ -1258,3 +1264,36 @@ class GeneratePortVoyageMockDataAPI(APIView):
                 {'error': f'Failed to generate mock data: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class PiracyZoneListAPI(generics.ListAPIView):
+    """Get all active piracy zones"""
+    queryset = PiracyZone.objects.filter(is_active=True)
+    serializer_class = PiracyZoneSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+from rest_framework import viewsets
+
+class CountryViewSet(viewsets.ReadOnlyModelViewSet):
+    """Get all countries with their locations and continents"""
+    queryset = Country.objects.all()
+    serializer_class = CountrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def list(self, request, *args, **kwargs):
+        """Return countries grouped by continent"""
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        
+        # Group by continent
+        by_continent = {}
+        for country in serializer.data:
+            continent = country['continent']
+            if continent not in by_continent:
+                by_continent[continent] = []
+            by_continent[continent].append(country)
+        
+        return Response({
+            'count': queryset.count(),
+            'by_continent': by_continent,
+            'results': serializer.data
+        })

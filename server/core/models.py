@@ -410,3 +410,51 @@ class VesselAlert(models.Model):
     
     def __str__(self):
         return f"{self.alert_type} - {self.subscription.vessel.name}"
+
+class PiracyZone(models.Model):
+    RISK_LEVELS = [
+        ('low', 'Low'),
+        ('moderate', 'Moderate'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    risk_level = models.CharField(max_length=50, choices=RISK_LEVELS)
+    incidents_90_days = models.IntegerField(default=0)
+    radius_km = models.IntegerField(default=200)
+    description = models.TextField(blank=True)
+    last_incident_date = models.DateField(null=True, blank=True)
+    
+    # ✅ ADD THESE MISSING FIELDS:
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # ✅ ACCIDENT HISTORY FIELDS (NEW):
+    total_accidents = models.IntegerField(default=0)
+    accident_types = models.JSONField(default=dict, blank=True)
+    casualties = models.IntegerField(default=0)
+    vessels_lost = models.IntegerField(default=0)
+    last_accident_date = models.DateField(null=True, blank=True)
+    accident_description = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-risk_level', '-incidents_90_days']
+    
+    def __str__(self):
+        return f"{self.name} ({self.risk_level})"
+    
+class Country(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    continent = models.CharField(max_length=50)
+    
+    class Meta:
+        verbose_name_plural = "Countries"
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.continent})"

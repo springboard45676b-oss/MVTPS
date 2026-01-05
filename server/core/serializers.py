@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 import math
-from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert, Notification
+from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert, Notification, PiracyZone, Country
 
 User = get_user_model()
 
@@ -987,3 +987,14 @@ class VoyageDetailedSerializer(serializers.ModelSerializer):
             }
         
         return None
+    
+class PiracyZoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PiracyZone
+        fields = ['id', 'name', 'latitude', 'longitude', 'risk_level', 
+                  'incidents_90_days', 'last_incident_date', 'radius_km', 'description', 'is_active']
+        
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'name', 'latitude', 'longitude', 'continent']

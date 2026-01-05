@@ -11,50 +11,12 @@ import LoadingAnimation from '../components/LoadingAnimation';
 import SubscriptionModal from '../components/SubscriptionModal';
 import SidebarPanel from '../components/SidebarPanel';
 import VesselDetailsPanel from '../components/VesselDetailsPanel';
+import NOAASafetyOverlay from '../components/NOAASafetyOverlay';
 
-// Geographic data - Country locations and major ports
-const COUNTRY_LOCATIONS = {
-  // Asia
-  'China': { lat: 31.2304, lng: 121.4737, continent: 'Asia' },
-  'Japan': { lat: 35.6762, lng: 139.6503, continent: 'Asia' },
-  'Singapore': { lat: 1.3521, lng: 103.8198, continent: 'Asia' },
-  'South Korea': { lat: 35.1796, lng: 129.0756, continent: 'Asia' },
-  'India': { lat: 18.9400, lng: 72.8350, continent: 'Asia' },
-  'Hong Kong': { lat: 22.3193, lng: 114.1694, continent: 'Asia' },
-  
-  // Europe
-  'Germany': { lat: 53.5511, lng: 9.9937, continent: 'Europe' },
-  'Greece': { lat: 37.9838, lng: 23.7275, continent: 'Europe' },
-  'Netherlands': { lat: 51.9225, lng: 4.4792, continent: 'Europe' },
-  'UK': { lat: 51.5074, lng: -0.1278, continent: 'Europe' },
-  'Norway': { lat: 59.9139, lng: 10.7522, continent: 'Europe' },
-  'Italy': { lat: 40.8518, lng: 14.2681, continent: 'Europe' },
-  'France': { lat: 43.2965, lng: 5.3698, continent: 'Europe' },
-  'Malta': { lat: 35.8989, lng: 14.5146, continent: 'Europe' },
-  'Cyprus': { lat: 34.9171, lng: 33.6240, continent: 'Europe' },
-  
-  // Americas
-  'USA': { lat: 40.7128, lng: -74.0060, continent: 'Americas' },
-  'Canada': { lat: 49.2827, lng: -123.1207, continent: 'Americas' },
-  'Panama': { lat: 8.9824, lng: -79.5199, continent: 'Americas' },
-  'Liberia': { lat: 6.3156, lng: -10.8074, continent: 'Africa' },
-  'Marshall Islands': { lat: 7.1315, lng: 171.1845, continent: 'Oceania' },
-  'Bahamas': { lat: 25.0343, lng: -77.3963, continent: 'Americas' },
-  'Mexico': { lat: 19.4326, lng: -99.1332, continent: 'Americas' },
-  'Brazil': { lat: -22.9068, lng: -43.1729, continent: 'Americas' },
-  
-  // Africa
-  'South Africa': { lat: -33.9249, lng: 18.4241, continent: 'Africa' },
-  'Egypt': { lat: 30.0444, lng: 31.2357, continent: 'Africa' },
-  
-  // Oceania
-  'Australia': { lat: -33.8688, lng: 151.2093, continent: 'Oceania' },
-  'New Zealand': { lat: -36.8485, lng: 174.7633, continent: 'Oceania' },
-};
+// ===== UTILITY FUNCTIONS =====
 
-// Calculate distance between two coordinates (in km)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
@@ -65,7 +27,79 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// Map Animation Component
+const getPortCongestionColor = (congestionScore) => {
+  if (congestionScore < 3) return '#10b981';
+  if (congestionScore < 6) return '#f59e0b';
+  if (congestionScore < 8) return '#f97316';
+  return '#ef4444';
+};
+
+const PortMarkerIcon = (port) => {
+  const color = getPortCongestionColor(port.congestion_score || 0);
+  const size = 40; // Same size as vessel icons
+  
+  return divIcon({
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        background: ${color};
+        border: 3px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        font-size: 22px;
+      ">⚓</div>
+    `,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2]
+  });
+};
+
+const VesselMarkerIcon = (vesselState, course = 0, isSelected = false) => {
+  const size = isSelected ? 50 : 40; // 40px normal, 50px selected
+  const courseAngle = course || 0;
+  
+  const stateColors = {
+    ocean: '#3b82f6',
+    in_transit: '#3b82f6',
+    departure: '#f59e0b',
+    arrival: '#10b981',
+    at_port: '#8b5cf6'
+  };
+  
+  const bgColor = isSelected ? '#dc2626' : (stateColors[vesselState] || stateColors.ocean);
+  
+  return divIcon({
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        background: ${bgColor};
+        border: 3px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        font-size: ${size === 50 ? '26px' : '22px'};
+        transform: rotate(${courseAngle}deg);
+        transition: all 0.2s;
+      ">⛴️</div>
+    `,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2]
+  });
+};
+
+// ===== MAP ANIMATOR COMPONENT =====
+
 const MapAnimator = ({ vessels, triggerAnimation }) => {
   const map = useMap();
   const lastTrigger = useRef(null);
@@ -102,13 +136,17 @@ const MapAnimator = ({ vessels, triggerAnimation }) => {
   return null;
 };
 
+// ===== MAIN LIVETRACKING COMPONENT =====
+
 const LiveTracking = () => {
+  // ===== STATE MANAGEMENT =====
   const [vessels, setVessels] = useState([]);
   const [filteredVessels, setFilteredVessels] = useState([]);
   const [selectedVessel, setSelectedVessel] = useState(null);
   const [track, setTrack] = useState([]);
   const [ports, setPorts] = useState([]);
   const [voyages, setVoyages] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -116,7 +154,6 @@ const LiveTracking = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mapAnimationTrigger, setMapAnimationTrigger] = useState(null);
   const [subscriptionUpdateKey, setSubscriptionUpdateKey] = useState(0);
-  
   const [filters, setFilters] = useState({
     types: [],
     continents: [],
@@ -126,36 +163,37 @@ const LiveTracking = () => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
   const location = useLocation();
 
+  // ===== INITIAL LOAD =====
   useEffect(() => {
     loadVessels();
     loadPorts();
     loadVoyages();
+    loadCountries();
   }, []);
 
-  // Handle navigation from notifications
+  // ===== NOTIFICATION NAVIGATION =====
   useEffect(() => {
     if (location.state?.selectedVesselId && vessels.length > 0) {
       const vessel = vessels.find(v => v.id === location.state.selectedVesselId);
       if (vessel) {
         setSelectedVessel(vessel);
-        
         toast.success(`Viewing ${location.state.vesselName || vessel.name}`, {
           position: 'top-center',
           duration: 3000,
         });
-
         window.history.replaceState({}, document.title);
       }
     }
   }, [location.state, vessels]);
 
+  // ===== LOAD VESSEL TRACK =====
   useEffect(() => {
     if (selectedVessel) {
       loadVesselTrack(selectedVessel.id);
     }
   }, [selectedVessel]);
 
-  // Apply filters
+  // ===== APPLY FILTERS =====
   useEffect(() => {
     let filtered = vessels;
 
@@ -179,9 +217,10 @@ const LiveTracking = () => {
     if (filters.continents && filters.continents.length > 0) {
       filtered = filtered.filter(v => {
         if (!v.flag) return false;
-        const countryData = COUNTRY_LOCATIONS[v.flag];
-        if (!countryData) return false;
-        return filters.continents.includes(countryData.continent);
+        // Find the country from the database by matching the flag/name
+        const country = countries.find(c => c.name === v.flag);
+        if (!country) return false;
+        return filters.continents.includes(country.continent);
       });
     }
 
@@ -193,17 +232,15 @@ const LiveTracking = () => {
     setFilteredVessels(filtered);
   }, [searchQuery, filters, vessels]);
 
-  // Determine vessel state based on voyages and ports
+  // ===== DETERMINE VESSEL STATE =====
   const determineVesselState = (vessel, allVoyages, allPorts) => {
-    const PROXIMITY_THRESHOLD = 50; // km
+    const PROXIMITY_THRESHOLD = 50;
     
-    // Check active voyages for this vessel
     const activeVoyage = allVoyages.find(v => 
       v.vessel === vessel.id && v.status === 'in_progress'
     );
 
     if (activeVoyage) {
-      // Check if near departure port
       const departurePort = allPorts.find(p => p.id === activeVoyage.port_from);
       if (departurePort && departurePort.latitude && departurePort.longitude) {
         const distanceToDeparture = calculateDistance(
@@ -218,7 +255,6 @@ const LiveTracking = () => {
         }
       }
 
-      // Check if near arrival port
       const arrivalPort = allPorts.find(p => p.id === activeVoyage.port_to);
       if (arrivalPort && arrivalPort.latitude && arrivalPort.longitude) {
         const distanceToArrival = calculateDistance(
@@ -236,7 +272,6 @@ const LiveTracking = () => {
       return { state: 'in_transit', voyage: activeVoyage };
     }
 
-    // Check if near any port (not on active voyage)
     for (const port of allPorts) {
       if (port.latitude && port.longitude) {
         const distanceToPort = calculateDistance(
@@ -254,6 +289,8 @@ const LiveTracking = () => {
 
     return { state: 'ocean' };
   };
+
+  // ===== API CALLS =====
 
   const loadVessels = async () => {
     try {
@@ -278,7 +315,6 @@ const LiveTracking = () => {
       
       const data = await response.json();
       const vesselList = Array.isArray(data) ? data : (data.results || []);
-      
       const vesselWithPositions = vesselList.filter(v => v.last_position_lat && v.last_position_lon);
       
       setVessels(vesselWithPositions);
@@ -313,7 +349,6 @@ const LiveTracking = () => {
       
       const data = await response.json();
       const portsList = Array.isArray(data) ? data : (data.results || []);
-      
       setPorts(portsList);
     } catch (error) {
       console.error('Error loading ports:', error);
@@ -336,10 +371,31 @@ const LiveTracking = () => {
       
       const data = await response.json();
       const voyagesList = Array.isArray(data) ? data : (data.results || []);
-      
       setVoyages(voyagesList);
     } catch (error) {
       console.error('Error loading voyages:', error);
+    }
+  };
+
+  const loadCountries = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/countries/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to load countries');
+      
+      const data = await response.json();
+      const countriesList = Array.isArray(data) ? data : (data.results || []);
+      setCountries(countriesList);
+    } catch (error) {
+      console.error('Error loading countries:', error);
     }
   };
 
@@ -360,7 +416,6 @@ const LiveTracking = () => {
       
       const data = await response.json();
       const positions = data.positions || data.results || data;
-      
       const sortedPositions = Array.isArray(positions)
         ? positions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
         : [];
@@ -429,87 +484,13 @@ const LiveTracking = () => {
     }
   };
 
-  // Get congestion color for ports
-  const getPortCongestionColor = (congestionScore) => {
-    if (congestionScore < 3) return '#10b981'; // green - low
-    if (congestionScore < 6) return '#f59e0b'; // amber - moderate
-    if (congestionScore < 8) return '#f97316'; // orange - high
-    return '#ef4444'; // red - critical
-  };
+  // ===== COMPUTED DATA =====
 
-  // Port marker icon - ROUND SHAPE
-  const PortMarkerIcon = (port) => {
-    const color = getPortCongestionColor(port.congestion_score || 0);
-    const size = 30;
-    
-    return divIcon({
-      html: `
-        <div style="
-          width: ${size}px;
-          height: ${size}px;
-          background: ${color};
-          border: 3px solid white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          font-size: 18px;
-        ">⚓</div>
-      `,
-      className: '',
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-      popupAnchor: [0, -size / 2]
-    });
-  };
-
-  // Vessel marker icon with state
-  const VesselMarkerIcon = (vesselState, course = 0, isSelected = false) => {
-    const size = isSelected ? 50 : 40;
-    const courseAngle = course || 0;
-    
-    const stateColors = {
-      ocean: '#3b82f6',
-      in_transit: '#3b82f6',
-      departure: '#f59e0b',
-      arrival: '#10b981',
-      at_port: '#8b5cf6'
-    };
-    
-    const bgColor = isSelected ? '#dc2626' : (stateColors[vesselState] || stateColors.ocean);
-    
-    return divIcon({
-      html: `
-        <div style="
-          width: ${size}px;
-          height: ${size}px;
-          background: ${bgColor};
-          border: 3px solid white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          font-size: 24px;
-          transform: rotate(${courseAngle}deg);
-          transition: all 0.2s;
-        ">⛴️</div>
-      `,
-      className: '',
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-      popupAnchor: [0, -size / 2]
-    });
-  };
-
-  // Enhance vessels with state information
   const enhancedVessels = filteredVessels.map(vessel => ({
     ...vessel,
     ...determineVesselState(vessel, voyages, ports)
   }));
 
-  // Get active voyage routes
   const activeVoyageRoutes = voyages
     .filter(v => v.status === 'in_progress')
     .map(voyage => {
@@ -605,7 +586,7 @@ const LiveTracking = () => {
               attribution='&copy; OpenStreetMap contributors'
             />
 
-            {/* Port Markers - Always visible */}
+            {/* Port Markers */}
             {ports.map(port => {
               if (!port.latitude || !port.longitude) return null;
               
@@ -641,10 +622,9 @@ const LiveTracking = () => {
                       </div>
                     </Popup>
                   </Marker>
-                  {/* Port radius circle */}
                   <Circle
                     center={[port.latitude, port.longitude]}
-                    radius={50000} // 50km
+                    radius={50000}
                     pathOptions={{ 
                       color: getPortCongestionColor(port.congestion_score || 0), 
                       fillColor: getPortCongestionColor(port.congestion_score || 0),
@@ -656,9 +636,8 @@ const LiveTracking = () => {
               );
             })}
 
-            {/* Voyage Route Lines - Colorful and always visible */}
+            {/* Voyage Route Lines */}
             {activeVoyageRoutes.map((route, index) => {
-              // Cycle through vibrant colors
               const colors = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
               const color = colors[index % colors.length];
               
@@ -723,6 +702,13 @@ const LiveTracking = () => {
             {routeCoordinates.length > 1 && (
               <Polyline positions={routeCoordinates} color="#dc2626" weight={3} opacity={0.7} />
             )}
+
+            {/* NOAA Safety Overlay - Always visible */}
+            <NOAASafetyOverlay 
+              selectedVessel={selectedVessel}
+              ports={ports}
+            />
+
           </MapContainer>
         </div>
 
