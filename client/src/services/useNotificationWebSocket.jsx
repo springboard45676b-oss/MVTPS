@@ -1,6 +1,17 @@
-// src/hooks/useNotificationWebSocket.jsx
+// src/services/useNotificationWebSocket.js
 import { useEffect, useRef, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
+
+// Configuration object
+const CONFIG = {
+  MAX_RECONNECT_ATTEMPTS: 5,
+  RECONNECT_DELAY: 3000,
+  HEARTBEAT_INTERVAL: 30000,
+  NOTIFICATION_DEBOUNCE: 1000,
+  MAX_VISIBLE_TOASTS: 5,
+  CONNECTION_TIMEOUT: 10000,
+  TOAST_DURATION: 15000
+};
 
 export const useNotificationWebSocket = (onNotificationReceived) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -17,11 +28,6 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
   const activeToastsRef = useRef(new Set());
 
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000';
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_DELAY = 3000;
-  const HEARTBEAT_INTERVAL = 30000;
-  const NOTIFICATION_DEBOUNCE = 1000; // 1 second between notifications
-  const MAX_VISIBLE_TOASTS = 5; // Maximum toasts visible at once
 
   const getToastStyle = (type) => {
     const typeMap = {
@@ -75,7 +81,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
   const showToast = useCallback((notification) => {
     // Prevent notification spam - debounce notifications
     const now = Date.now();
-    if (processingNotificationRef.current || (now - lastNotificationTimeRef.current) < NOTIFICATION_DEBOUNCE) {
+    if (processingNotificationRef.current || (now - lastNotificationTimeRef.current) < CONFIG.NOTIFICATION_DEBOUNCE) {
       console.log('Notification debounced - too soon since last notification');
       return;
     }
@@ -87,7 +93,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     const style = getToastStyle(notification_type);
 
     // Limit number of visible toasts - dismiss oldest if we have too many
-    if (activeToastsRef.current.size >= MAX_VISIBLE_TOASTS) {
+    if (activeToastsRef.current.size >= CONFIG.MAX_VISIBLE_TOASTS) {
       const oldestToastId = Array.from(activeToastsRef.current)[0];
       toast.dismiss(oldestToastId);
       activeToastsRef.current.delete(oldestToastId);
@@ -193,7 +199,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
         </div>
       ),
       { 
-        duration: 15000, 
+        duration: CONFIG.TOAST_DURATION, 
         position: 'top-right',
         style: {
           marginTop: '80px',
@@ -208,13 +214,13 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     // Remove from tracking when toast is dismissed
     setTimeout(() => {
       activeToastsRef.current.delete(toastId);
-    }, 15000);
+    }, CONFIG.TOAST_DURATION);
 
     // Reset processing flag after a short delay
     setTimeout(() => {
       processingNotificationRef.current = false;
     }, 500);
-  }, [NOTIFICATION_DEBOUNCE, MAX_VISIBLE_TOASTS]);
+  }, []);
 
   const setupHeartbeat = useCallback(() => {
     if (heartbeatTimeoutRef.current) {
@@ -231,8 +237,8 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
       }
     };
 
-    heartbeatTimeoutRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
-  }, [HEARTBEAT_INTERVAL]);
+    heartbeatTimeoutRef.current = setInterval(sendHeartbeat, CONFIG.HEARTBEAT_INTERVAL);
+  }, []);
 
   const clearHeartbeat = useCallback(() => {
     if (heartbeatTimeoutRef.current) {
@@ -241,7 +247,6 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     }
   }, []);
 
-  // Separate connect function with proper lifecycle management
   const connectWebSocket = useCallback(() => {
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current || !shouldReconnectRef.current || !mountedRef.current) {
@@ -289,7 +294,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
           isConnectingRef.current = false;
           setConnectionError('Connection timeout');
         }
-      }, 10000); // 10 second timeout
+      }, CONFIG.CONNECTION_TIMEOUT);
 
       ws.onopen = () => {
         clearTimeout(connectionTimeout);
@@ -344,7 +349,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
 
         // Only attempt reconnection if it was not a clean close
         if (shouldReconnectRef.current && 
-            reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS &&
+            reconnectAttemptsRef.current < CONFIG.MAX_RECONNECT_ATTEMPTS &&
             event.code !== 1000 && 
             event.code !== 1001) {
           
@@ -354,8 +359,8 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
             if (mountedRef.current && shouldReconnectRef.current) {
               connectWebSocket();
             }
-          }, RECONNECT_DELAY);
-        } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+          }, CONFIG.RECONNECT_DELAY);
+        } else if (reconnectAttemptsRef.current >= CONFIG.MAX_RECONNECT_ATTEMPTS) {
           setConnectionError('Failed to connect to notification service. Please refresh the page.');
           shouldReconnectRef.current = false;
         }
@@ -367,7 +372,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
       isConnectingRef.current = false;
       setConnectionError('Failed to establish connection');
     }
-  }, [WS_URL, onNotificationReceived, showToast, setupHeartbeat, clearHeartbeat, MAX_RECONNECT_ATTEMPTS, RECONNECT_DELAY]);
+  }, [WS_URL, onNotificationReceived, showToast, setupHeartbeat, clearHeartbeat]);
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
@@ -381,7 +386,6 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
 
     if (wsRef.current) {
       try {
-        // Use code 1000 for normal closure
         wsRef.current.close(1000, 'Client disconnecting');
       } catch (e) {
         // Silent error handling
@@ -409,7 +413,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
       clearTimeout(initTimeout);
       disconnect();
     };
-  }, []); // Empty dependency array - run only once!
+  }, []);
 
   const send = useCallback((message) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -434,70 +438,6 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     });
   }, [send]);
 
-  const showSuccess = useCallback((message, options = {}) => {
-    toast.success(message, {
-      duration: 4000,
-      position: 'top-right',
-      icon: '✅',
-      style: {
-        background: '#f0fdf4',
-        color: '#166534',
-        border: '1px solid #bbf7d0',
-        marginTop: '80px',
-        zIndex: 9999
-      },
-      ...options
-    });
-  }, []);
-
-  const showError = useCallback((message, options = {}) => {
-    toast.error(message, {
-      duration: 6000,
-      position: 'top-right',
-      icon: '❌',
-      style: {
-        background: '#fef2f2',
-        color: '#991b1b',
-        border: '1px solid #fecaca',
-        marginTop: '80px',
-        zIndex: 9999
-      },
-      ...options
-    });
-  }, []);
-
-  const showWarning = useCallback((message, options = {}) => {
-    toast(message, {
-      duration: 5000,
-      position: 'top-right',
-      icon: '⚠️',
-      style: {
-        background: '#fffbeb',
-        color: '#92400e',
-        border: '1px solid #fde68a',
-        marginTop: '80px',
-        zIndex: 9999
-      },
-      ...options
-    });
-  }, []);
-
-  const showInfo = useCallback((message, options = {}) => {
-    toast(message, {
-      duration: 4000,
-      position: 'top-right',
-      icon: '💡',
-      style: {
-        background: '#eff6ff',
-        color: '#1e40af',
-        border: '1px solid #bfdbfe',
-        marginTop: '80px',
-        zIndex: 9999
-      },
-      ...options
-    });
-  }, []);
-
   return {
     isConnected,
     connectionError,
@@ -505,10 +445,7 @@ export const useNotificationWebSocket = (onNotificationReceived) => {
     send,
     markAsRead,
     markAllAsRead,
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo,
+    showToast,
   };
 };
 

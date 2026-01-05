@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
-import { useNotificationWebSocket } from "../hooks/useNotificationWebSocket.jsx";
+import { useNotificationWebSocket } from "../services/useNotificationWebSocket.jsx";
 import DarkModeToggle from "./DarkModeToggle";
 import { Ship, Bell, Trash2, CheckCheck, X, MapPin } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";

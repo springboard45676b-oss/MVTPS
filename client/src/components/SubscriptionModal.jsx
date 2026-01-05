@@ -1,7 +1,7 @@
 // src/components/SubscriptionModal.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Bell, X, AlertCircle, Trash2, CheckCircle } from 'lucide-react';
+import { Bell, X, Trash2, CheckCircle } from 'lucide-react';
 
 const SubscriptionModal = ({ vessel, onClose, onSubscriptionChange }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);

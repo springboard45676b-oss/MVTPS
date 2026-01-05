@@ -1,6 +1,6 @@
 // src/components/SidebarPanel.jsx
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Anchor, AlertCircle, Trash2, Bell, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Filter, RefreshCw, Anchor, AlertCircle, Trash2, Bell, } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SidebarPanel = ({

@@ -36,7 +36,7 @@ const getPortCongestionColor = (congestionScore) => {
 
 const PortMarkerIcon = (port) => {
   const color = getPortCongestionColor(port.congestion_score || 0);
-  const size = 40; // Same size as vessel icons
+  const size = 40;
   
   return divIcon({
     html: `
@@ -61,7 +61,7 @@ const PortMarkerIcon = (port) => {
 };
 
 const VesselMarkerIcon = (vesselState, course = 0, isSelected = false) => {
-  const size = isSelected ? 50 : 40; // 40px normal, 50px selected
+  const size = isSelected ? 50 : 40;
   const courseAngle = course || 0;
   
   const stateColors = {
@@ -149,7 +149,6 @@ const LiveTracking = () => {
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapAnimationTrigger, setMapAnimationTrigger] = useState(null);
@@ -217,7 +216,6 @@ const LiveTracking = () => {
     if (filters.continents && filters.continents.length > 0) {
       filtered = filtered.filter(v => {
         if (!v.flag) return false;
-        // Find the country from the database by matching the flag/name
         const country = countries.find(c => c.name === v.flag);
         if (!country) return false;
         return filters.continents.includes(country.continent);
@@ -564,7 +562,6 @@ const LiveTracking = () => {
         onUpdatePositions={handleUpdatePositions}
         updating={updating}
         onSelectVessel={setSelectedVessel}
-        message={message}
         onSubscriptionUpdate={subscriptionUpdateKey}
       />
 
@@ -703,7 +700,7 @@ const LiveTracking = () => {
               <Polyline positions={routeCoordinates} color="#dc2626" weight={3} opacity={0.7} />
             )}
 
-            {/* NOAA Safety Overlay - Always visible */}
+            {/* NOAA Safety Overlay */}
             <NOAASafetyOverlay 
               selectedVessel={selectedVessel}
               ports={ports}
