@@ -1,0 +1,674 @@
+import React, { useState, useEffect } from 'react';
+import { Ship, Search, Filter, RefreshCw, MapPin, Clock, Anchor, Bell } from 'lucide-react';
+import { getVessels } from '../api/vessels';
+import { useAuth } from "../context/AuthContext";
+
+const Vessels = () => {
+  const { user } = useAuth();
+  const [vessels, setVessels] = useState([]);
+  const [filteredVessels, setFilteredVessels] = useState([]);
+  const [selectedVessel, setSelectedVessel] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [filters, setFilters] = useState({
+    type: '',
+    flag: '',
+    operator: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchVessels = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getVessels();
+      setVessels(data);
+      setFilteredVessels(data);
+      if (data.length > 0 && !selectedVessel) {
+        setSelectedVessel(data[0]);
+      }
+    } catch (err) {
+      setError('Failed to fetch vessels');
+      console.error('Error fetching vessels:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVessels();
+  }, []);
+
+  useEffect(() => {
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(fetchVessels, 10000);
+    }
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  useEffect(() => {
+    let filtered = vessels;
+
+    if (searchTerm) {
+      filtered = filtered.filter(vessel =>
+        vessel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (vessel.imo && vessel.imo.includes(searchTerm)) ||
+        (vessel.vessel_type && vessel.vessel_type.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (filters.type) {
+      filtered = filtered.filter(v => v.vessel_type === filters.type);
+    }
+    if (filters.flag) {
+      filtered = filtered.filter(v => v.flag === filters.flag);
+    }
+
+    setFilteredVessels(filtered);
+  }, [searchTerm, filters, vessels]);
+
+  const handleRefresh = () => {
+    fetchVessels();
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      type: '',
+      flag: '',
+      operator: ''
+    });
+  };
+
+  const uniqueTypes = [...new Set(vessels.map(v => v.vessel_type).filter(Boolean))];
+  const uniqueFlags = [...new Set(vessels.map(v => v.flag).filter(Boolean))];
+
+  return (
+    <div style={{ 
+      width: '100%', 
+      minHeight: 'calc(100vh - 64px)',
+      backgroundColor: '#f8fafc',
+      padding: '24px',
+      boxSizing: 'border-box'
+    }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginBottom: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ 
+              backgroundColor: '#3b82f6', 
+              padding: '8px', 
+              borderRadius: '8px' 
+            }}>
+              <Ship style={{ width: '24px', height: '24px', color: 'white' }} />
+            </div>
+            <h1 style={{ 
+              fontSize: '24px', 
+              fontWeight: 'bold', 
+              color: '#1f2937',
+              margin: 0
+            }}>
+              Fleet Management
+            </h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              color: '#64748b',
+              fontSize: '14px'
+            }}>
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                style={{ width: '16px', height: '16px' }}
+              />
+              Auto-refresh every 10 seconds
+            </label>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                backgroundColor: loading ? '#e2e8f0' : '#3b82f6',
+                color: loading ? '#94a3b8' : 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              <RefreshCw style={{ width: '16px', height: '16px' }} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+        <p style={{ 
+          color: '#64748b', 
+          fontSize: '14px',
+          margin: 0 
+        }}>
+          Monitor and manage your maritime fleet in real-time
+        </p>
+      </div>
+
+      {error && (
+        <div style={{
+          backgroundColor: '#dc2626',
+          color: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          marginBottom: '16px'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Search and Filter */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '16px',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ display: 'flex', gap: '16px', marginBottom: showFilters ? '16px' : 0 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#94a3b8',
+              width: '20px',
+              height: '20px'
+            }} />
+            <input
+              type="text"
+              placeholder="Search vessels by name, MMSI, or IMO..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                paddingLeft: '40px',
+                paddingRight: '16px',
+                paddingTop: '8px',
+                paddingBottom: '8px',
+                backgroundColor: '#f8fafc',
+                color: '#1f2937',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '14px',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              backgroundColor: showFilters ? '#3b82f6' : '#f1f5f9',
+              color: showFilters ? 'white' : '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            <Filter style={{ width: '16px', height: '16px' }} />
+            Filters
+          </button>
+        </div>
+
+        {/* Filter Dropdowns */}
+        {showFilters && (
+          <div style={{
+            paddingTop: '16px',
+            borderTop: '1px solid #334155'
+          }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '16px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  color: '#94a3b8',
+                  marginBottom: '8px'
+                }}>
+                  Type
+                </label>
+                <select
+                  value={filters.type}
+                  onChange={(e) => setFilters({...filters, type: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: '#334155',
+                    color: 'white',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">All Types</option>
+                  {uniqueTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  color: '#94a3b8',
+                  marginBottom: '8px'
+                }}>
+                  Flag
+                </label>
+                <select
+                  value={filters.flag}
+                  onChange={(e) => setFilters({...filters, flag: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: '#334155',
+                    color: 'white',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">All Flags</option>
+                  {uniqueFlags.map(flag => (
+                    <option key={flag} value={flag}>{flag}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button
+                  onClick={clearFilters}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    backgroundColor: '#334155',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ color: '#64748b', marginBottom: '16px', fontSize: '14px' }}>
+        Showing {filteredVessels.length} of {vessels.length} vessels
+      </div>
+
+      <div style={{ display: 'flex', gap: '24px' }}>
+        {/* Vessels List */}
+        <div style={{ flex: 1 }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              maxHeight: '600px',
+              overflowY: 'auto'
+            }}>
+              {filteredVessels.map(vessel => (
+                <div
+                  key={vessel.id}
+                  onClick={() => setSelectedVessel(vessel)}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: selectedVessel?.id === vessel.id ? '2px solid #3b82f6' : '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <Ship style={{ width: '20px', height: '20px', color: '#60a5fa' }} />
+                    <h3 style={{
+                      fontWeight: '600',
+                      color: 'white',
+                      margin: 0,
+                      fontSize: '16px'
+                    }}>
+                      {vessel.name}
+                    </h3>
+                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                    <div style={{ color: '#94a3b8' }}>MMSI: {vessel.mmsi}</div>
+                    <div style={{ color: '#94a3b8' }}>Type: {vessel.vessel_type || 'N/A'}</div>
+                    <div style={{ color: '#94a3b8' }}>Flag: {vessel.flag || 'N/A'}</div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#60a5fa',
+                      marginTop: '4px'
+                    }}>
+                      <MapPin style={{ width: '12px', height: '12px' }} />
+                      Position tracking available
+                    </div>
+                  </div>
+          {filteredVessels.map(vessel => (
+            <div
+              key={vessel.id}
+              onClick={() => setSelectedVessel(vessel)}
+              style={{
+                backgroundColor: '#1e293b',
+                border: selectedVessel?.id === vessel.id ? '2px solid #3b82f6' : '1px solid #334155',
+                borderRadius: '8px',
+                padding: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '8px'
+              }}>
+                <Ship style={{ width: '20px', height: '20px', color: '#60a5fa' }} />
+                <h3 style={{
+                  fontWeight: '600',
+                  color: 'white',
+                  margin: 0,
+                  fontSize: '16px'
+                }}>
+                  {vessel.name}
+                </h3>
+              </div>
+              <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                <div style={{ color: '#94a3b8' }}>MMSI: {vessel.mmsi}</div>
+                <div style={{ color: '#94a3b8' }}>Type: {vessel.vessel_type || 'N/A'}</div>
+                <div style={{ color: '#94a3b8' }}>Flag: {vessel.flag || 'N/A'}</div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#60a5fa',
+                  marginTop: '4px'
+                }}>
+                  <MapPin style={{ width: '12px', height: '12px' }} />
+                  Position tracking available
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Vessel Details */}
+        <div>
+          {selectedVessel ? (
+            <div style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              padding: '24px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '24px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    backgroundColor: '#3b82f6',
+                    padding: '12px',
+                    borderRadius: '8px'
+                  }}>
+                    <Anchor style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div>
+                    <h2 style={{
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      margin: 0
+                    }}>
+                      {selectedVessel.name}
+                    </h2>
+                    <p style={{
+                      color: '#94a3b8',
+                      margin: 0,
+                      fontSize: '14px'
+                    }}>
+                      MMSI: {selectedVessel.mmsi}
+                    </p>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    color: '#94a3b8',
+                    fontSize: '14px'
+                  }}>
+                    <Clock style={{ width: '16px', height: '16px' }} />
+                    Last Updated: Real-time
+                  </div>
+                  <button
+                    onClick={() => setSelectedVessel(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#94a3b8',
+                      fontSize: '24px',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '24px',
+                marginBottom: '24px'
+              }}>
+                <div>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'white',
+                    marginBottom: '16px'
+                  }}>
+                    Vessel Information
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ color: '#94a3b8' }}>Type:</span>
+                      <span style={{ color: 'white', fontWeight: '500' }}>{selectedVessel.vessel_type || 'N/A'}</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ color: '#94a3b8' }}>Flag:</span>
+                      <span style={{ color: 'white', fontWeight: '500' }}>{selectedVessel.flag || 'N/A'}</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ color: '#94a3b8' }}>IMO:</span>
+                      <span style={{ color: 'white', fontWeight: '500' }}>{selectedVessel.imo || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'white',
+                    marginBottom: '16px'
+                  }}>
+                    Current Position
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MapPin style={{ width: '20px', height: '20px', color: '#60a5fa' }} />
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>MMSI</div>
+                        <div style={{ color: 'white', fontWeight: '500', fontSize: '14px' }}>
+                          {selectedVessel.mmsi}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      paddingTop: '12px',
+                      borderTop: '1px solid #334155',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ color: '#94a3b8' }}>Status:</span>
+                      <span style={{ color: 'white', fontWeight: '500' }}>Active</span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ color: '#94a3b8' }}>Last Position:</span>
+                      <span style={{ color: 'white', fontWeight: '500' }}>Tracking</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                paddingTop: '24px',
+                borderTop: '1px solid #334155'
+              }}>
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: 'white',
+                  marginBottom: '16px'
+                }}>
+                  Movement Statistics
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '16px'
+                }}>
+                  <div style={{
+                    backgroundColor: '#334155',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                      Average Speed
+                    </div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#60a5fa' }}>
+                      17.3 kn
+                    </div>
+                  </div>
+                  <div style={{
+                    backgroundColor: '#334155',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                      Distance Traveled
+                    </div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>
+                      2,847 nm
+                    </div>
+                  </div>
+                  <div style={{
+                    backgroundColor: '#334155',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                      ETA
+                    </div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#a78bfa' }}>
+                      32h 15m
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              padding: '48px',
+              textAlign: 'center'
+            }}>
+              <Ship style={{
+                width: '64px',
+                height: '64px',
+                color: '#475569',
+                margin: '0 auto 16px'
+              }} />
+              <p style={{ color: '#94a3b8' }}>Select a vessel to view details</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Vessels;

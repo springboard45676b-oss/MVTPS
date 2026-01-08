@@ -28,7 +28,15 @@ const Register = () => {
         }, 2000);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.message || "Registration failed");
+      console.error("Registration error:", err);
+      const errorMessage = err.response?.data?.detail || 
+                        err.response?.data?.message ||
+                        err.response?.data?.username?.[0] ||
+                        err.response?.data?.email?.[0] ||
+                        err.response?.data?.password?.[0] ||
+                        err.message || 
+                        "Registration failed. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

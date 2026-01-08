@@ -3,29 +3,52 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Activity, TrendingUp, BarChart3, Clock, Info } from 'lucide-react';
-import Navbar from '../components/Navbar';
 const Dashboard = () => {
   const navigate = useNavigate();
   return (
     <div style={{ 
-      width: '100%',
+      width: '100%', 
       minHeight: 'calc(100vh - 64px)',
-      background: 'linear-gradient(135deg, #eff6ff 0%, #f3e8ff 50%, #fce7f3 100%)', 
-      padding: '40px',
+      backgroundColor: '#f8fafc',
+      padding: '24px',
       boxSizing: 'border-box'
     }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px', marginTop: 0 }}>
-          Dashboard
-        </h1>
-        <p style={{ fontSize: '20px', color: '#6b7280', marginBottom: '40px', marginTop: 0 }}>
-          Maritime Vessel Tracking System
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px',
+          marginBottom: '8px'
+        }}>
+          <div style={{ 
+            backgroundColor: '#3b82f6', 
+            padding: '8px', 
+            borderRadius: '8px' 
+          }}>
+            <Activity style={{ width: '24px', height: '24px', color: 'white' }} />
+          </div>
+          <h1 style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            color: '#1f2937',
+            margin: 0
+          }}>
+            Dashboard
+          </h1>
+        </div>
+        <p style={{ 
+          fontSize: '16px', 
+          color: '#64748b', 
+          marginBottom: '32px', 
+          marginTop: '8px'
+        }}>
+          Maritime Vessel Tracking System Overview
         </p>
         
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, 320px)', 
-          gap: '24px', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+          gap: '20px', 
           marginBottom: '24px'
         }}>
           
@@ -38,7 +61,6 @@ const Dashboard = () => {
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               padding: '24px',
               cursor: 'pointer',
-              width: '320px',
               height: '160px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
@@ -78,7 +100,6 @@ const Dashboard = () => {
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               padding: '24px',
               cursor: 'pointer',
-              width: '320px',
               height: '160px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
@@ -118,7 +139,6 @@ const Dashboard = () => {
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               padding: '24px',
               cursor: 'pointer',
-              width: '320px',
               height: '160px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
@@ -158,7 +178,6 @@ const Dashboard = () => {
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               padding: '24px',
               cursor: 'pointer',
-              width: '320px',
               height: '160px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
@@ -196,10 +215,9 @@ const Dashboard = () => {
               background: 'white', 
               borderRadius: '16px', 
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
-              padding: '24px', 
-              width: '320px',
-              height: '160px',
+              padding: '24px',
               cursor: 'pointer',
+              height: '160px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
             onMouseEnter={(e) => {

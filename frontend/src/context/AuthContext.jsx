@@ -27,18 +27,27 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (credentials) => {
-    const data = await loginUser(credentials);
-    setUser(data.user);
-    setToken(data.access);
+    try {
+      const data = await loginUser(credentials);
+      setUser(data.user);
+      setToken(data.access);
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
   };
 
   const register = async (payload) => {
-    const data = await registerUser(payload);
-    return {
-      success: true,
-      user: data.user,
-      role: data.user.role,
-    };
+    try {
+      const data = await registerUser(payload);
+      return {
+        success: true,
+        user: data.user,
+        role: data.user.role,
+      };
+    } catch (error) {
+      throw error;
+    }
   };
 
   // Remove navigate from here - let components handle navigation
@@ -50,12 +59,17 @@ export const AuthProvider = ({ children }) => {
     // Don't navigate here - let the calling component handle it
   };
 
+  const updateUser = (updatedUserData) => {
+    setUser(updatedUserData);
+  };
+
   const value = { 
     user, 
     token, 
     login, 
     register, 
     logout, 
+    updateUser,
     isAuthenticated: Boolean(token) 
   };
 
