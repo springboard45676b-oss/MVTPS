@@ -44,6 +44,7 @@ from .views import (
     GeneratePortVoyageMockDataAPI,
     PiracyZoneListAPI,
     CountryViewSet,  # ViewSet for countries
+    WeatherAlertListAPI
 )
 
 urlpatterns = [
@@ -108,6 +109,7 @@ urlpatterns = [
     # PIRACY ZONES ENDPOINT - /api/piracy-zones/
     # ============================================
     path('piracy-zones/', PiracyZoneListAPI.as_view(), name='piracy-zones'),
+     path('weather-alerts/', WeatherAlertListAPI.as_view(), name='weather-alerts'),
     
     # ============================================
     # COUNTRIES ENDPOINT - /api/countries/

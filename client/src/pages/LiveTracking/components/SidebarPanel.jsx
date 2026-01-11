@@ -1,6 +1,6 @@
-// src/components/SidebarPanel.jsx
+// src/pages/liveTracking/components/SidebarPanel.jsx
 import { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Anchor, AlertCircle, Trash2, Bell, } from 'lucide-react';
+import { Search, Filter, RefreshCw, Anchor, AlertCircle, Trash2, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SidebarPanel = ({
@@ -14,8 +14,8 @@ const SidebarPanel = ({
   onUpdatePositions,
   updating,
   onSelectVessel,
-  message,
-  onSubscriptionUpdate // New prop to notify parent
+  onSubscriptionUpdate,
+  onAlertsRemoved
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [subscribedVessels, setSubscribedVessels] = useState(new Set());
@@ -24,19 +24,13 @@ const SidebarPanel = ({
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
   useEffect(() => {
     fetchSubscribedVessels();
-  }, [refreshTrigger]); // Re-fetch when trigger changes
-
-  // Refresh when parent notifies of subscription change
-  useEffect(() => {
-    if (onSubscriptionUpdate) {
-      fetchSubscribedVessels();
-    }
-  }, [onSubscriptionUpdate]);
+  }, [onSubscriptionUpdate, refreshTrigger]);
 
   const fetchSubscribedVessels = async () => {
     try {
@@ -54,13 +48,14 @@ const SidebarPanel = ({
 
       const data = await response.json();
       const results = Array.isArray(data) ? data : (data.results || []);
-      
+
+      // Get all active subscriptions with proper boolean values
       const subscribedIds = new Set(
         results
-          .filter(sub => sub.is_active)
+          .filter(sub => sub.is_active === true)
           .map(sub => sub.vessel)
       );
-      
+
       setSubscribedVessels(subscribedIds);
     } catch (error) {
       console.error('Error fetching subscriptions:', error);
@@ -72,6 +67,17 @@ const SidebarPanel = ({
       toast.error('No active alerts to remove', {
         position: 'top-center',
         duration: 3000,
+        icon: '⚠️',
+        style: {
+          background: '#ffffff',
+          color: '#dc2626',
+          padding: '8px 14px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)',
+          border: '1px solid #fee2e2',
+          fontSize: '13px',
+          fontWeight: '500',
+        }
       });
       return;
     }
@@ -80,37 +86,7 @@ const SidebarPanel = ({
       type: 'all',
       count: subscribedVessels.size,
       onConfirm: async () => {
-        try {
-          const token = localStorage.getItem('access_token');
-          
-          for (const vesselId of subscribedVessels) {
-            await fetch(`${API_URL}/users/subscriptions/`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                vessel: vesselId,
-                alert_type: 'all',
-                is_active: false
-              })
-            });
-          }
-
-          setSubscribedVessels(new Set());
-          toast.success('All alerts removed', {
-            position: 'top-center',
-            duration: 3000,
-          });
-          setShowConfirmModal(false);
-        } catch (error) {
-          console.error('Error removing alerts:', error);
-          toast.error('Failed to remove alerts', {
-            position: 'top-center',
-            duration: 3000,
-          });
-        }
+        await executeRemoveAlerts(Array.from(subscribedVessels));
       }
     });
     setShowConfirmModal(true);
@@ -123,44 +99,105 @@ const SidebarPanel = ({
       type: 'selected',
       count: selectedAlerts.size,
       onConfirm: async () => {
-        try {
-          const token = localStorage.getItem('access_token');
-          
-          for (const vesselId of selectedAlerts) {
-            await fetch(`${API_URL}/users/subscriptions/`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                vessel: vesselId,
-                alert_type: 'all',
-                is_active: false
-              })
-            });
-          }
-
-          const newSubscribed = new Set(subscribedVessels);
-          selectedAlerts.forEach(id => newSubscribed.delete(id));
-          setSubscribedVessels(newSubscribed);
-          setSelectedAlerts(new Set());
-          
-          toast.success('Selected alerts removed', {
-            position: 'top-center',
-            duration: 3000,
-          });
-          setShowConfirmModal(false);
-        } catch (error) {
-          console.error('Error removing alerts:', error);
-          toast.error('Failed to remove alerts', {
-            position: 'top-center',
-            duration: 3000,
-          });
-        }
+        await executeRemoveAlerts(Array.from(selectedAlerts));
       }
     });
     setShowConfirmModal(true);
+  };
+
+  const executeRemoveAlerts = async (vesselIds) => {
+    setIsRemoving(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Not logged in', {
+          position: 'top-center',
+          duration: 2000
+        });
+        setIsRemoving(false);
+        return;
+      }
+
+      // Optimistically update UI
+      const newSubscribed = new Set(subscribedVessels);
+      vesselIds.forEach(id => newSubscribed.delete(id));
+      setSubscribedVessels(newSubscribed);
+      setSelectedAlerts(new Set());
+
+      // Remove all alerts in parallel
+      await Promise.all(
+        vesselIds.map(vesselId =>
+          fetch(`${API_URL}/users/subscriptions/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              vessel: vesselId,
+              is_active: false,
+              alert_type: 'none',
+              weather_alerts: false,
+              piracy_alerts: false
+            })
+          })
+        )
+      );
+
+      const alertCount = vesselIds.length;
+      const message = alertCount === subscribedVessels.size
+        ? 'All alerts removed'
+        : `${alertCount} alert${alertCount > 1 ? 's' : ''} removed`;
+
+      toast.success(message, {
+        position: 'top-center',
+        duration: 3000,
+        icon: '✓',
+        style: {
+          background: '#ffffff',
+          color: '#059669',
+          padding: '8px 14px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.15)',
+          border: '1px solid #d1fae5',
+          fontSize: '13px',
+          fontWeight: '500',
+        }
+      });
+
+      setShowConfirmModal(false);
+
+      // Trigger parent update to refresh VesselDetailsPanel
+      if (onAlertsRemoved) {
+        onAlertsRemoved();
+      }
+
+      // Refetch after delay to ensure backend is synced
+      setTimeout(() => {
+        fetchSubscribedVessels();
+      }, 500);
+    } catch (error) {
+      console.error('Error removing alerts:', error);
+      // Revert optimistic update on error
+      fetchSubscribedVessels();
+      toast.error('Failed to remove alerts', {
+        position: 'top-center',
+        duration: 2000,
+        icon: '✗',
+        style: {
+          background: '#ffffff',
+          color: '#dc2626',
+          padding: '8px 14px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)',
+          border: '1px solid #fee2e2',
+          fontSize: '13px',
+          fontWeight: '500',
+        }
+      });
+    } finally {
+      setIsRemoving(false);
+    }
   };
 
   const toggleAlertSelection = (vesselId) => {
@@ -200,8 +237,23 @@ const SidebarPanel = ({
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
       `}</style>
 
+      {/* Header */}
       <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-blue-700">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Anchor size={28} />
@@ -210,6 +262,7 @@ const SidebarPanel = ({
         <p className="text-blue-100 text-sm mt-1">Live Vessel Tracking</p>
       </div>
 
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-hide">
         {/* Search */}
         <div className="relative">
@@ -235,10 +288,10 @@ const SidebarPanel = ({
 
         {/* Alert Management */}
         {subscribedVessels.size > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <button
               onClick={() => setShowAlertManagement(!showAlertManagement)}
-              className="w-full flex items-center justify-between text-sm font-semibold text-orange-900"
+              className="w-full flex items-center justify-between text-sm font-semibold text-blue-900"
             >
               <span className="flex items-center gap-2">
                 <Bell size={14} />
@@ -251,19 +304,21 @@ const SidebarPanel = ({
               <div className="mt-3 space-y-2">
                 <button
                   onClick={handleRemoveAllAlerts}
-                  className="w-full px-3 py-2 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
+                  disabled={isRemoving}
+                  className="w-full px-3 py-2 text-xs text-white bg-red-500 hover:bg-red-600 disabled:bg-slate-400 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
                 >
                   <Trash2 size={12} />
-                  Remove All
+                  {isRemoving ? 'Removing...' : 'Remove All'}
                 </button>
 
                 {selectedAlerts.size > 0 && (
                   <button
                     onClick={handleRemoveSelectedAlerts}
-                    className="w-full px-3 py-2 text-xs text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
+                    disabled={isRemoving}
+                    className="w-full px-3 py-2 text-xs text-white bg-red-600 hover:bg-red-700 disabled:bg-slate-400 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
                   >
                     <Trash2 size={12} />
-                    Remove Selected ({selectedAlerts.size})
+                    {isRemoving ? 'Removing...' : `Remove Selected (${selectedAlerts.size})`}
                   </button>
                 )}
               </div>
@@ -380,7 +435,7 @@ const SidebarPanel = ({
                 const hasAlert = subscribedVessels.has(vessel.id);
                 const isSelected = selectedVessel?.id === vessel.id;
                 const isAlertSelected = selectedAlerts.has(vessel.id);
-                
+
                 return (
                   <div
                     key={vessel.id}
@@ -388,11 +443,11 @@ const SidebarPanel = ({
                       isSelected
                         ? 'bg-blue-500 text-white shadow-md'
                         : hasAlert
-                        ? 'bg-orange-50 hover:bg-orange-100 text-slate-900 border-l-4 border-orange-400'
+                        ? 'bg-blue-50 hover:bg-blue-100 text-slate-900 border-l-4 border-blue-400'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-900'
                     }`}
                   >
-                    <div 
+                    <div
                       className="p-3"
                       onClick={() => onSelectVessel(vessel)}
                     >
@@ -407,13 +462,13 @@ const SidebarPanel = ({
                                 toggleAlertSelection(vessel.id);
                               }}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-3.5 h-3.5 rounded border-orange-400 text-orange-600"
+                              className="w-3.5 h-3.5 rounded border-blue-400 text-blue-600"
                             />
                           )}
-                          <Bell size={12} className={isSelected ? 'text-white' : 'text-orange-600'} />
+                          <Bell size={12} className={isSelected ? 'text-white' : 'text-blue-600'} />
                         </div>
                       )}
-                      
+
                       <div className="font-semibold text-sm pr-6">{vessel.name}</div>
                       <div className={`text-xs ${isSelected ? 'opacity-90' : 'opacity-75'} mt-1.5 space-y-0.5`}>
                         <div>IMO: {vessel.imo_number}</div>
@@ -429,7 +484,7 @@ const SidebarPanel = ({
         </div>
       </div>
 
-      {/* Custom Confirmation Modal */}
+      {/* Confirmation Modal */}
       {showConfirmModal && confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
@@ -439,7 +494,7 @@ const SidebarPanel = ({
                 Confirm Removal
               </h3>
             </div>
-            
+
             <div className="px-5 py-4 text-center">
               <p className="text-slate-800 text-base font-medium">
                 Remove{' '}
@@ -460,35 +515,30 @@ const SidebarPanel = ({
                   setShowConfirmModal(false);
                   setConfirmAction(null);
                 }}
-                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition text-sm"
+                disabled={isRemoving}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition text-sm disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmAction.onConfirm}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-sm"
+                disabled={isRemoving}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-sm disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                Remove
+                {isRemoving ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remove
+                  </>
+                )}
               </button>
             </div>
           </div>
-
-          <style>{`
-            @keyframes fadeIn {
-              from {
-                opacity: 0;
-                transform: scale(0.95);
-              }
-              to {
-                opacity: 1;
-                transform: scale(1);
-              }
-            }
-            .animate-fadeIn {
-              animation: fadeIn 0.2s ease-out;
-            }
-          `}</style>
         </div>
       )}
     </div>

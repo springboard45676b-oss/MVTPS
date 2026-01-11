@@ -24,7 +24,8 @@ from .models import (
     Port,
     Voyage,
     PiracyZone,
-    Country
+    Country,
+    WeatherAlert
     
 )
 
@@ -56,7 +57,8 @@ from .serializers import (
     VesselAlertSerializer,
     NotificationSerializer,
     PiracyZoneSerializer,
-    CountrySerializer
+    CountrySerializer,
+    WeatherAlertSerializer
     
 )
 
@@ -404,6 +406,12 @@ class UpdateVesselPositionAPI(APIView):
                 )
             except Exception as e:
                 logger.warning(f"Could not send notifications: {str(e)}")
+
+            # ADD THESE 5 LINES:
+            try:
+                    NotificationService.run_safety_checks_for_vessel(vessel)
+            except Exception as e:
+                    logger.warning(f"Could not run safety checks: {str(e)}")
             
             return Response({
                 'success': True,
@@ -1297,3 +1305,19 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
             'by_continent': by_continent,
             'results': serializer.data
         })
+class WeatherAlertListAPI(generics.ListAPIView):
+    """Get all active weather alerts"""
+    queryset = WeatherAlert.objects.filter(is_active=True)
+    serializer_class = WeatherAlertSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter out expired alerts"""
+        queryset = super().get_queryset()
+        
+        # Filter alerts that haven't expired
+        now = timezone.now()
+        return queryset.filter(
+            Q(alert_expires__gt=now) | Q(alert_expires__isnull=True)
+        )
+    

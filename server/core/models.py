@@ -446,6 +446,65 @@ class PiracyZone(models.Model):
     def __str__(self):
         return f"{self.name} ({self.risk_level})"
     
+class WeatherAlert(models.Model):
+    """
+    Weather Alert zones for maritime safety
+    Stores weather hazard information similar to piracy zones
+    """
+    SEVERITY_LEVELS = [
+        ('minor', 'Minor'),
+        ('moderate', 'Moderate'),
+        ('severe', 'Severe'),
+        ('extreme', 'Extreme'),
+    ]
+    
+    WEATHER_TYPES = [
+        ('hurricane', 'Hurricane'),
+        ('tropical_storm', 'Tropical Storm'),
+        ('typhoon', 'Typhoon'),
+        ('cyclone', 'Cyclone'),
+        ('thunderstorm', 'Severe Thunderstorm'),
+        ('fog', 'Dense Fog'),
+        ('high_winds', 'High Winds'),
+        ('rough_seas', 'Rough Seas'),
+        ('ice', 'Ice Hazard'),
+    ]
+    
+    name = models.CharField(max_length=200, help_text='Alert name (e.g., Hurricane Zone - Atlantic)')
+    latitude = models.FloatField(help_text='Center latitude of weather alert')
+    longitude = models.FloatField(help_text='Center longitude of weather alert')
+    severity = models.CharField(max_length=50, choices=SEVERITY_LEVELS, default='moderate')
+    weather_type = models.CharField(max_length=50, choices=WEATHER_TYPES)
+    radius_km = models.IntegerField(default=150, help_text='Alert radius in kilometers')
+    description = models.TextField(blank=True, help_text='Detailed weather description')
+    
+    # Alert timing
+    alert_issued = models.DateTimeField(default=timezone.now, help_text='When alert was issued')
+    alert_expires = models.DateTimeField(null=True, blank=True, help_text='When alert expires')
+    
+    # Weather details
+    wind_speed_kmh = models.IntegerField(null=True, blank=True, help_text='Wind speed in km/h')
+    wave_height_m = models.FloatField(null=True, blank=True, help_text='Wave height in meters')
+    visibility_km = models.FloatField(null=True, blank=True, help_text='Visibility in kilometers')
+    
+    # Status
+    is_active = models.BooleanField(default=True, help_text='Is alert currently active')
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'core_weather_alert'
+        ordering = ['-severity', '-alert_issued']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_severity_display()})"
+    
+    @property
+    def is_expired(self):
+        """Check if alert has expired"""
+        if self.alert_expires:
+            return timezone.now() > self.alert_expires
+        return False
+    
 class Country(models.Model):
     name = models.CharField(max_length=100, unique=True)
     latitude = models.FloatField()

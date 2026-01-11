@@ -5,7 +5,7 @@ import VesselsPage from './pages/Vessels';
 import PortsPage from './pages/Ports';
 import VoyagesPage from './pages/Voyages';
 import NotificationsPage from './pages/Notifications';
-import LiveTrackingPage from './pages/LiveTracking';
+import LiveTrackingPage from './pages/LiveTracking/LiveTracking';
 import ProfilePage from './pages/Profile';
 import ProfileEditPage from './pages/ProfileEdit';
 import AppLayout from './components/AppLayout';

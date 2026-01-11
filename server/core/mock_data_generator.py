@@ -1,14 +1,17 @@
-# server/core/mock_data_generator.py - WITH ACCIDENT HISTORY
+# server/core/mock_data_generator.py
+"""
+Generate realistic mock data for maritime system
+Includes: Countries, Ports, Voyages, Piracy Zones, and Weather Alerts
+"""
 
 from django.utils import timezone
 from datetime import datetime, timedelta
 import random
-from .models import Port, Voyage, Vessel, PiracyZone, Country
+from .models import Port, Voyage, Vessel, PiracyZone, Country, WeatherAlert
 
 class MockDataGenerator:
     """
-    Generate realistic mock data for Countries, Ports, Voyages, and Piracy Zones
-    NOW INCLUDES: Accident history in piracy zones
+    Generate realistic mock data for Countries, Ports, Voyages, Piracy Zones, and Weather Alerts
     """
     
     COUNTRIES_DATA = [
@@ -174,7 +177,6 @@ class MockDataGenerator:
             'incidents_90_days': 12,
             'radius_km': 250,
             'description': 'Strategic chokepoint between Malaysia and Indonesia. Regular piracy incidents reported.',
-            # ACCIDENT HISTORY
             'total_accidents': 34,
             'accident_types': {'collision': 18, 'grounding': 8, 'fire': 5, 'piracy_attack': 3},
             'casualties': 47,
@@ -189,7 +191,6 @@ class MockDataGenerator:
             'incidents_90_days': 28,
             'radius_km': 300,
             'description': 'Critical shipping lane between Red Sea and Arabian Sea. Highest piracy activity globally.',
-            # ACCIDENT HISTORY
             'total_accidents': 67,
             'accident_types': {'piracy_attack': 35, 'collision': 15, 'equipment_failure': 10, 'fire': 7},
             'casualties': 124,
@@ -204,7 +205,6 @@ class MockDataGenerator:
             'incidents_90_days': 18,
             'radius_km': 200,
             'description': 'West African waters off Nigeria and Ghana. Significant piracy and armed robbery.',
-            # ACCIDENT HISTORY
             'total_accidents': 52,
             'accident_types': {'piracy_attack': 25, 'collision': 12, 'fire': 8, 'oil_spill': 7},
             'casualties': 89,
@@ -219,7 +219,6 @@ class MockDataGenerator:
             'incidents_90_days': 8,
             'radius_km': 180,
             'description': 'Waters between Philippines, Malaysia, Indonesia. Piracy and kidnapping incidents.',
-            # ACCIDENT HISTORY
             'total_accidents': 23,
             'accident_types': {'piracy_attack': 10, 'grounding': 7, 'collision': 4, 'equipment_failure': 2},
             'casualties': 31,
@@ -234,7 +233,6 @@ class MockDataGenerator:
             'incidents_90_days': 6,
             'radius_km': 150,
             'description': 'Waters off Bangladesh, India, Myanmar. Armed robbery incidents increasing.',
-            # ACCIDENT HISTORY
             'total_accidents': 28,
             'accident_types': {'collision': 12, 'grounding': 8, 'equipment_failure': 5, 'piracy_attack': 3},
             'casualties': 19,
@@ -249,7 +247,6 @@ class MockDataGenerator:
             'incidents_90_days': 9,
             'radius_km': 200,
             'description': 'Disputed waters with regional tensions. Piracy and armed robbery regularly reported.',
-            # ACCIDENT HISTORY
             'total_accidents': 41,
             'accident_types': {'collision': 20, 'piracy_attack': 10, 'grounding': 6, 'fire': 5},
             'casualties': 56,
@@ -264,7 +261,6 @@ class MockDataGenerator:
             'incidents_90_days': 14,
             'radius_km': 250,
             'description': 'East African waters. Somali piracy activity extends to Mozambique Channel.',
-            # ACCIDENT HISTORY
             'total_accidents': 38,
             'accident_types': {'piracy_attack': 18, 'equipment_failure': 10, 'collision': 7, 'fire': 3},
             'casualties': 72,
@@ -279,12 +275,144 @@ class MockDataGenerator:
             'incidents_90_days': 2,
             'radius_km': 100,
             'description': 'Oil and gas platform areas. Occasional theft and criminal activity.',
-            # ACCIDENT HISTORY
             'total_accidents': 15,
             'accident_types': {'collision': 7, 'equipment_failure': 4, 'fire': 2, 'oil_spill': 2},
             'casualties': 8,
             'vessels_lost': 0,
             'accident_description': 'Minor collision near offshore oil platform'
+        },
+    ]
+    
+    WEATHER_ALERTS_DATA = [
+        {
+            'name': 'Hurricane Zone - Atlantic',
+            'latitude': 25.7617,
+            'longitude': -80.1918,
+            'severity': 'extreme',
+            'weather_type': 'hurricane',
+            'radius_km': 300,
+            'description': 'Category 4 hurricane approaching Florida coast. Extremely dangerous winds and storm surge expected.',
+            'wind_speed_kmh': 215,
+            'wave_height_m': 8.5,
+            'visibility_km': 2.0,
+            'expires_days': 2
+        },
+        {
+            'name': 'Tropical Storm - Caribbean',
+            'latitude': 18.2208,
+            'longitude': -66.5901,
+            'severity': 'severe',
+            'weather_type': 'tropical_storm',
+            'radius_km': 200,
+            'description': 'Tropical storm with sustained winds. Heavy rainfall and rough seas.',
+            'wind_speed_kmh': 110,
+            'wave_height_m': 4.5,
+            'visibility_km': 5.0,
+            'expires_days': 3
+        },
+        {
+            'name': 'Typhoon Warning - Pacific',
+            'latitude': 13.4443,
+            'longitude': 144.7937,
+            'severity': 'extreme',
+            'weather_type': 'typhoon',
+            'radius_km': 350,
+            'description': 'Super typhoon approaching with catastrophic winds. Immediate evacuation recommended.',
+            'wind_speed_kmh': 250,
+            'wave_height_m': 12.0,
+            'visibility_km': 1.0,
+            'expires_days': 1
+        },
+        {
+            'name': 'Cyclone Alert - Indian Ocean',
+            'latitude': -20.1654,
+            'longitude': 57.5074,
+            'severity': 'severe',
+            'weather_type': 'cyclone',
+            'radius_km': 250,
+            'description': 'Intense tropical cyclone near Mauritius. Very strong winds and heavy seas.',
+            'wind_speed_kmh': 180,
+            'wave_height_m': 7.0,
+            'visibility_km': 3.0,
+            'expires_days': 2
+        },
+        {
+            'name': 'Severe Storm - North Sea',
+            'latitude': 56.4907,
+            'longitude': 3.5778,
+            'severity': 'severe',
+            'weather_type': 'high_winds',
+            'radius_km': 180,
+            'description': 'Severe gale force winds in North Sea. Navigation hazardous.',
+            'wind_speed_kmh': 95,
+            'wave_height_m': 6.5,
+            'visibility_km': 8.0,
+            'expires_hours': 18
+        },
+        {
+            'name': 'Dense Fog - English Channel',
+            'latitude': 50.3755,
+            'longitude': -4.1427,
+            'severity': 'moderate',
+            'weather_type': 'fog',
+            'radius_km': 100,
+            'description': 'Dense fog reducing visibility. Proceed with extreme caution.',
+            'wind_speed_kmh': 20,
+            'wave_height_m': 1.5,
+            'visibility_km': 0.5,
+            'expires_hours': 12
+        },
+        {
+            'name': 'Rough Seas - Bay of Biscay',
+            'latitude': 45.0000,
+            'longitude': -5.0000,
+            'severity': 'moderate',
+            'weather_type': 'rough_seas',
+            'radius_km': 150,
+            'description': 'Very rough seas with high swells. Small craft advisory.',
+            'wind_speed_kmh': 75,
+            'wave_height_m': 5.0,
+            'visibility_km': 10.0,
+            'expires_days': 1
+        },
+        {
+            'name': 'Thunderstorms - Gulf of Mexico',
+            'latitude': 27.9944,
+            'longitude': -90.0000,
+            'severity': 'moderate',
+            'weather_type': 'thunderstorm',
+            'radius_km': 120,
+            'description': 'Severe thunderstorms with lightning. Dangerous for navigation.',
+            'wind_speed_kmh': 85,
+            'wave_height_m': 3.5,
+            'visibility_km': 6.0,
+            'expires_hours': 8
+        },
+        {
+            'name': 'Ice Hazard - North Atlantic',
+            'latitude': 50.0000,
+            'longitude': -45.0000,
+            'severity': 'severe',
+            'weather_type': 'ice',
+            'radius_km': 200,
+            'description': 'Icebergs detected. Extreme caution required.',
+            'wind_speed_kmh': 45,
+            'wave_height_m': 2.0,
+            'visibility_km': 15.0,
+            'expires_days': 7
+        },
+        {
+            'name': 'High Winds - Mediterranean',
+            'latitude': 36.1408,
+            'longitude': 5.3471,
+            'severity': 'moderate',
+            'weather_type': 'high_winds',
+            'radius_km': 130,
+            'description': 'Strong Mistral winds. Choppy seas expected.',
+            'wind_speed_kmh': 70,
+            'wave_height_m': 3.0,
+            'visibility_km': 12.0,
+            'expires_hours': 24
         },
     ]
     
@@ -314,7 +442,7 @@ class MockDataGenerator:
     
     @staticmethod
     def generate_ports():
-        """Generate 15 mock ports"""
+        """Generate mock ports"""
         ports = []
         
         for port_data in MockDataGenerator.PORTS_DATA:
@@ -349,7 +477,6 @@ class MockDataGenerator:
         now = timezone.now()
         
         for zone_data in MockDataGenerator.PIRACY_ZONES_DATA:
-            # Random dates for incidents and accidents
             incident_days_ago = random.randint(1, 90)
             last_incident_date = (now - timedelta(days=incident_days_ago)).date()
             
@@ -366,15 +493,12 @@ class MockDataGenerator:
                     'radius_km': zone_data['radius_km'],
                     'description': zone_data['description'],
                     'last_incident_date': last_incident_date,
-                    
-                    # ACCIDENT HISTORY FIELDS
                     'total_accidents': zone_data.get('total_accidents', 0),
                     'accident_types': zone_data.get('accident_types', {}),
                     'casualties': zone_data.get('casualties', 0),
                     'vessels_lost': zone_data.get('vessels_lost', 0),
                     'last_accident_date': last_accident_date,
                     'accident_description': zone_data.get('accident_description', ''),
-                    
                     'is_active': True,
                     'updated_at': now
                 }
@@ -388,16 +512,63 @@ class MockDataGenerator:
             }
             icon = risk_icon.get(zone_data['risk_level'], '📍')
             
-            if created:
-                print(f"✅ Created piracy zone: {icon} {zone.name} ({zone.risk_level.upper()})")
-            else:
-                print(f"🔄 Updated piracy zone: {icon} {zone.name} ({zone.risk_level.upper()})")
-            
+            action = "✅ Created" if created else "🔄 Updated"
+            print(f"{action} piracy zone: {icon} {zone.name} ({zone.risk_level.upper()})")
             print(f"   Piracy: {zone.incidents_90_days} incidents | Accidents: {zone.total_accidents} | Casualties: {zone.casualties}")
             
             piracy_zones.append(zone)
         
         return piracy_zones
+    
+    @staticmethod
+    def generate_weather_alerts():
+        """Generate weather alerts"""
+        weather_alerts = []
+        now = timezone.now()
+        
+        for alert_data in MockDataGenerator.WEATHER_ALERTS_DATA:
+            # Calculate expiration time
+            if 'expires_days' in alert_data:
+                alert_expires = now + timedelta(days=alert_data['expires_days'])
+            elif 'expires_hours' in alert_data:
+                alert_expires = now + timedelta(hours=alert_data['expires_hours'])
+            else:
+                alert_expires = now + timedelta(days=2)
+            
+            alert, created = WeatherAlert.objects.update_or_create(
+                name=alert_data['name'],
+                defaults={
+                    'latitude': alert_data['latitude'],
+                    'longitude': alert_data['longitude'],
+                    'severity': alert_data['severity'],
+                    'weather_type': alert_data['weather_type'],
+                    'radius_km': alert_data['radius_km'],
+                    'description': alert_data['description'],
+                    'alert_issued': now,
+                    'alert_expires': alert_expires,
+                    'wind_speed_kmh': alert_data.get('wind_speed_kmh'),
+                    'wave_height_m': alert_data.get('wave_height_m'),
+                    'visibility_km': alert_data.get('visibility_km'),
+                    'is_active': True,
+                    'updated_at': now
+                }
+            )
+            
+            severity_icon = {
+                'extreme': '🌪️',
+                'severe': '⚠️',
+                'moderate': '🌧️',
+                'minor': '☁️'
+            }
+            icon = severity_icon.get(alert_data['severity'], '🌧️')
+            
+            action = "✅ Created" if created else "🔄 Updated"
+            print(f"{action} weather alert: {icon} {alert.name} ({alert.severity.upper()})")
+            print(f"   Wind: {alert.wind_speed_kmh}km/h | Waves: {alert.wave_height_m}m | Expires: {alert_expires.strftime('%Y-%m-%d %H:%M')}")
+            
+            weather_alerts.append(alert)
+        
+        return weather_alerts
     
     @staticmethod
     def calculate_port_statistics():
@@ -536,9 +707,9 @@ class MockDataGenerator:
     
     @staticmethod
     def generate_all_mock_data():
-        """Generate all mock data"""
+        """Generate all mock data including weather alerts"""
         print("\n" + "="*70)
-        print("🚢 GENERATING COMPLETE MOCK DATA WITH ACCIDENT HISTORY")
+        print("🚢 GENERATING COMPLETE MOCK DATA")
         print("="*70 + "\n")
         
         print("🌍 Generating Countries...")
@@ -549,9 +720,13 @@ class MockDataGenerator:
         ports = MockDataGenerator.generate_ports()
         print(f"✅ {len(ports)} ports\n")
         
-        print("🚨 Generating Piracy Zones with Accident History...")
+        print("🚨 Generating Piracy Zones...")
         piracy_zones = MockDataGenerator.generate_piracy_zones()
         print(f"✅ {len(piracy_zones)} piracy zones\n")
+        
+        print("🌪️ Generating Weather Alerts...")
+        weather_alerts = MockDataGenerator.generate_weather_alerts()
+        print(f"✅ {len(weather_alerts)} weather alerts\n")
         
         print("🛳️  Generating Voyages...")
         voyages = MockDataGenerator.generate_voyages(15)
@@ -564,16 +739,18 @@ class MockDataGenerator:
         print("="*70)
         print("📊 FINAL SUMMARY")
         print("="*70)
-        print(f"Countries:     {Country.objects.count()}")
-        print(f"Ports:         {Port.objects.count()}")
-        print(f"Voyages:       {Voyage.objects.count()}")
-        print(f"Vessels:       {Vessel.objects.count()}")
-        print(f"Piracy Zones:  {PiracyZone.objects.count()}")
+        print(f"Countries:      {Country.objects.count()}")
+        print(f"Ports:          {Port.objects.count()}")
+        print(f"Voyages:        {Voyage.objects.count()}")
+        print(f"Vessels:        {Vessel.objects.count()}")
+        print(f"Piracy Zones:   {PiracyZone.objects.count()}")
+        print(f"Weather Alerts: {WeatherAlert.objects.count()}")
         print("="*70 + "\n")
         
         return {
             'countries': countries,
             'ports': ports,
             'voyages': voyages,
-            'piracy_zones': piracy_zones
+            'piracy_zones': piracy_zones,
+            'weather_alerts': weather_alerts
         }

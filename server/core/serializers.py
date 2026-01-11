@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 import math
-from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert, Notification, PiracyZone, Country
+from .models import Vessel, VesselPosition, VesselSubscription, VesselAlert, Notification, PiracyZone, Country, WeatherAlert
 
 User = get_user_model()
 
@@ -998,3 +998,20 @@ class CountrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Country
         fields = ['id', 'name', 'latitude', 'longitude', 'continent']
+
+class WeatherAlertSerializer(serializers.ModelSerializer):
+    severity_display = serializers.CharField(source='get_severity_display', read_only=True)
+    weather_type_display = serializers.CharField(source='get_weather_type_display', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = WeatherAlert
+        fields = [
+            'id', 'name', 'latitude', 'longitude', 
+            'severity', 'severity_display',
+            'weather_type', 'weather_type_display',
+            'radius_km', 'description',
+            'alert_issued', 'alert_expires', 'is_expired',
+            'wind_speed_kmh', 'wave_height_m', 'visibility_km',
+            'is_active', 'updated_at'
+        ]
