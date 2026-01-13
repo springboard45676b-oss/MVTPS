@@ -14,9 +14,13 @@ import AdminSignup from "./pages/signup/AdminSignup";
 import OperatorDashboard from "./pages/dashboard/OperatorDashboard";
 import LiveTracking from "./pages/dashboard/LiveTracking";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import PortDashboard from "./pages/dashboard/PortDashboard";
 
 /* ================= Profile Pages ================= */
 import EditProfile from "./pages/profile/EditProfile";
+
+/* ================= Alerts ================= */
+import AlertHistory from "./pages/alerts/AlertHistory";
 
 function App() {
   return (
@@ -40,12 +44,19 @@ function App() {
         path="/dashboard/operator/live-tracking"
         element={<LiveTracking />}
       />
+      <Route
+        path="/dashboard/operator/ports"
+        element={<PortDashboard />}
+      />
 
       {/* ================= Admin Dashboard Routes ================= */}
       <Route path="/dashboard/admin" element={<AdminDashboard />} />
 
       {/* ================= Edit Profile (Shared) ================= */}
       <Route path="/profile/edit/:role" element={<EditProfile />} />
+
+      {/* ================= Alert History ================= */}
+      <Route path="/alerts" element={<AlertHistory />} />
 
       {/* ================= Fallback (404) ================= */}
       <Route path="*" element={<Navigate to="/login/operator" replace />} />

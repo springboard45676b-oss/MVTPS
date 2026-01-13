@@ -2,11 +2,15 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import { AlertProvider } from "./context/AlertContext";
 import "./index.css";
-import "leaflet/dist/leaflet.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <React.StrictMode>
+    <BrowserRouter>
+      <AlertProvider>
+        <App />
+      </AlertProvider>
+    </BrowserRouter>
+  </React.StrictMode>
 );
