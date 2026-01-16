@@ -1,7 +1,9 @@
-# server/core/urls.py - Complete and corrected
+# server/core/urls.py - Complete with User Action Logging and Admin Endpoints
 
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+
 from .views import (
     api_root,
     # Authentication views
@@ -44,12 +46,33 @@ from .views import (
     GeneratePortVoyageMockDataAPI,
     PiracyZoneListAPI,
     CountryViewSet,  # ViewSet for countries
-    WeatherAlertListAPI
+    WeatherAlertListAPI,
+    # User Action Logging Views
+    UserActionViewSet,
+    # Dashboard Views
+    company_dashboard,
+    port_dashboard,
+    insurer_dashboard,
+    # Admin Views - ADD THESE IMPORTS
+    AdminUserViewSet,
+    admin_system_info,
+    admin_export_data,
 )
+
+# Create router for ViewSets
+router = DefaultRouter()
+router.register(r'admin/user-actions', UserActionViewSet, basename='user-actions')
+router.register(r'admin/users', AdminUserViewSet, basename='admin-users')  # NEW - Admin User Management
+router.register(r'countries', CountryViewSet, basename='countries')
 
 urlpatterns = [
     # API Root
     path('', api_root, name='api-root'),
+    
+    # ============================================
+    # ROUTER URLS (ViewSets)
+    # ============================================
+    path('', include(router.urls)),
     
     # ============================================
     # AUTHENTICATION ENDPOINTS - /api/auth/*
@@ -109,13 +132,36 @@ urlpatterns = [
     # PIRACY ZONES ENDPOINT - /api/piracy-zones/
     # ============================================
     path('piracy-zones/', PiracyZoneListAPI.as_view(), name='piracy-zones'),
-     path('weather-alerts/', WeatherAlertListAPI.as_view(), name='weather-alerts'),
     
     # ============================================
-    # COUNTRIES ENDPOINT - /api/countries/
+    # WEATHER ALERTS ENDPOINT - /api/weather-alerts/
     # ============================================
-    path('countries/', CountryViewSet.as_view({'get': 'list'}), name='countries-list'),
-    path('countries/<int:pk>/', CountryViewSet.as_view({'get': 'retrieve'}), name='country-detail'),
+    path('weather-alerts/', WeatherAlertListAPI.as_view(), name='weather-alerts'),
+    
+    # ============================================
+    # DASHBOARD ENDPOINTS - /api/dashboard/*
+    # ============================================
+    path('dashboard/company/', company_dashboard, name='company-dashboard'),
+    path('dashboard/port/', port_dashboard, name='port-dashboard'),
+    path('dashboard/insurer/', insurer_dashboard, name='insurer-dashboard'),
+    
+    # ============================================
+    # ADMIN ENDPOINTS - /api/admin/* (NEW SECTION)
+    # ============================================
+    # Note: User CRUD endpoints are auto-registered by router at /api/admin/users/
+    # Available endpoints:
+    # GET    /api/admin/users/                     - List all users
+    # POST   /api/admin/users/                     - Create user
+    # GET    /api/admin/users/{id}/                - Get user detail
+    # PUT    /api/admin/users/{id}/                - Update user
+    # DELETE /api/admin/users/{id}/                - Delete user
+    # POST   /api/admin/users/{id}/activate/       - Activate user
+    # POST   /api/admin/users/{id}/deactivate/     - Deactivate user
+    # POST   /api/admin/users/{id}/change_role/    - Change user role
+    # POST   /api/admin/users/{id}/reset_password/ - Reset password
+    
+    path('admin/system-info/', admin_system_info, name='admin-system-info'),
+    path('admin/export/', admin_export_data, name='admin-export'),
     
     # ============================================
     # MOCK DATA GENERATION - /api/*

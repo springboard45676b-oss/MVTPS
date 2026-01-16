@@ -517,3 +517,143 @@ class Country(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.continent})"
+    
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
+User = get_user_model()
+
+class UserAction(models.Model):
+    """
+    Comprehensive user action tracking system
+    Logs every user action: login, register, profile edit, notifications, vessels, voyages, ports, etc.
+    """
+    
+    # Action Categories
+    ACTION_CATEGORIES = [
+        # Authentication
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('register', 'Register'),
+        ('password_change', 'Password Change'),
+        ('password_reset', 'Password Reset'),
+        
+        # User Profile
+        ('profile_view', 'Profile View'),
+        ('profile_edit', 'Profile Edit'),
+        ('profile_delete', 'Profile Delete'),
+        
+        # Vessel Actions
+        ('vessel_create', 'Vessel Create'),
+        ('vessel_view', 'Vessel View'),
+        ('vessel_edit', 'Vessel Edit'),
+        ('vessel_delete', 'Vessel Delete'),
+        ('vessel_list', 'Vessel List'),
+        
+        # Voyage Actions
+        ('voyage_create', 'Voyage Create'),
+        ('voyage_view', 'Voyage View'),
+        ('voyage_edit', 'Voyage Edit'),
+        ('voyage_delete', 'Voyage Delete'),
+        ('voyage_list', 'Voyage List'),
+        
+        # Port Actions
+        ('port_view', 'Port View'),
+        ('port_edit', 'Port Edit'),
+        ('port_list', 'Port List'),
+        
+        # Notification Actions
+        ('notification_view', 'Notification View'),
+        ('notification_mark_read', 'Notification Mark Read'),
+        ('notification_delete', 'Notification Delete'),
+        ('notification_list', 'Notification List'),
+        
+        # Subscription Actions
+        ('subscription_create', 'Subscription Create'),
+        ('subscription_delete', 'Subscription Delete'),
+        ('subscription_list', 'Subscription List'),
+        
+        # Alert Actions
+        ('alert_view', 'Alert View'),
+        ('alert_dismiss', 'Alert Dismiss'),
+        ('alert_list', 'Alert List'),
+        
+        # Dashboard Actions
+        ('dashboard_view', 'Dashboard View'),
+        ('dashboard_export', 'Dashboard Export'),
+        
+        # Admin Actions
+        ('admin_user_list', 'Admin User List'),
+        ('admin_user_edit', 'Admin User Edit'),
+        ('admin_user_delete', 'Admin User Delete'),
+        ('admin_logs_view', 'Admin Logs View'),
+        ('admin_system_info', 'Admin System Info'),
+        
+        # Other
+        ('unknown', 'Unknown'),
+    ]
+    
+    # HTTP Status Codes
+    STATUS_CODES = [
+        (200, '200 OK'),
+        (201, '201 Created'),
+        (204, '204 No Content'),
+        (400, '400 Bad Request'),
+        (401, '401 Unauthorized'),
+        (403, '403 Forbidden'),
+        (404, '404 Not Found'),
+        (409, '409 Conflict'),
+        (500, '500 Server Error'),
+        (503, '503 Service Unavailable'),
+    ]
+    
+    # Fields
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_actions', null=True, blank=True)
+    username = models.CharField(max_length=150, null=True, blank=True)  # Store username for deleted users
+    action = models.CharField(max_length=50, choices=ACTION_CATEGORIES, db_index=True)
+    status_code = models.IntegerField(choices=STATUS_CODES)
+    endpoint = models.CharField(max_length=255, help_text='API endpoint or view name')
+    method = models.CharField(max_length=10, default='GET', choices=[('GET', 'GET'), ('POST', 'POST'), ('PUT', 'PUT'), ('PATCH', 'PATCH'), ('DELETE', 'DELETE')])
+    
+    # Additional context
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True, help_text='Browser/client information')
+    request_data = models.JSONField(null=True, blank=True, help_text='Request parameters (sanitized)')
+    response_data = models.JSONField(null=True, blank=True, help_text='Response data (sanitized)')
+    error_message = models.TextField(null=True, blank=True, help_text='Error message if action failed')
+    
+    # Related object tracking
+    related_object_type = models.CharField(max_length=50, null=True, blank=True, help_text='e.g., Vessel, Voyage, Port')
+    related_object_id = models.IntegerField(null=True, blank=True, help_text='ID of related object')
+    
+    # Timestamps
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    duration_ms = models.IntegerField(null=True, blank=True, help_text='Request duration in milliseconds')
+    
+    class Meta:
+        ordering = ['-timestamp']
+        db_table = 'core_user_action'
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['action', '-timestamp']),
+            models.Index(fields=['status_code', '-timestamp']),
+            models.Index(fields=['-timestamp']),
+        ]
+        verbose_name = 'User Action'
+        verbose_name_plural = 'User Actions'
+    
+    def __str__(self):
+        user_str = self.username or (self.user.username if self.user else 'Anonymous')
+        return f"{user_str} - {self.get_action_display()} ({self.status_code})"
+    
+    @property
+    def is_successful(self):
+        """Check if action was successful (2xx status code)"""
+        return 200 <= self.status_code < 300
+    
+    @property
+    def is_error(self):
+        """Check if action resulted in error (4xx or 5xx)"""
+        return self.status_code >= 400
+

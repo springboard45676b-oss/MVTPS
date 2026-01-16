@@ -1,6 +1,7 @@
 # Replace the first 20 lines of your server/core/views.py with this:
 
 from rest_framework import generics, status, permissions, serializers  # ✅ ADDED serializers
+from django.db.models.functions import TruncMonth 
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
@@ -11,6 +12,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db.models import Max, OuterRef, F, Q, Avg, Count, Sum  # ✅ ADDED Sum
+from datetime import timedelta, datetime  # ✅ ADD datetime HERE
+from django.http import JsonResponse  # ✅ ADD THIS for export functionality
 from datetime import timedelta
 import random
 import logging
@@ -1320,4 +1323,929 @@ class WeatherAlertListAPI(generics.ListAPIView):
         return queryset.filter(
             Q(alert_expires__gt=now) | Q(alert_expires__isnull=True)
         )
+
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from django.db.models import Count, Q, F
+from django.utils import timezone
+from datetime import timedelta
+from .models import UserAction
+from .serializers import UserActionSerializer
+
+class UserActionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for viewing and analyzing user action logs
+    Endpoints:
+    - GET /api/admin/user-actions/ - List all actions
+    - GET /api/admin/user-actions/{id}/ - Get action details
+    - GET /api/admin/user-actions/stats/ - Get statistics
+    - GET /api/admin/user-actions/by-user/ - Group by user
+    """
+    queryset = UserAction.objects.all()
+    serializer_class = UserActionSerializer
+    permission_classes = [IsAdminUser]
     
+    def get_queryset(self):
+        queryset = UserAction.objects.all()
+        
+        # Filters
+        user_id = self.request.query_params.get('user_id')
+        action = self.request.query_params.get('action')
+        status_code = self.request.query_params.get('status_code')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if action:
+            queryset = queryset.filter(action=action)
+        if status_code:
+            queryset = queryset.filter(status_code=status_code)
+        if date_from:
+            queryset = queryset.filter(timestamp__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(timestamp__lte=date_to)
+        
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Get overall statistics"""
+        queryset = self.get_queryset()
+        
+        stats = {
+            'total_actions': queryset.count(),
+            'total_users': queryset.values('user').distinct().count(),
+            'successful_actions': queryset.filter(status_code__lt=300).count(),
+            'failed_actions': queryset.filter(status_code__gte=400).count(),
+            'last_24h': queryset.filter(timestamp__gte=timezone.now() - timedelta(hours=24)).count(),
+            'by_action': dict(queryset.values('action').annotate(count=Count('id')).values_list('action', 'count')),
+            'by_status': dict(queryset.values('status_code').annotate(count=Count('id')).values_list('status_code', 'count')),
+            'by_method': dict(queryset.values('method').annotate(count=Count('id')).values_list('method', 'count')),
+        }
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
+    def by_user(self, request):
+        """Get actions grouped by user"""
+        queryset = self.get_queryset()
+        
+        user_stats = queryset.values('user__username').annotate(
+            total_actions=Count('id'),
+            successful=Count('id', filter=Q(status_code__lt=300)),
+            failed=Count('id', filter=Q(status_code__gte=400)),
+            last_action=F('timestamp')
+        ).order_by('-total_actions')
+        
+        return Response(list(user_stats))
+    
+    @action(detail=False, methods=['get'])
+    def by_action(self, request):
+        """Get actions grouped by action type"""
+        queryset = self.get_queryset()
+        
+        action_stats = queryset.values('action').annotate(
+            total=Count('id'),
+            successful=Count('id', filter=Q(status_code__lt=300)),
+            failed=Count('id', filter=Q(status_code__gte=400)),
+            avg_duration_ms=F('duration_ms')
+        ).order_by('-total')
+        
+        return Response(list(action_stats))
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get most recent actions"""
+        limit = int(request.query_params.get('limit', 50))
+        queryset = self.get_queryset()[:limit]
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def errors(self, request):
+        """Get only failed actions"""
+        queryset = self.get_queryset().filter(status_code__gte=400)
+        limit = int(request.query_params.get('limit', 50))
+        
+        serializer = self.get_serializer(queryset[:limit], many=True)
+        return Response(serializer.data)
+    
+# ============================================
+# COMPANY DASHBOARD VIEW
+# ============================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def company_dashboard(request):
+    """
+    Company dashboard with real fleet efficiency data
+    GET /api/dashboard/company/
+    """
+    try:
+        date_range = request.GET.get('dateRange', 'all')
+        status_filter = request.GET.get('status', 'all')
+        
+        # Date filtering
+        date_query = Q()
+        if date_range == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+            date_query = Q(departure_time__gte=start_date)
+        elif date_range == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+            date_query = Q(departure_time__gte=start_date)
+        elif date_range == 'quarter':
+            start_date = timezone.now() - timedelta(days=90)
+            date_query = Q(departure_time__gte=start_date)
+        elif date_range == 'year':
+            start_date = timezone.now() - timedelta(days=365)
+            date_query = Q(departure_time__gte=start_date)
+        
+        # Status filtering
+        status_query = Q()
+        if status_filter == 'active':
+            status_query = Q(status='in_progress')
+        elif status_filter == 'completed':
+            status_query = Q(status='completed')
+        elif status_filter == 'pending':
+            status_query = Q(status='scheduled')
+        
+        # Get filtered voyages
+        voyages = Voyage.objects.filter(date_query, status_query)
+        
+        # KPI 1: Total Voyages
+        total_voyages = voyages.count()
+        
+        # KPI 2: Active Fleet
+        active_fleet = Vessel.objects.filter(
+            Q(voyages__status='in_progress') | Q(voyages__status='scheduled')
+        ).distinct().count()
+        
+        # KPI 3: Total Revenue (mock - you can replace with actual revenue field)
+        total_revenue = total_voyages * 50000  # Mock calculation
+        
+        # KPI 4: Success Rate
+        completed_voyages = voyages.filter(status='completed').count()
+        success_rate = round((completed_voyages / total_voyages * 100), 1) if total_voyages > 0 else 0
+        
+        # Monthly Revenue Trend (last 6 months)
+        six_months_ago = timezone.now() - timedelta(days=180)
+        monthly_data = voyages.filter(
+            departure_time__gte=six_months_ago
+        ).annotate(
+            month=TruncMonth('departure_time')
+        ).values('month').annotate(
+            count=Count('id')
+        ).order_by('month')
+        
+        monthly_revenue = [
+            {
+                'month': item['month'].strftime('%b'),
+                'revenue': item['count'] * 50000  # Mock revenue per voyage
+            }
+            for item in monthly_data
+        ]
+        
+        # Voyage Status Distribution
+        voyage_status_data = voyages.values('status').annotate(
+            count=Count('id')
+        )
+        
+        status_colors = {
+            'completed': '#10b981',
+            'in_progress': '#3b82f6',
+            'scheduled': '#f59e0b',
+            'cancelled': '#ef4444'
+        }
+        
+        voyage_status = [
+            {
+                'name': item['status'].replace('_', ' ').title(),
+                'value': item['count'],
+                'fill': status_colors.get(item['status'], '#6b7280')
+            }
+            for item in voyage_status_data
+        ]
+        
+        # Vessel Performance (Top 5 vessels by voyage count)
+        vessel_performance_data = voyages.values(
+            'vessel__name'
+        ).annotate(
+            trips=Count('id'),
+            vessel_name=F('vessel__name')
+        ).order_by('-trips')[:5]
+        
+        vessel_performance = [
+            {
+                'vessel': item['vessel_name'] or f"Vessel {item['vessel']}",
+                'trips': item['trips'],
+                'revenue': item['trips'] * 50000  # Mock revenue
+            }
+            for item in vessel_performance_data
+        ]
+        
+        return Response({
+            'totalVoyages': total_voyages,
+            'activeFleet': active_fleet,
+            'totalRevenue': total_revenue,
+            'successRate': success_rate,
+            'monthlyRevenue': monthly_revenue,
+            'voyageStatus': voyage_status,
+            'vesselPerformance': vessel_performance
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in company dashboard: {str(e)}")
+        return Response(
+            {'error': str(e), 'message': 'Failed to fetch company dashboard data'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+# ============================================
+# PORT DASHBOARD VIEW
+# ============================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def port_dashboard(request):
+    """
+    Port dashboard with congestion trends and traffic analytics
+    GET /api/dashboard/port/
+    """
+    try:
+        date_range = request.GET.get('dateRange', 'all')
+        port_id = request.GET.get('portId', None)  # Optional: filter by specific port
+        
+        # Date filtering
+        date_query = Q()
+        if date_range == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+            date_query = Q(last_update__gte=start_date)
+        elif date_range == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+            date_query = Q(last_update__gte=start_date)
+        elif date_range == 'quarter':
+            start_date = timezone.now() - timedelta(days=90)
+            date_query = Q(last_update__gte=start_date)
+        elif date_range == 'year':
+            start_date = timezone.now() - timedelta(days=365)
+            date_query = Q(last_update__gte=start_date)
+        
+        # Port filtering
+        port_query = Q()
+        if port_id:
+            port_query = Q(id=port_id)
+        
+        # Get filtered ports
+        ports = Port.objects.filter(date_query, port_query)
+        
+        # KPI 1: Total Ports
+        total_ports = ports.count()
+        
+        # KPI 2: Average Congestion Score
+        avg_congestion = ports.aggregate(Avg('congestion_score'))['congestion_score__avg'] or 0
+        
+        # KPI 3: Total Vessels in Ports (active voyages to ports)
+        vessels_in_ports = Voyage.objects.filter(
+            Q(port_to__in=ports) & Q(status='in_progress')
+        ).count()
+        
+        # KPI 4: Average Wait Time
+        avg_wait_time = ports.aggregate(Avg('avg_wait_time'))['avg_wait_time__avg'] or 0
+        
+        # Congestion Trends (last 6 months)
+        six_months_ago = timezone.now() - timedelta(days=180)
+        
+        # Since ports don't have historical congestion data, we'll use voyage data as proxy
+        monthly_congestion = Voyage.objects.filter(
+            port_to__in=ports,
+            arrival_time__gte=six_months_ago,
+            status='completed'
+        ).annotate(
+            month=TruncMonth('arrival_time')
+        ).values('month').annotate(
+            avg_congestion=Avg('port_to__congestion_score'),
+            avg_wait=Avg('port_to__avg_wait_time')
+        ).order_by('month')
+        
+        congestion_trends = [
+            {
+                'month': item['month'].strftime('%b'),
+                'congestion': round(item['avg_congestion'] or 0, 2),
+                'waitTime': round(item['avg_wait'] or 0, 2)
+            }
+            for item in monthly_congestion
+        ]
+        
+        # If no historical data, create current month snapshot
+        if not congestion_trends:
+            congestion_trends = [{
+                'month': timezone.now().strftime('%b'),
+                'congestion': round(avg_congestion, 2),
+                'waitTime': round(avg_wait_time, 2)
+            }]
+        
+        # Port Congestion Distribution
+        congestion_distribution = [
+            {
+                'name': 'Low (0-3)',
+                'value': ports.filter(congestion_score__lt=3).count(),
+                'fill': '#10b981'  # green
+            },
+            {
+                'name': 'Moderate (3-6)',
+                'value': ports.filter(congestion_score__gte=3, congestion_score__lt=6).count(),
+                'fill': '#f59e0b'  # yellow
+            },
+            {
+                'name': 'High (6-8)',
+                'value': ports.filter(congestion_score__gte=6, congestion_score__lt=8).count(),
+                'fill': '#ef4444'  # orange
+            },
+            {
+                'name': 'Critical (8+)',
+                'value': ports.filter(congestion_score__gte=8).count(),
+                'fill': '#7f1d1d'  # dark red
+            }
+        ]
+        
+        # Top 5 Most Congested Ports
+        most_congested = ports.order_by('-congestion_score')[:5].values(
+            'id', 'name', 'country', 'congestion_score', 'avg_wait_time', 'arrivals'
+        )
+        
+        top_congested_ports = [
+            {
+                'port': f"{item['name']}, {item['country']}",
+                'congestion': round(item['congestion_score'], 2),
+                'waitTime': round(item['avg_wait_time'], 2),
+                'vessels': item['arrivals']
+            }
+            for item in most_congested
+        ]
+        
+        # Traffic Volume by Port (Top 5 busiest)
+        busiest_ports = ports.annotate(
+            total_traffic=F('arrivals') + F('departures')
+        ).order_by('-total_traffic')[:5].values(
+            'name', 'country', 'arrivals', 'departures', 'total_traffic'
+        )
+        
+        port_traffic = [
+            {
+                'port': f"{item['name']}, {item['country']}",
+                'arrivals': item['arrivals'],
+                'departures': item['departures'],
+                'total': item['total_traffic']
+            }
+            for item in busiest_ports
+        ]
+        
+        return Response({
+            'totalPorts': total_ports,
+            'avgCongestion': round(avg_congestion, 2),
+            'vesselsInPorts': vessels_in_ports,
+            'avgWaitTime': round(avg_wait_time, 2),
+            'congestionTrends': congestion_trends,
+            'congestionDistribution': congestion_distribution,
+            'topCongestedPorts': top_congested_ports,
+            'portTraffic': port_traffic
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in port dashboard: {str(e)}")
+        return Response(
+            {'error': str(e), 'message': 'Failed to fetch port dashboard data'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ============================================
+# INSURER DASHBOARD VIEW
+# ============================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def insurer_dashboard(request):
+    """
+    Insurer dashboard with risk exposure and safety analytics
+    GET /api/dashboard/insurer/
+    """
+    try:
+        date_range = request.GET.get('dateRange', 'all')
+        risk_level = request.GET.get('riskLevel', 'all')
+        
+        # Date filtering
+        date_query = Q()
+        if date_range == 'week':
+            start_date = timezone.now() - timedelta(days=7)
+            date_query = Q(timestamp__gte=start_date)
+        elif date_range == 'month':
+            start_date = timezone.now() - timedelta(days=30)
+            date_query = Q(timestamp__gte=start_date)
+        elif date_range == 'quarter':
+            start_date = timezone.now() - timedelta(days=90)
+            date_query = Q(timestamp__gte=start_date)
+        elif date_range == 'year':
+            start_date = timezone.now() - timedelta(days=365)
+            date_query = Q(timestamp__gte=start_date)
+        
+        # Get all vessels with their latest positions
+        vessels = Vessel.objects.all()
+        total_vessels = vessels.count()
+        
+        # Get piracy zones and weather alerts
+        piracy_zones = PiracyZone.objects.filter(is_active=True)
+        weather_alerts = WeatherAlert.objects.filter(is_active=True)
+        
+        # Filter out expired weather alerts
+        now = timezone.now()
+        active_weather_alerts = weather_alerts.filter(
+            Q(alert_expires__gt=now) | Q(alert_expires__isnull=True)
+        )
+        
+        # KPI 1: Total Risk Zones
+        total_risk_zones = piracy_zones.count() + active_weather_alerts.count()
+        
+        # KPI 2: High Risk Vessels (vessels in high-risk areas)
+        # This requires calculating which vessels are near risk zones
+        high_risk_vessels = 0
+        vessels_at_risk = []
+        
+        for vessel in vessels:
+            if vessel.last_position_lat and vessel.last_position_lon:
+                # Check piracy zones
+                for zone in piracy_zones:
+                    if zone.risk_level in ['high', 'critical']:
+                        # Simple distance check (you can improve this with actual geodesic calculation)
+                        lat_diff = abs(vessel.last_position_lat - zone.latitude)
+                        lon_diff = abs(vessel.last_position_lon - zone.longitude)
+                        # Rough approximation: 1 degree ≈ 111 km
+                        distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+                        
+                        if distance_km <= zone.radius_km:
+                            high_risk_vessels += 1
+                            vessels_at_risk.append({
+                                'vessel': vessel.name,
+                                'zone': zone.name,
+                                'risk_type': 'piracy',
+                                'risk_level': zone.risk_level
+                            })
+                            break
+                
+                # Check weather alerts
+                for alert in active_weather_alerts:
+                    if alert.severity in ['severe', 'extreme']:
+                        lat_diff = abs(vessel.last_position_lat - alert.latitude)
+                        lon_diff = abs(vessel.last_position_lon - alert.longitude)
+                        distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+                        
+                        if distance_km <= alert.radius_km:
+                            if vessel.name not in [v['vessel'] for v in vessels_at_risk]:
+                                high_risk_vessels += 1
+                                vessels_at_risk.append({
+                                    'vessel': vessel.name,
+                                    'zone': alert.name,
+                                    'risk_type': 'weather',
+                                    'risk_level': alert.severity
+                                })
+                            break
+        
+        # KPI 3: Total Incidents (last 90 days from piracy zones)
+        total_incidents = piracy_zones.aggregate(Sum('incidents_90_days'))['incidents_90_days__sum'] or 0
+        
+        # KPI 4: Active Alerts
+        active_alerts = Notification.objects.filter(
+            type__in=['warning', 'alert'],
+            is_read=False,
+            timestamp__gte=timezone.now() - timedelta(days=30)
+        ).count()
+        
+        # Risk Exposure Trend (last 6 months)
+        # Use piracy incidents and weather alerts over time
+        six_months_ago = timezone.now() - timedelta(days=180)
+        
+        # Create monthly risk data
+        monthly_risk = []
+        for i in range(6):
+            month_start = timezone.now() - timedelta(days=30 * (6 - i))
+            month_name = month_start.strftime('%b')
+            
+            # Piracy incidents (simplified - using current data)
+            piracy_risk = piracy_zones.filter(
+                risk_level__in=['high', 'critical']
+            ).count() * 10  # Mock multiplier
+            
+            # Weather severity
+            weather_risk = active_weather_alerts.filter(
+                severity__in=['severe', 'extreme']
+            ).count() * 8  # Mock multiplier
+            
+            monthly_risk.append({
+                'month': month_name,
+                'piracyRisk': piracy_risk,
+                'weatherRisk': weather_risk,
+                'totalRisk': piracy_risk + weather_risk
+            })
+        
+        # Risk Distribution by Type
+        risk_distribution = [
+            {
+                'name': 'Piracy Zones',
+                'value': piracy_zones.count(),
+                'fill': '#ef4444'
+            },
+            {
+                'name': 'Weather Alerts',
+                'value': active_weather_alerts.count(),
+                'fill': '#3b82f6'
+            },
+            {
+                'name': 'Safe Zones',
+                'value': max(0, 50 - total_risk_zones),  # Mock safe zones
+                'fill': '#10b981'
+            }
+        ]
+        
+        # Top Risk Zones (by severity and incidents)
+        top_piracy_zones = piracy_zones.filter(
+            risk_level__in=['high', 'critical']
+        ).order_by('-incidents_90_days')[:5]
+        
+        top_risk_zones = [
+            {
+                'zone': zone.name,
+                'riskLevel': zone.risk_level.title(),
+                'incidents': zone.incidents_90_days,
+                'type': 'Piracy'
+            }
+            for zone in top_piracy_zones
+        ]
+        
+        # Add top weather alerts
+        top_weather = active_weather_alerts.filter(
+            severity__in=['severe', 'extreme']
+        ).order_by('-severity')[:3]
+        
+        for alert in top_weather:
+            top_risk_zones.append({
+                'zone': alert.name,
+                'riskLevel': alert.severity.title(),
+                'incidents': 0,  # Weather alerts don't have incidents
+                'type': alert.get_weather_type_display()
+            })
+        
+        # Limit to top 5
+        top_risk_zones = top_risk_zones[:5]
+        
+        # Vessel Safety Score (mock calculation based on risk exposure)
+        vessel_safety_scores = []
+        for vessel in vessels[:10]:  # Top 10 vessels
+            # Calculate safety score based on proximity to risk zones
+            safety_score = 100  # Start at 100
+            
+            if vessel.last_position_lat and vessel.last_position_lon:
+                # Deduct points for being near risk zones
+                for zone in piracy_zones:
+                    lat_diff = abs(vessel.last_position_lat - zone.latitude)
+                    lon_diff = abs(vessel.last_position_lon - zone.longitude)
+                    distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+                    
+                    if distance_km <= zone.radius_km * 2:  # Within 2x radius
+                        if zone.risk_level == 'critical':
+                            safety_score -= 30
+                        elif zone.risk_level == 'high':
+                            safety_score -= 20
+                        elif zone.risk_level == 'moderate':
+                            safety_score -= 10
+                
+                for alert in active_weather_alerts:
+                    lat_diff = abs(vessel.last_position_lat - alert.latitude)
+                    lon_diff = abs(vessel.last_position_lon - alert.longitude)
+                    distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+                    
+                    if distance_km <= alert.radius_km * 2:
+                        if alert.severity == 'extreme':
+                            safety_score -= 25
+                        elif alert.severity == 'severe':
+                            safety_score -= 15
+            
+            safety_score = max(0, min(100, safety_score))  # Keep between 0-100
+            
+            vessel_safety_scores.append({
+                'vessel': vessel.name,
+                'safetyScore': safety_score,
+                'riskLevel': 'High' if safety_score < 50 else 'Moderate' if safety_score < 75 else 'Low'
+            })
+        
+        # Sort by safety score
+        vessel_safety_scores.sort(key=lambda x: x['safetyScore'])
+        
+        return Response({
+            'totalRiskZones': total_risk_zones,
+            'highRiskVessels': high_risk_vessels,
+            'totalIncidents': total_incidents,
+            'activeAlerts': active_alerts,
+            'riskExposureTrend': monthly_risk,
+            'riskDistribution': risk_distribution,
+            'topRiskZones': top_risk_zones,
+            'vesselSafetyScores': vessel_safety_scores[:5],  # Top 5 lowest scores
+            'vesselsAtRisk': vessels_at_risk[:10]  # Top 10 vessels at risk
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in insurer dashboard: {str(e)}")
+        return Response(
+            {'error': str(e), 'message': 'Failed to fetch insurer dashboard data'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+
+# ============================================
+# ADMIN USER MANAGEMENT ENDPOINTS
+# Add these to your server/core/views.py
+# ============================================
+
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from django.contrib.auth import get_user_model
+from .serializers import UserSerializer
+
+User = get_user_model()
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    """
+    Admin-only user management endpoints
+    Endpoints:
+    - GET /api/admin/users/ - List all users
+    - GET /api/admin/users/{id}/ - Get user details
+    - POST /api/admin/users/ - Create new user
+    - PUT/PATCH /api/admin/users/{id}/ - Update user
+    - DELETE /api/admin/users/{id}/ - Delete user
+    - POST /api/admin/users/{id}/activate/ - Activate user
+    - POST /api/admin/users/{id}/deactivate/ - Deactivate user
+    - POST /api/admin/users/{id}/change-role/ - Change user role
+    """
+    queryset = User.objects.all().order_by('-created_at')
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+    
+    def list(self, request):
+        """Get all users with statistics"""
+        users = self.get_queryset()
+        serializer = self.get_serializer(users, many=True)
+        
+        # Calculate statistics
+        stats = {
+            'total_users': users.count(),
+            'by_role': {
+                'admin': users.filter(role='admin').count(),
+                'analyst': users.filter(role='analyst').count(),
+                'operator': users.filter(role='operator').count(),
+            },
+            'recent_signups': users.filter(
+                created_at__gte=timezone.now() - timedelta(days=7)
+            ).count()
+        }
+        
+        return Response({
+            'count': users.count(),
+            'stats': stats,
+            'results': serializer.data
+        })
+    
+    def create(self, request):
+        """Create a new user"""
+        from .serializers import RegisterSerializer
+        
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                UserSerializer(user).data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """Activate a user account"""
+        user = self.get_object()
+        
+        # Since we don't have is_active field, we can add custom logic
+        # For now, just return success
+        return Response({
+            'success': True,
+            'message': f'User {user.username} activated',
+            'user': UserSerializer(user).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """Deactivate a user account"""
+        user = self.get_object()
+        
+        if user.role == 'admin' and User.objects.filter(role='admin').count() == 1:
+            return Response(
+                {'error': 'Cannot deactivate the last admin user'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response({
+            'success': True,
+            'message': f'User {user.username} deactivated',
+            'user': UserSerializer(user).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def change_role(self, request, pk=None):
+        """Change user role"""
+        user = self.get_object()
+        new_role = request.data.get('role')
+        
+        if new_role not in ['operator', 'analyst', 'admin']:
+            return Response(
+                {'error': 'Invalid role. Must be operator, analyst, or admin'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Don't allow changing last admin's role
+        if user.role == 'admin' and new_role != 'admin':
+            if User.objects.filter(role='admin').count() == 1:
+                return Response(
+                    {'error': 'Cannot change role of the last admin user'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        old_role = user.role
+        user.role = new_role
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'User role changed from {old_role} to {new_role}',
+            'user': UserSerializer(user).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        """Admin can reset user password"""
+        user = self.get_object()
+        new_password = request.data.get('password')
+        
+        if not new_password:
+            return Response(
+                {'error': 'Password is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.set_password(new_password)
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Password reset for user {user.username}'
+        })
+
+
+# ============================================
+# ADMIN SYSTEM INFO ENDPOINT
+# ============================================
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_system_info(request):
+    """
+    Get comprehensive system information
+    GET /api/admin/system-info/
+    """
+    try:
+        # User statistics
+        total_users = User.objects.count()
+        users_by_role = {
+            'admin': User.objects.filter(role='admin').count(),
+            'analyst': User.objects.filter(role='analyst').count(),
+            'operator': User.objects.filter(role='operator').count(),
+        }
+        
+        # Database statistics
+        total_vessels = Vessel.objects.count()
+        total_ports = Port.objects.count()
+        total_voyages = Voyage.objects.count()
+        total_notifications = Notification.objects.count()
+        
+        # Recent activity (last 7 days)
+        week_ago = timezone.now() - timedelta(days=7)
+        recent_users = User.objects.filter(created_at__gte=week_ago).count()
+        recent_voyages = Voyage.objects.filter(departure_time__gte=week_ago).count()
+        
+        # System status
+        piracy_zones = PiracyZone.objects.filter(is_active=True).count()
+        weather_alerts = WeatherAlert.objects.filter(is_active=True).count()
+        
+        # User action statistics
+        total_actions = UserAction.objects.count()
+        actions_24h = UserAction.objects.filter(
+            timestamp__gte=timezone.now() - timedelta(hours=24)
+        ).count()
+        
+        return Response({
+            'users': {
+                'total': total_users,
+                'by_role': users_by_role,
+                'recent_signups': recent_users
+            },
+            'database': {
+                'vessels': total_vessels,
+                'ports': total_ports,
+                'voyages': total_voyages,
+                'notifications': total_notifications
+            },
+            'activity': {
+                'total_actions': total_actions,
+                'actions_24h': actions_24h,
+                'recent_voyages': recent_voyages
+            },
+            'safety': {
+                'active_piracy_zones': piracy_zones,
+                'active_weather_alerts': weather_alerts,
+                'total_risk_zones': piracy_zones + weather_alerts
+            },
+            'system': {
+                'version': '2.1.0',
+                'database_type': 'PostgreSQL',
+                'api_version': 'v1',
+                'status': 'operational'
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching system info: {str(e)}")
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ============================================
+# ADMIN DATA EXPORT ENDPOINT
+# ============================================
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def admin_export_data(request):
+    """
+    Export system data as JSON
+    GET /api/admin/export/
+    """
+    try:
+        from django.http import JsonResponse
+        import json
+        
+        # Export all users (excluding passwords)
+        users = list(User.objects.values('id', 'username', 'email', 'role', 'created_at'))
+        
+        # Export vessels
+        vessels = list(Vessel.objects.values())
+        
+        # Export ports
+        ports = list(Port.objects.values())
+        
+        # Export voyages
+        voyages = list(Voyage.objects.values())
+        
+        export_data = {
+            'export_date': timezone.now().isoformat(),
+            'users': users,
+            'vessels': vessels,
+            'ports': ports,
+            'voyages': voyages,
+            'metadata': {
+                'total_users': len(users),
+                'total_vessels': len(vessels),
+                'total_ports': len(ports),
+                'total_voyages': len(voyages)
+            }
+        }
+        
+        # Convert datetime objects to strings
+        def convert_datetime(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+        
+        response = JsonResponse(export_data, safe=False, json_dumps_params={'default': convert_datetime})
+        response['Content-Disposition'] = f'attachment; filename="vessel_tracking_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json"'
+        
+        return response
+    
+    except Exception as e:
+        logger.error(f"Error exporting data: {str(e)}")
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

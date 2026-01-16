@@ -11,37 +11,8 @@ import ProfileEditPage from './pages/ProfileEdit';
 import AppLayout from './components/AppLayout';
 import LoadingAnimation from './components/LoadingAnimation';
 import { authAPI } from './services/api';
+import Dashboard from './pages/Dashboard/Dashboard.jsx';
 
-const Dashboard = ({ title }) => {
-  const cards = [
-    { title: 'Vessels', desc: 'Fleet overview and positions', to: '/vessels' },
-    { title: 'Ports', desc: 'Port stats & congestion', to: '/ports' },
-    { title: 'Voyages', desc: 'Schedules and statuses', to: '/voyages' },
-  ];
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-widest text-slate-500">Welcome</p>
-        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-        <p className="text-slate-600 mt-1">Navigate key operational areas below.</p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <a
-            key={card.to}
-            href={card.to}
-            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
-            <p className="text-sm text-slate-600 mt-1">{card.desc}</p>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// Protected route component
 const ProtectedRoute = ({ children }) => {
   if (!authAPI.isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -49,7 +20,6 @@ const ProtectedRoute = ({ children }) => {
   return children || <Outlet />;
 };
 
-// Update document title on route change
 const PageTitleUpdater = () => {
   const location = useLocation();
   
@@ -60,16 +30,13 @@ const PageTitleUpdater = () => {
   return null;
 };
 
-// Global Loading Context Component
 const GlobalLoadingProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    // Show loading on route change
     setIsLoading(true);
     const timer = setTimeout(() => setIsLoading(false), 500);
-    
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
@@ -113,7 +80,6 @@ const App = () => {
             } 
           />
           
-          {/* Protected routes */}
           <Route element={
             <ProtectedRoute>
               <AppLayout />
@@ -127,8 +93,6 @@ const App = () => {
             <Route path="/voyages" element={<VoyagesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/live-tracking" element={<LiveTrackingPage />} />
-            
-            {/* Profile routes */}
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<ProfileEditPage />} />
           </Route>

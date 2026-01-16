@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Ship, Calendar, MapPin, Clock, RefreshCw, TrendingUp, Search, X, ChevronDown, Filter } from 'lucide-react';
+import { Ship, Calendar, MapPin, Clock, RefreshCw, TrendingUp, Search, X, ChevronDown, Filter, Eye, CheckCircle } from 'lucide-react';
+import { HistoryReplay, ComplianceAudit } from '../components/VoyageFeatures';
 
 const Toast = ({ message, type = 'success', onClose }) => {
   useEffect(() => {
@@ -48,14 +49,14 @@ const Voyages = () => {
   const [statistics, setStatistics] = useState(null);
   const [toast, setToast] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showReplay, setShowReplay] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
 
   const API_URL = 'http://127.0.0.1:8000/api';
 
   const showToast = (message, type = 'success') => {
     setToast(null);
-    setTimeout(() => {
-      setToast({ message, type });
-    }, 10);
+    setTimeout(() => setToast({ message, type }), 10);
   };
 
   const handleRefresh = async () => {
@@ -177,26 +178,19 @@ const Voyages = () => {
 
   const calculateProgress = (voyage) => {
     if (voyage.status !== 'in_progress') return null;
-    
     const now = new Date();
     const departure = new Date(voyage.departure_time);
     const arrival = new Date(voyage.arrival_time);
-    
     const totalDuration = arrival - departure;
     const elapsed = now - departure;
-    
     return Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
   };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
-        />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {showReplay && selectedVoyage && <HistoryReplay voyage={selectedVoyage} onClose={() => setShowReplay(false)} />}
+      {showAudit && selectedVoyage && <ComplianceAudit voyage={selectedVoyage} onClose={() => setShowAudit(false)} />}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
@@ -206,65 +200,25 @@ const Voyages = () => {
 
         {statistics && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Voyages</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{voyages.length}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Ship className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Scheduled</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.by_status?.scheduled || 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-blue-600" />
+            {[
+              { label: 'Total Voyages', value: voyages.length, icon: Ship, bg: 'purple' },
+              { label: 'Scheduled', value: statistics.by_status?.scheduled || 0, icon: Calendar, bg: 'blue' },
+              { label: 'In Progress', value: statistics.by_status?.in_progress || 0, icon: Ship, bg: 'amber' },
+              { label: 'Completed', value: statistics.by_status?.completed || 0, icon: TrendingUp, bg: 'emerald' },
+              { label: 'Cancelled', value: statistics.by_status?.cancelled || 0, icon: Clock, bg: 'red' }
+            ].map((stat, idx) => (
+              <div key={idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                  </div>
+                  <div className={`w-12 h-12 bg-${stat.bg}-100 rounded-lg flex items-center justify-center`}>
+                    <stat.icon className={`w-6 h-6 text-${stat.bg}-600`} />
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">In Progress</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.by_status?.in_progress || 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <Ship className="w-6 h-6 text-amber-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.by_status?.completed || 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{statistics.by_status?.cancelled || 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-red-600" />
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         )}
 
@@ -277,13 +231,10 @@ const Voyages = () => {
                 placeholder="Search by vessel name, IMO, or ports..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                >
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
                   <X size={18} />
                 </button>
               )}
@@ -292,31 +243,20 @@ const Voyages = () => {
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition ${
-                isFilterOpen
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                isFilterOpen ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Filter size={18} />
               Filters
-              {activeFilterCount > 0 && (
-                <span className="ml-1 px-2 py-0.5 bg-white text-blue-600 text-xs font-bold rounded-full">
-                  {activeFilterCount}
-                </span>
-              )}
-              <ChevronDown
-                size={18}
-                className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`}
-              />
+              {activeFilterCount > 0 && <span className="px-2 py-0.5 bg-white text-blue-600 text-xs font-bold rounded-full">{activeFilterCount}</span>}
+              <ChevronDown size={18} className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
             </button>
 
             <button
               onClick={handleRefresh}
               disabled={loading}
               className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 transition ${
-                loading 
-                  ? 'bg-blue-600' 
-                  : 'bg-blue-500 hover:bg-blue-600 disabled:opacity-50'
+                loading ? 'bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -324,41 +264,17 @@ const Voyages = () => {
             </button>
           </div>
 
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isFilterOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-            }`}
-          >
+          {isFilterOpen && (
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  Filter Voyages
-                  {activeFilterCount > 0 && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                      {activeFilterCount} active
-                    </span>
-                  )}
-                </h3>
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={handleResetFilters}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Reset All
-                  </button>
-                )}
+                <h3 className="font-semibold text-gray-900">Filter Voyages {activeFilterCount > 0 && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full ml-2">{activeFilterCount} active</span>}</h3>
+                {activeFilterCount > 0 && <button onClick={handleResetFilters} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Reset All</button>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                     <option value="all">All Statuses</option>
                     <option value="scheduled">Scheduled</option>
                     <option value="in_progress">In Progress</option>
@@ -368,78 +284,40 @@ const Voyages = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vessel
-                  </label>
-                  <select
-                    value={vesselFilter}
-                    onChange={(e) => setVesselFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vessel</label>
+                  <select value={vesselFilter} onChange={(e) => setVesselFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                     <option value="all">All Vessels</option>
-                    {vessels.map(vessel => (
-                      <option key={vessel.id} value={vessel.id}>{vessel.name}</option>
-                    ))}
+                    {vessels.map(vessel => <option key={vessel.id} value={vessel.id}>{vessel.name}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setIsFilterOpen(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => setIsFilterOpen(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
-                >
-                  Apply Filters
-                </button>
+                <button onClick={() => setIsFilterOpen(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Close</button>
+                <button onClick={() => setIsFilterOpen(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Apply</button>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ minHeight: '800px', maxHeight: '1000px' }}>
-              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <h2 className="text-lg font-semibold text-gray-900">Voyages</h2>
               </div>
 
-              {/* SCROLLABLE CONTAINER WITH HIDDEN SCROLLBAR */}
-              <div 
-                className="divide-y divide-gray-200 overflow-y-auto flex-1"
-                style={{ 
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none'
-                }}
-              >
-                <style>{`
-                  div::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
-
+              <div className="divide-y divide-gray-200 overflow-y-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`div::-webkit-scrollbar { display: none; }`}</style>
                 {filteredVoyages.map(voyage => {
                   const progress = calculateProgress(voyage);
                   return (
-                    <div
-                      key={voyage.id}
-                      className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
-                        selectedVoyage?.id === voyage.id ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => setSelectedVoyage(voyage)}
-                    >
+                    <div key={voyage.id} className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${selectedVoyage?.id === voyage.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedVoyage(voyage)}>
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold text-gray-900">{voyage.vessel_name}</h3>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(voyage.status)}`}>
-                              {voyage.status_display}
-                            </span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(voyage.status)}`}>{voyage.status_display}</span>
                           </div>
                           <p className="text-sm text-gray-500 font-mono">{voyage.vessel_imo}</p>
                         </div>
@@ -449,7 +327,7 @@ const Voyages = () => {
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Departure</p>
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                             <div>
                               <p className="text-sm font-medium text-gray-900">{voyage.port_from_name}</p>
                               <p className="text-xs text-gray-500">{formatDate(voyage.departure_time)}</p>
@@ -460,7 +338,7 @@ const Voyages = () => {
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Arrival</p>
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                             <div>
                               <p className="text-sm font-medium text-gray-900">{voyage.port_to_name}</p>
                               <p className="text-xs text-gray-500">{formatDate(voyage.arrival_time)}</p>
@@ -474,14 +352,10 @@ const Voyages = () => {
                           <Clock className="w-4 h-4" />
                           <span className="font-medium">{voyage.duration_days} days</span>
                         </div>
-
                         {progress !== null && (
                           <div className="flex items-center gap-3">
                             <div className="w-32 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-amber-500 h-2 rounded-full transition-all"
-                                style={{ width: `${progress}%` }}
-                              />
+                              <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
                             </div>
                             <span className="text-xs text-gray-600 font-medium">{progress.toFixed(0)}%</span>
                           </div>
@@ -490,7 +364,6 @@ const Voyages = () => {
                     </div>
                   );
                 })}
-
                 {filteredVoyages.length === 0 && (
                   <div className="text-center py-12 text-gray-500">
                     <Ship className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -516,16 +389,22 @@ const Voyages = () => {
                 ) : (
                   <div className="space-y-6">
                     <div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedVoyage.status)}`}>
-                        {selectedVoyage.status_display}
-                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedVoyage.status)}`}>{selectedVoyage.status_display}</span>
                       <h3 className="text-xl font-bold text-gray-900 mt-3">{selectedVoyage.vessel_name}</h3>
                       <p className="text-sm text-gray-500 font-mono mt-1">{selectedVoyage.vessel_imo}</p>
                     </div>
 
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowReplay(true)} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2">
+                        <Eye size={16} /> Replay
+                      </button>
+                      <button onClick={() => setShowAudit(true)} className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex items-center justify-center gap-2">
+                        <CheckCircle size={16} /> Audit
+                      </button>
+                    </div>
+
                     <div className="bg-gray-50 p-4 rounded-lg space-y-4">
                       <h4 className="font-semibold text-gray-900">Route Information</h4>
-
                       {(selectedVoyage.entry_time || selectedVoyage.berthing_time) && (
                         <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                           <div className="flex items-center gap-2 text-blue-800 mb-3">
@@ -533,24 +412,12 @@ const Voyages = () => {
                             <span className="font-semibold text-sm">Port Timeline</span>
                           </div>
                           <div className="space-y-3">
-                            {selectedVoyage.entry_time && (
-                              <div>
-                                <p className="text-xs font-semibold text-blue-700 mb-1">Entry Time</p>
-                                <p className="text-sm text-blue-900">{formatDate(selectedVoyage.entry_time)}</p>
-                              </div>
-                            )}
-                            {selectedVoyage.berthing_time && (
-                              <div>
-                                <p className="text-xs font-semibold text-blue-700 mb-1">Berthing Time</p>
-                                <p className="text-sm text-blue-900">{formatDate(selectedVoyage.berthing_time)}</p>
-                              </div>
-                            )}
+                            {selectedVoyage.entry_time && <div><p className="text-xs font-semibold text-blue-700 mb-1">Entry Time</p><p className="text-sm text-blue-900">{formatDate(selectedVoyage.entry_time)}</p></div>}
+                            {selectedVoyage.berthing_time && <div><p className="text-xs font-semibold text-blue-700 mb-1">Berthing Time</p><p className="text-sm text-blue-900">{formatDate(selectedVoyage.berthing_time)}</p></div>}
                             {selectedVoyage.wait_time_hours !== null && selectedVoyage.wait_time_hours !== undefined && (
                               <div className="pt-3 border-t border-blue-200">
                                 <p className="text-xs font-semibold text-blue-700 mb-1">Wait Time</p>
-                                <p className="text-sm font-bold text-blue-900">
-                                  {selectedVoyage.wait_time_hours.toFixed(1)} hours
-                                </p>
+                                <p className="text-sm font-bold text-blue-900">{selectedVoyage.wait_time_hours.toFixed(1)} hours</p>
                               </div>
                             )}
                           </div>
@@ -571,20 +438,13 @@ const Voyages = () => {
                         </div>
 
                         <div className="ml-6 pl-4 border-l-2 border-dashed border-gray-300 py-2">
-                          <p className="text-sm text-gray-600">
-                            Duration: <span className="font-semibold text-gray-900">{selectedVoyage.duration_days} days</span>
-                          </p>
+                          <p className="text-sm text-gray-600">Duration: <span className="font-semibold text-gray-900">{selectedVoyage.duration_days} days</span></p>
                           {calculateProgress(selectedVoyage) !== null && (
                             <div className="mt-3">
                               <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div
-                                  className="bg-amber-500 h-2.5 rounded-full transition-all"
-                                  style={{ width: `${calculateProgress(selectedVoyage)}%` }}
-                                />
+                                <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: `${calculateProgress(selectedVoyage)}%` }} />
                               </div>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {calculateProgress(selectedVoyage).toFixed(1)}% complete
-                              </p>
+                              <p className="text-xs text-gray-600 mt-1">{calculateProgress(selectedVoyage).toFixed(1)}% complete</p>
                             </div>
                           )}
                         </div>
