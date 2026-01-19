@@ -1,0 +1,40 @@
+{
+  "name": "maritime-vessel-tracking",
+  "version": "1.0.0",
+  "description": "Maritime Vessel Tracking, Port Analytics & Safety Visualization Platform",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve",
+    "dev": "npx live-server --port=3000",
+    "build": "echo 'No build step required - static files'",
+    "test": "echo 'No tests configured yet'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/maritime-vessel-tracking.git"
+  },
+  "keywords": [
+    "maritime",
+    "vessel",
+    "tracking",
+    "port",
+    "analytics",
+    "shipping",
+    "AIS",
+    "safety",
+    "visualization",
+    "maps",
+    "leaflet",
+    "charts"
+  ],
+  "author": "Maritime Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/maritime-vessel-tracking/issues"
+  },
+  "homepage": "https://github.com/yourusername/maritime-vessel-tracking#readme",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "serve": "^14.2.0"
+  }
+}

@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚢MV - Maritime Vessel Tracking Platform</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css" />
+    
+    <!-- Inline Critical Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        .sidebar-item:hover, .sidebar-item.active { background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%); }
+        .vessel-marker { background: #3b82f6; border: 3px solid white; border-radius: 50%; width: 16px; height: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .vessel-marker.tanker { background: #ef4444; }
+        .vessel-marker.cargo { background: #22c55e; }
+        .vessel-marker.passenger { background: #a855f7; }
+        .piracy-zone { fill: rgba(239, 68, 68, 0.3); stroke: #ef4444; stroke-width: 2; }
+        .storm-zone { fill: rgba(59, 130, 246, 0.3); stroke: #3b82f6; stroke-width: 2; }
+        .glass-card { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .gradient-bg { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%); }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(30, 64, 175, 0.15); }
+        .notification-badge { animation: bounce 1s infinite; }
+        @keyframes shipMove { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+        .ship-animate { animation: shipMove 2s ease-in-out infinite; }
+        #map { z-index: 1; }
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+        .leaflet-control-zoom a { background: white !important; color: #1e40af !important; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="text-6xl mb-4 ship-animate">🚢</div>
+                <h1 class="text-3xl font-bold text-blue-900">MV Platform</h1>
+                <p class="text-gray-600 mt-2">Maritime Vessel Tracking & Analytics</p>
+            </div>
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="email" id="loginEmail" value="admin@maritime.com" class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="Enter your email">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="password" id="loginPassword" value="admin123" class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="Enter your password">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <select id="loginRole" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <option value="admin">Administrator</option>
+                        <option value="analyst">Analyst</option>
+                        <option value="operator">Operator</option>
+                        <option value="insurer">Insurer</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition shadow-lg hover:shadow-xl">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+                </button>
+            </form>
+            <div class="mt-6 text-center text-sm text-gray-500">
+                <p>Demo credentials pre-filled • <a href="#" class="text-blue-600 hover:underline">Create Account</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden min-h-screen flex">
+        <!-- Sidebar -->
+        <aside class="w-64 gradient-bg text-white flex flex-col fixed h-full z-50">
+            <div class="p-6 border-b border-blue-700">
+                <div class="flex items-center gap-3">
+                    <span class="text-4xl">🚢</span>
+                    <div>
+                        <h1 class="text-xl font-bold">MV Platform</h1>
+                        <p class="text-blue-200 text-xs">Maritime Tracking</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="#" onclick="showSection('dashboard')" class="sidebar-item active flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-th-large w-5"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" onclick="showSection('liveTracking')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-map-marked-alt w-5"></i>
+                    <span>Live Tracking</span>
+                </a>
+                <a href="#" onclick="showSection('vessels')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-ship w-5"></i>
+                    <span>Vessels</span>
+                </a>
+                <a href="#" onclick="showSection('ports')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-anchor w-5"></i>
+                    <span>Port Analytics</span>
+                </a>
+                <a href="#" onclick="showSection('safety')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-shield-alt w-5"></i>
+                    <span>Safety & Risks</span>
+                </a>
+                <a href="#" onclick="showSection('voyages')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-route w-5"></i>
+                    <span>Voyage History</span>
+                </a>
+                <a href="#" onclick="showSection('analytics')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-chart-line w-5"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" onclick="showSection('notifications')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                    <i class="fas fa-bell w-5"></i>
+                    <span>Notifications</span>
+                    <span class="bg-red-500 text-xs px-2 py-0.5 rounded-full ml-auto notification-badge">5</span>
+                </a>
+                <div id="adminMenuSection">
+                    <a href="#" onclick="showSection('admin')" class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition">
+                        <i class="fas fa-cog w-5"></i>
+                        <span>Admin Panel</span>
+                    </a>
+                </div>
+            </nav>
+            <div class="p-4 border-t border-blue-700">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-sm" id="userName">Admin User</p>
+                        <p class="text-blue-200 text-xs" id="userRole">Administrator</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-blue-700 hover:bg-blue-800 py-2 rounded-lg text-sm transition">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 ml-64">
+            <!-- Header -->
+            <header class="bg-white shadow-sm px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800" id="pageTitle">Dashboard</h2>
+                    <p class="text-gray-500 text-sm" id="pageSubtitle">Real-time maritime operations overview</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <input type="text" placeholder="Search vessels, ports..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-xl w-72 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <button class="relative p-2 text-gray-500 hover:text-blue-600 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">5</span>
+                    </button>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <i class="fas fa-clock"></i>
+                        <span id="currentTime">--:--:--</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboardSection" class="p-8">
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition duration-300">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-ship text-blue-600 text-2xl"></i>
+                            </div>
+                            <span class="text-green-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 12%</span>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-800">2,847</h3>
+                        <p class="text-gray-500">Active Vessels</p>
+                    </div>
+                    <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition duration-300">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-anchor text-green-600 text-2xl"></i>
+                            </div>
+                            <span class="text-green-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 8%</span>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-800">156</h3>
+                        <p class="text-gray-500">Monitored Ports</p>
+                    </div>
+                    <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition duration-300">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-yellow-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-yellow-600 text-2xl"></i>
+                            </div>
+                            <span class="text-red-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 3%</span>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-800">23</h3>
+                        <p class="text-gray-500">Active Alerts</p>
+                    </div>
+                    <div class="stat-card bg-white rounded-2xl p-6 shadow-lg transition duration-300">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-route text-purple-600 text-2xl"></i>
+                            </div>
+                            <span class="text-green-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 15%</span>
+                        </div>
+                        <h3 class="text-3xl font-bold text-gray-800">1,024</h3>
+                        <p class="text-gray-500">Active Voyages</p>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Vessel Traffic (Last 7 Days)</h3>
+                        <canvas id="trafficChart" height="200"></canvas>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Vessel Types Distribution</h3>
+                        <canvas id="vesselTypesChart" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Map & Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="p-4 border-b flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-800">Global Vessel Overview</h3>
+                            <button onclick="showSection('liveTracking')" class="text-blue-600 text-sm hover:underline">View Full Map</button>
+                        </div>
+                        <div id="dashboardMap" class="h-80"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+                        <div class="space-y-4" id="activityList">
+                            <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-ship text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">MV Pacific Star arrived</p>
+                                    <p class="text-xs text-gray-500">Port of Rotterdam • 5 min ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-yellow-50 rounded-xl">
+                                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-exclamation text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Weather alert issued</p>
+                                    <p class="text-xs text-gray-500">North Atlantic • 12 min ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-green-50 rounded-xl">
+                                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Cargo inspection passed</p>
+                                    <p class="text-xs text-gray-500">MV Atlantic Glory • 28 min ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-red-50 rounded-xl">
+                                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Piracy risk zone entered</p>
+                                    <p class="text-xs text-gray-500">Gulf of Aden • 45 min ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Live Tracking Section -->
+            <section id="liveTrackingSection" class="hidden h-[calc(100vh-73px)]">
+                <div class="h-full relative">
+                    <div id="liveMap" class="h-full w-full"></div>
+                    <!-- Map Controls -->
+                    <div class="absolute top-4 left-4 bg-white rounded-2xl shadow-xl p-4 z-[1000] w-80">
+                        <h3 class="font-semibold text-gray-800 mb-3">Vessel Filters</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm text-gray-600">Vessel Type</label>
+                                <select id="vesselTypeFilter" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm" onchange="filterVessels()">
+                                    <option value="all">All Types</option>
+                                    <option value="cargo">Cargo Ships</option>
+                                    <option value="tanker">Tankers</option>
+                                    <option value="passenger">Passenger Ships</option>
+                                    <option value="fishing">Fishing Vessels</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Flag State</label>
+                                <select class="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                                    <option value="all">All Flags</option>
+                                    <option>Panama</option>
+                                    <option>Liberia</option>
+                                    <option>Marshall Islands</option>
+                                    <option>Singapore</option>
+                                </select>
+                            </div>
+                            <div class="flex gap-2">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" id="showWeather" checked onchange="toggleOverlay('weather')">
+                                    <span>Weather</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" id="showPiracy" checked onchange="toggleOverlay('piracy')">
+                                    <span>Piracy Zones</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Legend -->
+                    <div class="absolute bottom-4 left-4 bg-white rounded-2xl shadow-xl p-4 z-[1000]">
+                        <h4 class="font-semibold text-gray-800 mb-2 text-sm">Legend</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 bg-green-500 rounded-full"></span> Cargo</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 bg-red-500 rounded-full"></span> Tanker</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 bg-purple-500 rounded-full"></span> Passenger</div>
+                            <div class="flex items-center gap-2"><span class="w-4 h-4 bg-blue-500 rounded-full"></span> Other</div>
+                        </div>
+                    </div>
+                    <!-- Selected Vessel Info -->
+                    <div id="vesselInfoPanel" class="hidden absolute top-4 right-4 bg-white rounded-2xl shadow-xl p-6 z-[1000] w-80">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-gray-800" id="selectedVesselName">MV Pacific Star</h3>
+                            <button onclick="closeVesselPanel()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between"><span class="text-gray-500">IMO:</span><span class="font-medium" id="vesselIMO">9876543</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">MMSI:</span><span class="font-medium" id="vesselMMSI">123456789</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Type:</span><span class="font-medium" id="vesselType">Cargo Ship</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Flag:</span><span class="font-medium" id="vesselFlag">🇵🇦 Panama</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Speed:</span><span class="font-medium" id="vesselSpeed">14.5 knots</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Heading:</span><span class="font-medium" id="vesselHeading">245°</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Destination:</span><span class="font-medium" id="vesselDest">Rotterdam</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">ETA:</span><span class="font-medium" id="vesselETA">Dec 28, 14:00</span></div>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700">Track</button>
+                            <button class="flex-1 border border-blue-600 text-blue-600 py-2 rounded-lg text-sm hover:bg-blue-50">History</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Vessels Section -->
+            <section id="vesselsSection" class="hidden p-8">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <input type="text" placeholder="Search vessels..." class="px-4 py-2 border rounded-lg w-64">
+                            <select class="px-4 py-2 border rounded-lg">
+                                <option>All Types</option>
+                                <option>Cargo</option>
+                                <option>Tanker</option>
+                                <option>Passenger</option>
+                            </select>
+                        </div>
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                            <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Vessel Name</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">IMO</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Type</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Flag</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Position</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Speed</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vesselsTableBody" class="divide-y">
+                                <!-- Vessels will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 border-t flex items-center justify-between">
+                        <p class="text-sm text-gray-500">Showing 1-10 of 2,847 vessels</p>
+                        <div class="flex gap-2">
+                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Previous</button>
+                            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">1</button>
+                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">2</button>
+                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">3</button>
+                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ports Section -->
+            <section id="portsSection" class="hidden p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-anchor text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800">156</h3>
+                                <p class="text-gray-500 text-sm">Total Ports</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800">124</h3>
+                                <p class="text-gray-500 text-sm">Low Congestion</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800">24</h3>
+                                <p class="text-gray-500 text-sm">Moderate</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800">8</h3>
+                                <p class="text-gray-500 text-sm">High Congestion</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Port Congestion Overview</h3>
+                        <canvas id="portCongestionChart" height="250"></canvas>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Average Wait Times (Hours)</h3>
+                        <canvas id="waitTimeChart" height="250"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-800">Port Status</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Port Name</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Country</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Congestion Score</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Wait Time</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Arrivals Today</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Departures</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portsTableBody" class="divide-y">
+                                <!-- Ports will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Safety Section -->
+            <section id="safetySection" class="hidden p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-cloud-sun-rain text-4xl opacity-80"></i>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-sm">Active</span>
+                        </div>
+                        <h3 class="text-3xl font-bold mb-2">7</h3>
+                        <p class="opacity-90">Weather Warnings</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-skull-crossbones text-4xl opacity-80"></i>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-sm">High Risk</span>
+                        </div>
+                        <h3 class="text-3xl font-bold mb-2">3</h3>
+                        <p class="opacity-90">Piracy Risk Zones</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <i class="fas fa-car-crash text-4xl opacity-80"></i>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-sm">This Month</span>
+                        </div>
+                        <h3 class="text-3xl font-bold mb-2">12</h3>
+                        <p class="opacity-90">Reported Incidents</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="p-4 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800">Safety Risk Map</h3>
+                        </div>
+                        <div id="safetyMap" class="h-80"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Active Alerts</h3>
+                        <div class="space-y-4 max-h-72 overflow-y-auto" id="alertsList">
+                            <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-skull text-red-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-red-800">Piracy Alert - Gulf of Aden</h4>
+                                    <p class="text-sm text-red-600 mt-1">Multiple suspicious vessels detected. Armed escort recommended.</p>
+                                    <p class="text-xs text-gray-500 mt-2">Updated 15 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-wind text-yellow-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-yellow-800">Storm Warning - North Atlantic</h4>
+                                    <p class="text-sm text-yellow-600 mt-1">Severe storm system moving east. Wind speeds up to 65 knots expected.</p>
+                                    <p class="text-xs text-gray-500 mt-2">Updated 32 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-water text-blue-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-blue-800">High Waves - Bay of Biscay</h4>
+                                    <p class="text-sm text-blue-600 mt-1">Wave height exceeding 6 meters. Caution advised for smaller vessels.</p>
+                                    <p class="text-xs text-gray-500 mt-2">Updated 1 hour ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Incident History</h3>
+                    <canvas id="incidentChart" height="100"></canvas>
+                </div>
+            </section>
+
+            <!-- Voyages Section -->
+            <section id="voyagesSection" class="hidden p-8">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Voyage Replay</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                        <select id="voyageSelect" class="px-4 py-2 border rounded-lg" onchange="loadVoyage()">
+                            <option value="">Select a voyage...</option>
+                            <option value="1">MV Pacific Star - Rotterdam to Singapore</option>
+                            <option value="2">MV Atlantic Glory - New York to Hamburg</option>
+                            <option value="3">SS Ocean Dream - Dubai to Mumbai</option>
+                        </select>
+                        <input type="date" class="px-4 py-2 border rounded-lg" value="2024-12-01">
+                        <input type="date" class="px-4 py-2 border rounded-lg" value="2024-12-25">
+                        <button onclick="playVoyage()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-play mr-2"></i>Play Replay
+                        </button>
+                    </div>
+                    <div id="voyageMap" class="h-96 rounded-xl overflow-hidden"></div>
+                    <div class="mt-4 flex items-center gap-4">
+                        <button id="playPauseBtn" onclick="togglePlayback()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <input type="range" id="voyageSlider" class="flex-1" min="0" max="100" value="0" onchange="seekVoyage(this.value)">
+                        <span id="voyageTime" class="text-sm text-gray-600">00:00 / 00:00</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-800">Voyage History & Audit Trail</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Voyage ID</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Vessel</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Origin</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Destination</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Departure</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Arrival</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="voyagesTableBody" class="divide-y">
+                                <!-- Voyages will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section id="analyticsSection" class="hidden p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Fleet Performance</h3>
+                        <canvas id="fleetPerformanceChart" height="250"></canvas>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Fuel Efficiency Trends</h3>
+                        <canvas id="fuelEfficiencyChart" height="250"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Top Routes</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Shanghai - Rotterdam</span>
+                                <span class="text-sm font-semibold">1,245 voyages</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 100%"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Singapore - Los Angeles</span>
+                                <span class="text-sm font-semibold">987 voyages</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 79%"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Dubai - Mumbai</span>
+                                <span class="text-sm font-semibold">756 voyages</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 61%"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Houston - Rotterdam</span>
+                                <span class="text-sm font-semibold">654 voyages</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 53%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Cargo Distribution</h3>
+                        <canvas id="cargoDistChart" height="200"></canvas>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Monthly Revenue</h3>
+                        <canvas id="revenueChart" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Global Trade Flows</h3>
+                    <canvas id="tradeFlowChart" height="120"></canvas>
+                </div>
+            </section>
+
+            <!-- Notifications Section -->
+            <section id="notificationsSection" class="hidden p-8">
+                <div class="bg-white rounded-2xl shadow-lg">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800">All Notifications</h3>
+                        <button class="text-blue-600 text-sm hover:underline">Mark all as read</button>
+                    </div>
+                    <div class="divide-y" id="notificationsList">
+                        <!-- Notifications will be populated here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Section -->
+            <section id="adminSection" class="hidden p-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-server text-green-600 text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">System Status</p>
+                                <p class="text-xl font-bold text-green-600">Operational</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-database text-blue-600 text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Database Size</p>
+                                <p class="text-xl font-bold text-gray-800">24.5 GB</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-lg">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-plug text-purple-600 text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">API Calls Today</p>
+                                <p class="text-xl font-bold text-gray-800">142,847</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management -->
+                <div class="bg-white rounded-2xl shadow-lg mb-8">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800">User Management</h3>
+                        <button onclick="showAddUserModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Add User
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">User</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Email</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Role</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Last Login</th>
+                                    <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y">
+                                <!-- Users will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- API Management -->
+                <div class="bg-white rounded-2xl shadow-lg mb-8">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-800">API Sources</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">MarineTraffic API</p>
+                                    <p class="text-sm text-gray-500">Vessel tracking & AIS data</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">Connected</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">NOAA Weather API</p>
+                                    <p class="text-sm text-gray-500">Weather & ocean conditions</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">Connected</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-exclamation text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">UNCTAD Maritime Data</p>
+                                    <p class="text-sm text-gray-500">Port & trade analytics</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">Rate Limited</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs -->
+                <div class="bg-white rounded-2xl shadow-lg">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800">System Logs</h3>
+                        <button class="text-blue-600 text-sm hover:underline">Export Logs</button>
+                    </div>
+                    <div class="p-6 max-h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-green-400 rounded-b-2xl">
+                        <p>[2024-12-27 14:32:15] INFO: Vessel position update received - 2,847 vessels</p>
+                        <p>[2024-12-27 14:32:10] INFO: Weather data sync completed</p>
+                        <p>[2024-12-27 14:31:45] INFO: User login: admin@maritime.com</p>
+                        <p>[2024-12-27 14:30:22] WARN: API rate limit approaching for MarineTraffic</p>
+                        <p>[2024-12-27 14:28:15] INFO: Port congestion scores recalculated</p>
+                        <p>[2024-12-27 14:25:00] INFO: Scheduled backup completed successfully</p>
+                        <p>[2024-12-27 14:20:33] INFO: New piracy alert generated - Gulf of Aden</p>
+                        <p>[2024-12-27 14:15:00] INFO: System health check: All services operational</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-md">
+            <h3 class="text-xl font-bold text-gray-800 mb-6">Add New User</h3>
+            <form class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input type="text" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select class="w-full px-4 py-2 border rounded-lg">
+                        <option>Administrator</option>
+                        <option>Analyst</option>
+                        <option>Operator</option>
+                        <option>Insurer</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeAddUserModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/maps.js"></script>
+    <script src="js/app.js"></script>
+    
+    <script>
+        // Additional inline script for backward compatibility
+        // Mock Data is now in js/data.js
+        // Charts are now in js/charts.js
+        // Maps are now in js/maps.js
+        // Main app logic is now in js/app.js
+        
+        // Legacy support - keeping original inline code for standalone usage
+        const vessels = [
+            { id: 1, name: 'MV Pacific Star', imo: '9876543', mmsi: '123456789', type: 'cargo', flag: '🇵🇦 Panama', lat: 51.9, lon: 4.5, speed: 14.5, heading: 245, dest: 'Rotterdam', status: 'sailing' },
+            { id: 2, name: 'SS Atlantic Glory', imo: '9876544', mmsi: '123456790', type: 'tanker', flag: '🇱🇷 Liberia', lat: 40.7, lon: -74.0, speed: 12.3, heading: 90, dest: 'New York', status: 'anchored' },
+            { id: 3, name: 'MV Ocean Dream', imo: '9876545', mmsi: '123456791', type: 'passenger', flag: '🇸🇬 Singapore', lat: 1.3, lon: 103.8, speed: 18.2, heading: 180, dest: 'Singapore', status: 'sailing' },
+            { id: 4, name: 'SS Northern Light', imo: '9876546', mmsi: '123456792', type: 'cargo', flag: '🇲🇭 Marshall Is.', lat: 35.6, lon: 139.7, speed: 15.8, heading: 270, dest: 'Tokyo', status: 'sailing' },
+            { id: 5, name: 'MV Trade Wind', imo: '9876547', mmsi: '123456793', type: 'cargo', flag: '🇵🇦 Panama', lat: 22.3, lon: 114.2, speed: 11.4, heading: 45, dest: 'Hong Kong', status: 'docked' },
+            { id: 6, name: 'SS Blue Horizon', imo: '9876548', mmsi: '123456794', type: 'tanker', flag: '🇬🇷 Greece', lat: 37.9, lon: 23.7, speed: 13.7, heading: 135, dest: 'Athens', status: 'sailing' },
+            { id: 7, name: 'MV Coral Sea', imo: '9876549', mmsi: '123456795', type: 'cargo', flag: '🇯🇵 Japan', lat: -33.9, lon: 151.2, speed: 16.1, heading: 320, dest: 'Sydney', status: 'sailing' },
+            { id: 8, name: 'SS Gulf Star', imo: '9876550', mmsi: '123456796', type: 'tanker', flag: '🇦🇪 UAE', lat: 25.2, lon: 55.3, speed: 0, heading: 0, dest: 'Dubai', status: 'docked' },
+            { id: 9, name: 'MV Arctic Explorer', imo: '9876551', mmsi: '123456797', type: 'cargo', flag: '🇳🇴 Norway', lat: 59.9, lon: 10.7, speed: 10.5, heading: 200, dest: 'Oslo', status: 'sailing' },
+            { id: 10, name: 'SS Mediterranean', imo: '9876552', mmsi: '123456798', type: 'passenger', flag: '🇮🇹 Italy', lat: 41.9, lon: 12.5, speed: 20.3, heading: 95, dest: 'Rome', status: 'sailing' }
+        ];
+
+        const ports = [
+            { name: 'Port of Rotterdam', country: '🇳🇱 Netherlands', congestion: 85, waitTime: 18, arrivals: 45, departures: 42 },
+            { name: 'Port of Singapore', country: '🇸🇬 Singapore', congestion: 72, waitTime: 12, arrivals: 68, departures: 71 },
+            { name: 'Port of Shanghai', country: '🇨🇳 China', congestion: 91, waitTime: 24, arrivals: 89, departures: 85 },
+            { name: 'Port of Los Angeles', country: '🇺🇸 USA', congestion: 65, waitTime: 8, arrivals: 34, departures: 38 },
+            { name: 'Port of Hamburg', country: '🇩🇪 Germany', congestion: 45, waitTime: 6, arrivals: 28, departures: 25 },
+            { name: 'Port of Antwerp', country: '🇧🇪 Belgium', congestion: 58, waitTime: 10, arrivals: 31, departures: 29 },
+            { name: 'Port of Dubai', country: '🇦🇪 UAE', congestion: 42, waitTime: 5, arrivals: 22, departures: 24 },
+            { name: 'Port of Hong Kong', country: '🇭🇰 Hong Kong', congestion: 78, waitTime: 14, arrivals: 52, departures: 48 }
+        ];
+
+        const voyages = [
+            { id: 'VYG-001', vessel: 'MV Pacific Star', origin: 'Rotterdam', dest: 'Singapore', departure: '2024-12-01', arrival: '2024-12-25', status: 'In Transit' },
+            { id: 'VYG-002', vessel: 'SS Atlantic Glory', origin: 'New York', dest: 'Hamburg', departure: '2024-12-05', arrival: '2024-12-18', status: 'Completed' },
+            { id: 'VYG-003', vessel: 'MV Ocean Dream', origin: 'Dubai', dest: 'Mumbai', departure: '2024-12-10', arrival: '2024-12-15', status: 'Completed' },
+            { id: 'VYG-004', vessel: 'SS Northern Light', origin: 'Tokyo', dest: 'Los Angeles', departure: '2024-12-12', arrival: '2024-12-28', status: 'In Transit' },
+            { id: 'VYG-005', vessel: 'MV Trade Wind', origin: 'Shanghai', dest: 'Sydney', departure: '2024-12-15', arrival: '2025-01-05', status: 'In Transit' }
+        ];
+
+        const users = [
+            { name: 'John Admin', email: 'admin@maritime.com', role: 'Administrator', status: 'Active', lastLogin: '2024-12-27 14:32' },
+            { name: 'Sarah Analyst', email: 'sarah@maritime.com', role: 'Analyst', status: 'Active', lastLogin: '2024-12-27 10:15' },
+            { name: 'Mike Operator', email: 'mike@maritime.com', role: 'Operator', status: 'Active', lastLogin: '2024-12-26 18:45' },
+            { name: 'Emily Insurer', email: 'emily@insurance.com', role: 'Insurer', status: 'Inactive', lastLogin: '2024-12-20 09:30' }
+        ];
+
+        const notifications = [
+            { type: 'alert', icon: 'exclamation-triangle', color: 'red', title: 'Piracy Alert - Gulf of Aden', message: 'High-risk zone detected. 3 vessels in affected area.', time: '5 min ago', unread: true },
+            { type: 'weather', icon: 'cloud-rain', color: 'yellow', title: 'Storm Warning - North Atlantic', message: 'Severe weather expected. Vessel route adjustments recommended.', time: '15 min ago', unread: true },
+            { type: 'arrival', icon: 'anchor', color: 'green', title: 'MV Pacific Star Arrived', message: 'Successfully docked at Port of Rotterdam, Berth 12.', time: '32 min ago', unread: true },
+            { type: 'congestion', icon: 'clock', color: 'orange', title: 'Port Congestion Alert', message: 'Shanghai port congestion score increased to 91%.', time: '1 hour ago', unread: true },
+            { type: 'system', icon: 'cog', color: 'blue', title: 'System Update Complete', message: 'Platform updated to version 2.4.1 successfully.', time: '2 hours ago', unread: true }
+        ];
+
+        let maps = {};
+        let currentUser = null;
+        let voyagePlayInterval = null;
+        let isPlaying = false;
+
+        // Login Handler
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const role = document.getElementById('loginRole').value;
+            
+            currentUser = {
+                email: email,
+                role: role,
+                name: role.charAt(0).toUpperCase() + role.slice(1) + ' User'
+            };
+
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userRole').textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
+            
+            // Show/hide admin menu based on role
+            if (role !== 'admin') {
+                document.getElementById('adminMenuSection').style.display = 'none';
+            }
+
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            initializeApp();
+        });
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('adminMenuSection').style.display = 'block';
+        }
+
+        function initializeApp() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            initializeDashboard();
+            populateTables();
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            
+            // Update sidebar
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.sidebar-item')?.classList.add('active');
+
+            // Show selected section
+            const sectionElement = document.getElementById(section + 'Section');
+            if (sectionElement) {
+                sectionElement.classList.remove('hidden');
+            }
+
+            // Update header
+            const titles = {
+                dashboard: ['Dashboard', 'Real-time maritime operations overview'],
+                liveTracking: ['Live Tracking', 'Real-time vessel positions and safety overlays'],
+                vessels: ['Vessel Management', 'Monitor and manage all tracked vessels'],
+                ports: ['Port Analytics', 'Congestion analysis and port performance'],
+                safety: ['Safety & Risks', 'Weather, piracy, and incident monitoring'],
+                voyages: ['Voyage History', 'Historical voyage replay and audit trail'],
+                analytics: ['Analytics', 'Fleet performance and trade insights'],
+                notifications: ['Notifications', 'Alerts and system notifications'],
+                admin: ['Admin Panel', 'System administration and user management']
+            };
+
+            document.getElementById('pageTitle').textContent = titles[section]?.[0] || 'Dashboard';
+            document.getElementById('pageSubtitle').textContent = titles[section]?.[1] || '';
+
+            // Initialize section-specific content
+            setTimeout(() => {
+                if (section === 'liveTracking') initializeLiveMap();
+                if (section === 'ports') initializePortCharts();
+                if (section === 'safety') initializeSafetyMap();
+                if (section === 'voyages') initializeVoyageMap();
+                if (section === 'analytics') initializeAnalyticsCharts();
+            }, 100);
+        }
+
+        function initializeDashboard() {
+            // Dashboard Map
+            if (!maps.dashboard) {
+                maps.dashboard = L.map('dashboardMap').setView([20, 0], 2);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '©OpenStreetMap, ©CartoDB'
+                }).addTo(maps.dashboard);
+
+                vessels.forEach(vessel => {
+                    const markerColor = vessel.type === 'tanker' ? '#ef4444' : vessel.type === 'passenger' ? '#a855f7' : '#22c55e';
+                    L.circleMarker([vessel.lat, vessel.lon], {
+                        radius: 6,
+                        fillColor: markerColor,
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 1
+                    }).addTo(maps.dashboard).bindPopup(`<b>${vessel.name}</b><br>Type: ${vessel.type}<br>Speed: ${vessel.speed} knots`);
+                });
+            }
+
+            // Traffic Chart
+            const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+            new Chart(trafficCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Arrivals',
+                        data: [245, 312, 287, 356, 298, 275, 320],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Departures',
+                        data: [232, 298, 275, 342, 285, 268, 310],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Vessel Types Chart
+            const typesCtx = document.getElementById('vesselTypesChart').getContext('2d');
+            new Chart(typesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cargo Ships', 'Tankers', 'Passenger Ships', 'Fishing Vessels', 'Others'],
+                    datasets: [{
+                        data: [1245, 687, 312, 423, 180],
+                        backgroundColor: ['#22c55e', '#ef4444', '#a855f7', '#3b82f6', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+        }
+
+        function initializeLiveMap() {
+            if (!maps.live) {
+                maps.live = L.map('liveMap').setView([20, 0], 2);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '©OpenStreetMap, ©CartoDB'
+                }).addTo(maps.live);
+
+                // Add piracy zone (Gulf of Aden)
+                maps.piracyLayer = L.circle([12.5, 47], {
+                    radius: 500000,
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.2
+                }).addTo(maps.live).bindPopup('<b>Piracy Risk Zone</b><br>Gulf of Aden - High Risk');
+
+                // Add weather zone (North Atlantic)
+                maps.weatherLayer = L.circle([45, -30], {
+                    radius: 800000,
+                    color: '#3b82f6',
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.2
+                }).addTo(maps.live).bindPopup('<b>Storm Warning</b><br>Severe weather conditions');
+
+                // Add vessels
+                vessels.forEach(vessel => {
+                    const markerColor = vessel.type === 'tanker' ? '#ef4444' : vessel.type === 'passenger' ? '#a855f7' : '#22c55e';
+                    const marker = L.circleMarker([vessel.lat, vessel.lon], {
+                        radius: 8,
+                        fillColor: markerColor,
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 1
+                    }).addTo(maps.live);
+
+                    marker.on('click', () => showVesselInfo(vessel));
+                });
+            }
+            setTimeout(() => maps.live.invalidateSize(), 100);
+        }
+
+        function showVesselInfo(vessel) {
+            document.getElementById('vesselInfoPanel').classList.remove('hidden');
+            document.getElementById('selectedVesselName').textContent = vessel.name;
+            document.getElementById('vesselIMO').textContent = vessel.imo;
+            document.getElementById('vesselMMSI').textContent = vessel.mmsi;
+            document.getElementById('vesselType').textContent = vessel.type.charAt(0).toUpperCase() + vessel.type.slice(1);
+            document.getElementById('vesselFlag').textContent = vessel.flag;
+            document.getElementById('vesselSpeed').textContent = vessel.speed + ' knots';
+            document.getElementById('vesselHeading').textContent = vessel.heading + '°';
+            document.getElementById('vesselDest').textContent = vessel.dest;
+        }
+
+        function closeVesselPanel() {
+            document.getElementById('vesselInfoPanel').classList.add('hidden');
+        }
+
+        function toggleOverlay(type) {
+            if (type === 'weather' && maps.weatherLayer) {
+                if (document.getElementById('showWeather').checked) {
+                    maps.live.addLayer(maps.weatherLayer);
+                } else {
+                    maps.live.removeLayer(maps.weatherLayer);
+                }
+            }
+            if (type === 'piracy' && maps.piracyLayer) {
+                if (document.getElementById('showPiracy').checked) {
+                    maps.live.addLayer(maps.piracyLayer);
+                } else {
+                    maps.live.removeLayer(maps.piracyLayer);
+                }
+            }
+        }
+
+        function initializePortCharts() {
+            // Congestion Chart
+            const congestionCtx = document.getElementById('portCongestionChart').getContext('2d');
+            new Chart(congestionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ports.map(p => p.name.replace('Port of ', '')),
+                    datasets: [{
+                        label: 'Congestion Score',
+                        data: ports.map(p => p.congestion),
+                        backgroundColor: ports.map(p => p.congestion > 80 ? '#ef4444' : p.congestion > 60 ? '#f59e0b' : '#22c55e')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+
+            // Wait Time Chart
+            const waitCtx = document.getElementById('waitTimeChart').getContext('2d');
+            new Chart(waitCtx, {
+                type: 'bar',
+                data: {
+                    labels: ports.map(p => p.name.replace('Port of ', '')),
+                    datasets: [{
+                        label: 'Avg Wait Time (hrs)',
+                        data: ports.map(p => p.waitTime),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function initializeSafetyMap() {
+            if (!maps.safety) {
+                maps.safety = L.map('safetyMap').setView([15, 50], 3);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '©OpenStreetMap, ©CartoDB'
+                }).addTo(maps.safety);
+
+                // Piracy zones
+                L.circle([12.5, 47], { radius: 500000, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3 }).addTo(maps.safety);
+                L.circle([5, 3], { radius: 400000, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3 }).addTo(maps.safety);
+
+                // Storm zones
+                L.circle([45, -30], { radius: 600000, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.3 }).addTo(maps.safety);
+            }
+            setTimeout(() => maps.safety.invalidateSize(), 100);
+
+            // Incident Chart
+            const incidentCtx = document.getElementById('incidentChart').getContext('2d');
+            new Chart(incidentCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'Weather Incidents',
+                        data: [12, 15, 8, 6, 4, 3, 5, 7, 9, 11, 14, 10],
+                        borderColor: '#3b82f6',
+                        tension: 0.4
+                    }, {
+                        label: 'Piracy Attempts',
+                        data: [3, 2, 4, 5, 6, 4, 3, 2, 4, 5, 3, 2],
+                        borderColor: '#ef4444',
+                        tension: 0.4
+                    }, {
+                        label: 'Collisions',
+                        data: [1, 2, 1, 0, 1, 2, 1, 1, 0, 2, 1, 1],
+                        borderColor: '#f59e0b',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function initializeVoyageMap() {
+            if (!maps.voyage) {
+                maps.voyage = L.map('voyageMap').setView([20, 60], 3);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '©OpenStreetMap, ©CartoDB'
+                }).addTo(maps.voyage);
+            }
+            setTimeout(() => maps.voyage.invalidateSize(), 100);
+        }
+
+        function loadVoyage() {
+            const voyageId = document.getElementById('voyageSelect').value;
+            if (!voyageId || !maps.voyage) return;
+
+            // Sample voyage route
+            const routes = {
+                '1': [[51.9, 4.5], [36, -6], [14, 42], [8, 77], [1.3, 103.8]],
+                '2': [[40.7, -74], [45, -40], [50, -10], [53.5, 10]],
+                '3': [[25.2, 55.3], [22, 60], [19, 72.8]]
+            };
+
+            if (maps.voyageRoute) {
+                maps.voyage.removeLayer(maps.voyageRoute);
+            }
+
+            maps.voyageRoute = L.polyline(routes[voyageId], { color: '#3b82f6', weight: 3 }).addTo(maps.voyage);
+            maps.voyage.fitBounds(maps.voyageRoute.getBounds(), { padding: [50, 50] });
+        }
+
+        function playVoyage() {
+            loadVoyage();
+        }
+
+        function togglePlayback() {
+            isPlaying = !isPlaying;
+            document.getElementById('playPauseBtn').innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+        }
+
+        function initializeAnalyticsCharts() {
+            // Fleet Performance
+            const fleetCtx = document.getElementById('fleetPerformanceChart').getContext('2d');
+            new Chart(fleetCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'On-Time Arrivals (%)',
+                        data: [92, 88, 94, 91, 95, 93],
+                        borderColor: '#22c55e',
+                        tension: 0.4
+                    }, {
+                        label: 'Utilization Rate (%)',
+                        data: [78, 82, 79, 85, 83, 87],
+                        borderColor: '#3b82f6',
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Fuel Efficiency
+            const fuelCtx = document.getElementById('fuelEfficiencyChart').getContext('2d');
+            new Chart(fuelCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Fuel Consumption (MT)',
+                        data: [45000, 42000, 48000, 44000, 41000, 39000],
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            // Cargo Distribution
+            const cargoCtx = document.getElementById('cargoDistChart').getContext('2d');
+            new Chart(cargoCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Containers', 'Bulk', 'Oil/Gas', 'Vehicles', 'Other'],
+                    datasets: [{
+                        data: [35, 25, 20, 12, 8],
+                        backgroundColor: ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#a855f7']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Revenue
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Revenue ($M)',
+                        data: [12.5, 14.2, 13.8, 15.6, 16.2, 17.8],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            // Trade Flow
+            const tradeCtx = document.getElementById('tradeFlowChart').getContext('2d');
+            new Chart(tradeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Asia-Europe', 'Asia-Americas', 'Europe-Americas', 'Middle East-Asia', 'Africa-Europe', 'Intra-Asia'],
+                    datasets: [{
+                        label: 'Trade Volume (Million TEU)',
+                        data: [24.5, 18.2, 12.8, 15.4, 8.6, 32.1],
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: { responsive: true, indexAxis: 'y' }
+            });
+        }
+
+        function populateTables() {
+            // Vessels Table
+            const vesselsBody = document.getElementById('vesselsTableBody');
+            vesselsBody.innerHTML = vessels.map(v => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4"><span class="font-medium text-gray-800">${v.name}</span></td>
+                    <td class="px-6 py-4 text-gray-600">${v.imo}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs ${v.type === 'cargo' ? 'bg-green-100 text-green-700' : v.type === 'tanker' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}">${v.type}</span></td>
+                    <td class="px-6 py-4">${v.flag}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs ${v.status === 'sailing' ? 'bg-blue-100 text-blue-700' : v.status === 'docked' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${v.status}</span></td>
+                    <td class="px-6 py-4 text-gray-600">${v.lat.toFixed(2)}°, ${v.lon.toFixed(2)}°</td>
+                    <td class="px-6 py-4 text-gray-600">${v.speed} kn</td>
+                    <td class="px-6 py-4">
+                        <button class="text-blue-600 hover:text-blue-800 mr-2"><i class="fas fa-eye"></i></button>
+                        <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-ellipsis-v"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Ports Table
+            const portsBody = document.getElementById('portsTableBody');
+            portsBody.innerHTML = ports.map(p => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
+                    <td class="px-6 py-4">${p.country}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                <div class="h-2 rounded-full ${p.congestion > 80 ? 'bg-red-500' : p.congestion > 60 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${p.congestion}%"></div>
+                            </div>
+                            <span class="text-sm">${p.congestion}%</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">${p.waitTime}h</td>
+                    <td class="px-6 py-4 text-gray-600">${p.arrivals}</td>
+                    <td class="px-6 py-4 text-gray-600">${p.departures}</td>
+                </tr>
+            `).join('');
+
+            // Voyages Table
+            const voyagesBody = document.getElementById('voyagesTableBody');
+            voyagesBody.innerHTML = voyages.map(v => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium text-blue-600">${v.id}</td>
+                    <td class="px-6 py-4 text-gray-800">${v.vessel}</td>
+                    <td class="px-6 py-4 text-gray-600">${v.origin}</td>
+                    <td class="px-6 py-4 text-gray-600">${v.dest}</td>
+                    <td class="px-6 py-4 text-gray-600">${v.departure}</td>
+                    <td class="px-6 py-4 text-gray-600">${v.arrival}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs ${v.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">${v.status}</span></td>
+                    <td class="px-6 py-4">
+                        <button class="text-blue-600 hover:text-blue-800 mr-2"><i class="fas fa-play"></i></button>
+                        <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-file-alt"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Users Table
+            const usersBody = document.getElementById('usersTableBody');
+            usersBody.innerHTML = users.map(u => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-blue-600"></i>
+                            </div>
+                            <span class="font-medium text-gray-800">${u.name}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">${u.email}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">${u.role}</span></td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 ${u.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'} rounded-full text-xs">${u.status}</span></td>
+                    <td class="px-6 py-4 text-gray-600 text-sm">${u.lastLogin}</td>
+                    <td class="px-6 py-4">
+                        <button class="text-blue-600 hover:text-blue-800 mr-2"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Notifications
+            const notifList = document.getElementById('notificationsList');
+            notifList.innerHTML = notifications.map(n => `
+                <div class="flex items-start gap-4 p-6 hover:bg-gray-50 ${n.unread ? 'bg-blue-50/50' : ''}">
+                    <div class="w-12 h-12 bg-${n.color}-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-${n.icon} text-${n.color}-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-semibold text-gray-800">${n.title}</h4>
+                            <span class="text-sm text-gray-500">${n.time}</span>
+                        </div>
+                        <p class="text-gray-600 mt-1">${n.message}</p>
+                    </div>
+                    ${n.unread ? '<div class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function showAddUserModal() {
+            document.getElementById('addUserModal').classList.remove('hidden');
+        }
+
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').classList.add('hidden');
+        }
+
+        function filterVessels() {
+            // Filter functionality would update the map markers
+            console.log('Filtering vessels...');
+        }
+
+        // Simulate real-time updates
+        setInterval(() => {
+            vessels.forEach(v => {
+                v.lat += (Math.random() - 0.5) * 0.1;
+                v.lon += (Math.random() - 0.5) * 0.1;
+            });
+        }, 5000);
+    </script>
+</body>
+</html>
