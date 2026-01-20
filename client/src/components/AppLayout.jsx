@@ -6,16 +6,8 @@ import DarkModeToggle from "./DarkModeToggle";
 import { Ship, Bell, Trash2, CheckCheck, X, MapPin } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
-const navItems = [
-  { to: "/admin/dashboard", label: "Dashboard" },
-  { to: "/vessels", label: "Vessels" },
-  { to: "/ports", label: "Ports" },
-  { to: "/voyages", label: "Voyages" },
-  { to: "/live-tracking", label: "Live Tracking" },
-];
-
 const LogoutLoadingScreen = () => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
     <div className="flex flex-col items-center gap-4">
       <div className="relative h-16 w-16">
         <div className="absolute inset-0 rounded-full border-4 border-slate-200/30"></div>
@@ -43,12 +35,12 @@ const NotificationPopup = ({
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-end pt-20 pr-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-end pt-20 pr-4">
       {/* Overlay */}
-      <div className="fixed inset-0 z-30" onClick={onClose}></div>
+      <div className="fixed inset-0 z-[90]" onClick={onClose}></div>
 
       {/* Notification Popup */}
-      <div className="relative z-40 w-96 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[500px]">
+      <div className="relative z-[100] w-96 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[500px]">
         {/* Header */}
         <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50">
           <div>
@@ -189,6 +181,15 @@ const Navbar = ({ isConnected }) => {
   const user = authAPI.getCurrentUser();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+  // Dynamic navigation items based on user role - MOVED INSIDE COMPONENT
+  const navItems = [
+    { to: user?.role?.toLowerCase() === 'admin' ? '/admin/dashboard' : '/dashboard', label: "Dashboard" },
+    { to: "/vessels", label: "Vessels" },
+    { to: "/ports", label: "Ports" },
+    { to: "/voyages", label: "Voyages" },
+    { to: "/live-tracking", label: "Live Tracking" },
+  ];
 
   // Real-time WebSocket notification handler
   const handleNewNotification = useCallback((newNotification) => {
@@ -441,7 +442,7 @@ const Navbar = ({ isConnected }) => {
     <>
       {isLoggingOut && <LogoutLoadingScreen />}
       
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-[60] border-b border-slate-200/70 bg-white/90 backdrop-blur overflow-visible">
         <div className="mx-auto flex max-w-7xl items-center px-4 py-3 gap-4">
           {/* Logo */}
           <div className="flex items-center gap-3 shrink-0 flex-1">
@@ -531,7 +532,7 @@ const Navbar = ({ isConnected }) => {
                 </svg>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-lg py-2 text-sm z-50">
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-lg py-2 text-sm z-[100]">
                   <div className="px-3 py-2 border-b border-slate-100">
                     <p className="text-xs text-slate-500">Signed in as</p>
                     <p className="font-semibold text-slate-900 truncate">{user?.email || user?.username || "User"}</p>
@@ -578,7 +579,7 @@ const Navbar = ({ isConnected }) => {
 
       {/* Notification Detail Modal */}
       {selectedNotification && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
             {/* Header with gradient */}
             <div className="px-5 py-4 bg-gradient-to-br from-blue-600 to-cyan-600 text-white relative">
@@ -703,7 +704,7 @@ const Navbar = ({ isConnected }) => {
 
       {/* Clear All Confirmation Modal */}
       {showClearAllModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
             <div className="px-5 py-3 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-200">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -770,7 +771,7 @@ const Footer = () => (
 
 const AppLayout = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 transition-colors duration-200">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 transition-colors duration-200 overflow-visible">
       <Toaster
         position="top-center"
         containerStyle={{ top: 80 }}
@@ -789,7 +790,7 @@ const AppLayout = () => {
       />
       
       <Navbar isConnected={true} />
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 relative">
         <Outlet />
       </main>
       <Footer />

@@ -20,6 +20,20 @@ const ProtectedRoute = ({ children }) => {
   return children || <Outlet />;
 };
 
+// Helper function to get dashboard route based on user role
+const getDashboardRoute = () => {
+  const user = authAPI.getCurrentUser();
+  const role = user?.role?.toLowerCase();
+  
+  // Only admin gets /admin/dashboard
+  if (role === 'admin') {
+    return '/admin/dashboard';
+  }
+  
+  // All other roles (analyst, operator, etc.) get /dashboard
+  return '/dashboard';
+};
+
 const PageTitleUpdater = () => {
   const location = useLocation();
   
@@ -55,11 +69,12 @@ const App = () => {
       <GlobalLoadingProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
+          
           <Route 
             path="/login" 
             element={
               authAPI.isAuthenticated() ? (
-                <Navigate to="/admin/dashboard" replace />
+                <Navigate to={getDashboardRoute()} replace />
               ) : (
                 <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
                   <LoginRegister />
@@ -67,11 +82,12 @@ const App = () => {
               )
             } 
           />
+          
           <Route 
             path="/register" 
             element={
               authAPI.isAuthenticated() ? (
-                <Navigate to="/admin/dashboard" replace />
+                <Navigate to={getDashboardRoute()} replace />
               ) : (
                 <main className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
                   <LoginRegister />
@@ -85,9 +101,13 @@ const App = () => {
               <AppLayout />
             </ProtectedRoute>
           }>
+            {/* Admin-only dashboard route */}
             <Route path="/admin/dashboard" element={<Dashboard title="Admin Dashboard" />} />
-            <Route path="/operator/dashboard" element={<Dashboard title="Operator Dashboard" />} />
-            <Route path="/analyst/dashboard" element={<Dashboard title="Analyst Dashboard" />} />
+            
+            {/* General dashboard route for analyst, operator, and other non-admin users */}
+            <Route path="/dashboard" element={<Dashboard title="Dashboard" />} />
+            
+            {/* Other routes */}
             <Route path="/vessels" element={<VesselsPage />} />
             <Route path="/ports" element={<PortsPage />} />
             <Route path="/voyages" element={<VoyagesPage />} />
