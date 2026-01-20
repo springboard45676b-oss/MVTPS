@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Platform - User Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .user-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .user-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 15px;
+        }
+        .user-info {
+            flex: 1;
+        }
+        .username {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+        .role {
+            color: #666;
+            font-size: 14px;
+        }
+        .role.admin { color: #e74c3c; }
+        .role.analyst { color: #3498db; }
+        .role.operator { color: #27ae60; }
+        .user-details {
+            margin-top: 15px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .detail-value {
+            color: #333;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2a5298;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 Maritime Platform - User Dashboard</h1>
+            <p>Manage and view all platform users</p>
+        </div>
+
+        <div id="user-list" class="user-grid">
+            <div class="loading">Loading users...</div>
+        </div>
+    </div>
+
+    <script>
+        // Sample user data (in production, this would come from your API)
+        const users = [
+            {
+                id: 3,
+                username: "vinuthna",
+                email: "vinuthnagampala@gmail.com",
+                first_name: "Gampala",
+                last_name: "Vinuthna",
+                company: "Ship",
+                role: "analyst",
+                phone: "9989439862",
+                is_active: true,
+                date_joined: "2025-12-25",
+                vessel_subscriptions: 2,
+                notifications: 10
+            },
+            {
+                id: 4,
+                username: "Gampala_vinuthna",
+                email: "vinuthna@gmail.com",
+                first_name: "Gampala",
+                last_name: "Vinuthna",
+                company: "Ship",
+                role: "admin",
+                phone: "+919989439862",
+                is_active: true,
+                date_joined: "2025-12-25",
+                vessel_subscriptions: 0,
+                notifications: 1
+            },
+            {
+                id: 5,
+                username: "Akshaya",
+                email: "akshayagampala@gmail.com",
+                first_name: "Gampala",
+                last_name: "Akshaya",
+                company: "Ship",
+                role: "operator",
+                phone: "+919989439862",
+                is_active: true,
+                date_joined: "2025-12-25",
+                vessel_subscriptions: 0,
+                notifications: 3
+            },
+            {
+                id: 7,
+                username: "srividya",
+                email: "srividya@gmail.com",
+                first_name: "srividya",
+                last_name: "jangili",
+                company: "Vesseltrack",
+                role: "admin",
+                phone: "+917989095288",
+                is_active: true,
+                date_joined: "2025-12-26",
+                vessel_subscriptions: 0,
+                notifications: 0
+            },
+            {
+                id: 8,
+                username: "vyshnavi",
+                email: "vyshnavi@gmail.com",
+                first_name: "vyshnavi",
+                last_name: "sirimalla",
+                company: "",
+                role: "analyst",
+                phone: "+917989095288",
+                is_active: true,
+                date_joined: "2025-12-29",
+                vessel_subscriptions: 2,
+                notifications: 3
+            }
+        ];
+
+        function getInitials(firstName, lastName) {
+            return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        function renderUsers() {
+            const userList = document.getElementById('user-list');
+            
+            userList.innerHTML = users.map(user => `
+                <div class="user-card">
+                    <div class="user-header">
+                        <div class="user-avatar">
+                            ${getInitials(user.first_name, user.last_name)}
+                        </div>
+                        <div class="user-info">
+                            <div class="username">${user.first_name} ${user.last_name}</div>
+                            <div class="role ${user.role}">@${user.username} • ${user.role}</div>
+                        </div>
+                        <span class="status-badge ${user.is_active ? 'status-active' : 'status-inactive'}">
+                            ${user.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                    
+                    <div class="user-details">
+                        <div class="detail-row">
+                            <span class="detail-label">📧 Email:</span>
+                            <span class="detail-value">${user.email}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">🏢 Company:</span>
+                            <span class="detail-value">${user.company || 'Not specified'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">📱 Phone:</span>
+                            <span class="detail-value">${user.phone || 'Not provided'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">📅 Joined:</span>
+                            <span class="detail-value">${formatDate(user.date_joined)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-number">${user.vessel_subscriptions}</div>
+                            <div class="stat-label">Subscriptions</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${user.notifications}</div>
+                            <div class="stat-label">Notifications</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${user.id}</div>
+                            <div class="stat-label">User ID</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            renderUsers();
+        });
+    </script>
+</body>
+</html>

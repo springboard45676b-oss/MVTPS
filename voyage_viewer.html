@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Platform - Voyage Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .map-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        .vessel-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .vessel-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .vessel-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .vessel-card.selected {
+            border: 2px solid #2a5298;
+            background: #f0f7ff;
+        }
+        .vessel-name {
+            font-weight: bold;
+            color: #1e3c72;
+            margin-bottom: 5px;
+        }
+        .vessel-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .voyage-info {
+            background: #e8f4fd;
+            padding: 8px;
+            border-radius: 5px;
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #ffe6e6;
+            color: #d00;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 300px;
+            z-index: 1000;
+        }
+        .btn {
+            background: #2a5298;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #1e3c72;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚢 Maritime Platform - Voyage Tracker</h1>
+            <p>Track real vessel movements and voyage histories</p>
+        </div>
+
+        <div class="controls">
+            <h3>🚢 Select a Vessel to View Track</h3>
+            <div id="vessel-list" class="vessel-list">
+                <div class="loading">Loading vessels...</div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="info-panel" class="info-panel" style="display: none;">
+                <h4>Vessel Information</h4>
+                <div id="vessel-details"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let map;
+        let currentTrack;
+        let vessels = [];
+        let selectedVessel = null;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([40.0, 0.0], 2);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Load vessels from API
+        async function loadVessels() {
+            try {
+                // For demo purposes, we'll use sample data
+                // In production, you'd call your API with authentication
+                const sampleVessels = [
+                    {
+                        id: 1,
+                        name: "Wonder of the Seas",
+                        mmsi: "248663000",
+                        vessel_type: "passenger",
+                        active_voyage: {
+                            start_port: "Open Sea",
+                            end_port: null,
+                            distance_km: 660.5,
+                            duration_display: "8d 12h"
+                        }
+                    },
+                    {
+                        id: 2,
+                        name: "CMA CGM Antoine De Saint Exupery",
+                        mmsi: "228339600",
+                        vessel_type: "container",
+                        active_voyage: {
+                            start_port: "Shanghai",
+                            end_port: "Rotterdam",
+                            distance_km: 1250.3,
+                            duration_display: "12d 6h"
+                        }
+                    },
+                    {
+                        id: 3,
+                        name: "Front Altair",
+                        mmsi: "259439000",
+                        vessel_type: "tanker",
+                        active_voyage: {
+                            start_port: "Dubai",
+                            end_port: null,
+                            distance_km: 890.2,
+                            duration_display: "5d 18h"
+                        }
+                    }
+                ];
+
+                vessels = sampleVessels;
+                displayVessels();
+            } catch (error) {
+                document.getElementById('vessel-list').innerHTML = 
+                    '<div class="error">Failed to load vessels. Please check your connection.</div>';
+            }
+        }
+
+        // Display vessels in the list
+        function displayVessels() {
+            const vesselList = document.getElementById('vessel-list');
+            
+            vesselList.innerHTML = vessels.map(vessel => `
+                <div class="vessel-card" onclick="selectVessel(${vessel.id})">
+                    <div class="vessel-name">🚢 ${vessel.name}</div>
+                    <div class="vessel-info">
+                        <strong>MMSI:</strong> ${vessel.mmsi}<br>
+                        <strong>Type:</strong> ${vessel.vessel_type}
+                    </div>
+                    ${vessel.active_voyage ? `
+                        <div class="voyage-info">
+                            🛣️ <strong>Active Voyage:</strong><br>
+                            ${vessel.active_voyage.start_port} → ${vessel.active_voyage.end_port || 'Ongoing'}<br>
+                            📏 ${vessel.active_voyage.distance_km} km | ⏱️ ${vessel.active_voyage.duration_display}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Select a vessel and show its track
+        async function selectVessel(vesselId) {
+            // Update UI
+            document.querySelectorAll('.vessel-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.vessel-card').classList.add('selected');
+
+            selectedVessel = vessels.find(v => v.id === vesselId);
+            
+            // Clear existing track
+            if (currentTrack) {
+                map.removeLayer(currentTrack);
+            }
+
+            // Show vessel info
+            showVesselInfo(selectedVessel);
+
+            // Load and display track
+            await loadVesselTrack(vesselId);
+        }
+
+        // Load vessel track (demo data)
+        async function loadVesselTrack(vesselId) {
+            try {
+                // Demo track data - in production, call your API
+                const demoTracks = {
+                    1: [ // Wonder of the Seas
+                        [43.747033, 7.424736],
+                        [43.748085, 7.425958],
+                        [43.732822, 7.423000],
+                        [43.738400, 7.424600],
+                        [41.902800, 12.496400],
+                        [40.640100, 14.257400]
+                    ],
+                    2: [ // CMA CGM
+                        [51.9225, 4.4792],
+                        [50.8503, 4.3517],
+                        [48.8566, 2.3522],
+                        [43.2965, 5.3698],
+                        [41.9028, 12.4964],
+                        [31.2304, 121.4737]
+                    ],
+                    3: [ // Front Altair
+                        [25.2769, 55.2962],
+                        [26.2041, 50.5952],
+                        [27.1767, 56.2735],
+                        [25.5041, 56.0960],
+                        [24.4539, 54.3773]
+                    ]
+                };
+
+                const trackPoints = demoTracks[vesselId] || [];
+                
+                if (trackPoints.length > 0) {
+                    // Create polyline
+                    currentTrack = L.polyline(trackPoints, {
+                        color: '#2a5298',
+                        weight: 4,
+                        opacity: 0.8
+                    }).addTo(map);
+
+                    // Add markers
+                    L.marker(trackPoints[0])
+                        .addTo(map)
+                        .bindPopup('<b>Latest Position</b><br>' + selectedVessel.name);
+                    
+                    L.marker(trackPoints[trackPoints.length - 1])
+                        .addTo(map)
+                        .bindPopup('<b>Start Position</b><br>' + selectedVessel.name);
+
+                    // Fit map to track
+                    map.fitBounds(currentTrack.getBounds(), { padding: [20, 20] });
+                }
+            } catch (error) {
+                console.error('Failed to load track:', error);
+            }
+        }
+
+        // Show vessel information panel
+        function showVesselInfo(vessel) {
+            const infoPanel = document.getElementById('info-panel');
+            const vesselDetails = document.getElementById('vessel-details');
+            
+            vesselDetails.innerHTML = `
+                <strong>${vessel.name}</strong><br>
+                <strong>MMSI:</strong> ${vessel.mmsi}<br>
+                <strong>Type:</strong> ${vessel.vessel_type}<br>
+                ${vessel.active_voyage ? `
+                    <hr>
+                    <strong>Active Voyage:</strong><br>
+                    ${vessel.active_voyage.start_port} → ${vessel.active_voyage.end_port || 'Ongoing'}<br>
+                    <strong>Distance:</strong> ${vessel.active_voyage.distance_km} km<br>
+                    <strong>Duration:</strong> ${vessel.active_voyage.duration_display}
+                ` : ''}
+            `;
+            
+            infoPanel.style.display = 'block';
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadVessels();
+        });
+    </script>
+</body>
+</html>

@@ -1,48 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { useNotifications } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState([]);
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    refreshNotifications
+  } = useNotifications();
+
   const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedType, setSelectedType] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
+  const [filteredNotifications, setFilteredNotifications] = useState([]);
 
   useEffect(() => {
-    fetchNotifications();
     fetchStats();
-  }, [filter, selectedType, selectedPriority]);
+    refreshNotifications(); // Refresh when component mounts
+  }, []);
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      
-      if (filter === 'unread') {
-        params.append('is_read', 'false');
-      } else if (filter === 'read') {
-        params.append('is_read', 'true');
-      }
-      
-      if (selectedType) {
-        params.append('type', selectedType);
-      }
-      
-      if (selectedPriority) {
-        params.append('priority', selectedPriority);
-      }
+  useEffect(() => {
+    // Filter notifications based on current filters
+    let filtered = [...notifications];
 
-      const response = await api.get(`/notifications/?${params.toString()}`);
-      setNotifications(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
-    } finally {
-      setLoading(false);
+    if (filter === 'unread') {
+      filtered = filtered.filter(n => !n.is_read);
+    } else if (filter === 'read') {
+      filtered = filtered.filter(n => n.is_read);
     }
-  };
+
+    if (selectedType) {
+      filtered = filtered.filter(n => n.notification_type === selectedType);
+    }
+
+    if (selectedPriority) {
+      filtered = filtered.filter(n => n.priority === selectedPriority);
+    }
+
+    setFilteredNotifications(filtered);
+  }, [notifications, filter, selectedType, selectedPriority]);
 
   const fetchStats = async () => {
     try {
@@ -53,46 +55,32 @@ const Notifications = () => {
     }
   };
 
-  const markAsRead = async (notificationId) => {
+  const handleMarkAsRead = async (notificationId) => {
     try {
-      await api.post(`/notifications/${notificationId}/read/`);
-      setNotifications(notifications.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, is_read: true, read_at: new Date().toISOString() }
-          : notif
-      ));
-      fetchStats();
+      await markAsRead(notificationId);
+      fetchStats(); // Refresh stats
       toast.success('Notification marked as read');
     } catch (error) {
-      console.error('Error marking notification as read:', error);
       toast.error('Failed to mark notification as read');
     }
   };
 
-  const markAllAsRead = async () => {
+  const handleMarkAllAsRead = async () => {
     try {
-      await api.post('/notifications/mark-all-read/');
-      setNotifications(notifications.map(notif => ({ 
-        ...notif, 
-        is_read: true, 
-        read_at: new Date().toISOString() 
-      })));
-      fetchStats();
+      await markAllAsRead();
+      fetchStats(); // Refresh stats
       toast.success('All notifications marked as read');
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
       toast.error('Failed to mark all notifications as read');
     }
   };
 
-  const deleteNotification = async (notificationId) => {
+  const handleDeleteNotification = async (notificationId) => {
     try {
-      await api.delete(`/notifications/${notificationId}/delete/`);
-      setNotifications(notifications.filter(notif => notif.id !== notificationId));
-      fetchStats();
+      await deleteNotification(notificationId);
+      fetchStats(); // Refresh stats
       toast.success('Notification deleted');
     } catch (error) {
-      console.error('Error deleting notification:', error);
       toast.error('Failed to delete notification');
     }
   };
@@ -148,6 +136,11 @@ const Notifications = () => {
         <h1>
           <span className="page-icon">🔔</span>
           Notifications
+          {unreadCount > 0 && (
+            <span className="page-notification-badge">
+              {unreadCount} new
+            </span>
+          )}
         </h1>
         <p className="page-description">
           Stay updated with vessel activities and system alerts
@@ -159,28 +152,32 @@ const Notifications = () => {
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <div className="stat-number">{stats.total || 0}</div>
+            <div className="stat-number">{notifications.length}</div>
             <div className="stat-label">Total Notifications</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">🔔</div>
           <div className="stat-content">
-            <div className="stat-number">{stats.unread || 0}</div>
+            <div className="stat-number">{unreadCount}</div>
             <div className="stat-label">Unread</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">🚨</div>
           <div className="stat-content">
-            <div className="stat-number">{stats.priority_counts?.critical || 0}</div>
+            <div className="stat-number">
+              {notifications.filter(n => n.priority === 'critical').length}
+            </div>
             <div className="stat-label">Critical</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">⚠️</div>
           <div className="stat-content">
-            <div className="stat-number">{stats.priority_counts?.high || 0}</div>
+            <div className="stat-number">
+              {notifications.filter(n => n.priority === 'high').length}
+            </div>
             <div className="stat-label">High Priority</div>
           </div>
         </div>
@@ -195,8 +192,8 @@ const Notifications = () => {
             className="filter-select"
           >
             <option value="all">All Notifications</option>
-            <option value="unread">Unread Only</option>
-            <option value="read">Read Only</option>
+            <option value="unread">Unread Only ({unreadCount})</option>
+            <option value="read">Read Only ({notifications.length - unreadCount})</option>
           </select>
 
           <select 
@@ -211,6 +208,7 @@ const Notifications = () => {
             <option value="port_departure">Port Departures</option>
             <option value="emergency">Emergency Alerts</option>
             <option value="weather_warning">Weather Warnings</option>
+            <option value="subscription">Subscription Updates</option>
           </select>
 
           <select 
@@ -227,12 +225,19 @@ const Notifications = () => {
         </div>
 
         <div className="action-controls">
-          {stats.unread > 0 && (
+          <button 
+            onClick={refreshNotifications}
+            className="btn btn-outline"
+            title="Refresh notifications"
+          >
+            🔄 Refresh
+          </button>
+          {unreadCount > 0 && (
             <button 
-              onClick={markAllAsRead}
+              onClick={handleMarkAllAsRead}
               className="btn btn-secondary"
             >
-              Mark All Read ({stats.unread})
+              Mark All Read ({unreadCount})
             </button>
           )}
         </div>
@@ -240,15 +245,20 @@ const Notifications = () => {
 
       {/* Notifications List */}
       <div className="notifications-container">
-        {notifications.length === 0 ? (
+        {filteredNotifications.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🔔</div>
             <h3>No notifications found</h3>
-            <p>You're all caught up! No notifications match your current filters.</p>
+            <p>
+              {filter === 'all' 
+                ? "You're all caught up! No notifications to show."
+                : `No ${filter} notifications match your current filters.`
+              }
+            </p>
           </div>
         ) : (
           <div className="notifications-list">
-            {notifications.map((notification) => (
+            {filteredNotifications.map((notification) => (
               <div 
                 key={notification.id} 
                 className={`notification-item ${!notification.is_read ? 'unread' : ''}`}
@@ -265,12 +275,14 @@ const Notifications = () => {
                       {getTypeIcon(notification.notification_type)} 
                       {notification.notification_type.replace('_', ' ')}
                     </span>
-                    <span className="time-ago">{notification.time_ago}</span>
+                    <span className="time-ago">
+                      {new Date(notification.created_at).toLocaleString()}
+                    </span>
                   </div>
                   <div className="notification-actions">
                     {!notification.is_read && (
                       <button 
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => handleMarkAsRead(notification.id)}
                         className="btn-icon"
                         title="Mark as read"
                       >
@@ -278,7 +290,7 @@ const Notifications = () => {
                       </button>
                     )}
                     <button 
-                      onClick={() => deleteNotification(notification.id)}
+                      onClick={() => handleDeleteNotification(notification.id)}
                       className="btn-icon delete"
                       title="Delete notification"
                     >

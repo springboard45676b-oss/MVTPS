@@ -4,8 +4,11 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import Header from './components/Header';
 import Navbar from './components/Navbar';
+import ProfileSidebar from './components/ProfileSidebar';
+import BackButton from './components/BackButton';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -16,6 +19,8 @@ import PortAnalytics from './pages/PortAnalytics';
 import SafetyOverlays from './pages/SafetyOverlays';
 import Analytics from './pages/Analytics';
 import Notifications from './pages/Notifications';
+import RealTimeSubscriptions from './pages/RealTimeSubscriptions';
+import VoyageReplay from './pages/VoyageReplay';
 
 function App() {
   const { user, loading } = useAuth();
@@ -32,46 +37,43 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="App">
-        {user ? <Navbar /> : <Header />}
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route 
-            path="/login" 
-            element={user ? <Navigate to="/dashboard" /> : <Login />} 
-          />
-          <Route 
-            path="/register" 
-            element={user ? <Navigate to="/dashboard" /> : <Register />} 
-          />
-          <Route 
-            path="/dashboard" 
-            element={user ? <Dashboard /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/profile" 
-            element={user ? <Profile /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/vessels" 
-            element={user ? <VesselTracking /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/ports" 
-            element={user ? <PortAnalytics /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/safety" 
-            element={user ? <SafetyOverlays /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/analytics" 
-            element={user ? <Analytics /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/notifications" 
-            element={user ? <Notifications /> : <Navigate to="/login" />} 
-          />
-        </Routes>
+        {user ? (
+          <NotificationProvider>
+            <div className="app-layout">
+              <BackButton />
+              <ProfileSidebar />
+              <Navbar />
+              <div className="main-content-wrapper">
+                <div className="main-content">
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/vessels" element={<VesselTracking />} />
+                    <Route path="/voyage-replay" element={<VoyageReplay />} />
+                    <Route path="/ports" element={<PortAnalytics />} />
+                    <Route path="/safety" element={<SafetyOverlays />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/subscriptions" element={<RealTimeSubscriptions />} />
+                    <Route path="/login" element={<Navigate to="/dashboard" />} />
+                    <Route path="/register" element={<Navigate to="/dashboard" />} />
+                  </Routes>
+                </div>
+              </div>
+            </div>
+          </NotificationProvider>
+        ) : (
+          <>
+            <Header />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+          </>
+        )}
         <ToastContainer position="top-right" />
       </div>
     </Router>

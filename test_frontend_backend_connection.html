@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend-Backend Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .credentials {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .credential-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        .credential-card:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Frontend-Backend Connection Test</h1>
+        
+        <div class="test-section info">
+            <h3>📋 Test Instructions</h3>
+            <p>This page will test the connection between your React frontend and Django backend.</p>
+            <p><strong>Make sure both servers are running:</strong></p>
+            <ul>
+                <li>Django Backend: <code>python manage.py runserver</code> (Port 8000)</li>
+                <li>React Frontend: <code>npm start</code> (Port 3000)</li>
+            </ul>
+        </div>
+
+        <div class="test-section" id="serverTest">
+            <h3>🌐 Server Connection Test</h3>
+            <button onclick="testServerConnection()">Test Backend Connection</button>
+            <div id="serverResult"></div>
+        </div>
+
+        <div class="test-section" id="loginTest">
+            <h3>🔐 Login API Test</h3>
+            <div class="credentials">
+                <div class="credential-card" onclick="testLogin('vigna', 'vigna123')">
+                    <strong>Your Account</strong><br>
+                    Username: vigna<br>
+                    Password: vigna123
+                </div>
+                <div class="credential-card" onclick="testLogin('admin', 'admin123')">
+                    <strong>Admin Account</strong><br>
+                    Username: admin<br>
+                    Password: admin123
+                </div>
+                <div class="credential-card" onclick="testLogin('operator', 'operator123')">
+                    <strong>Operator Account</strong><br>
+                    Username: operator<br>
+                    Password: operator123
+                </div>
+            </div>
+            <div id="loginResult"></div>
+        </div>
+
+        <div class="test-section" id="corsTest">
+            <h3>🔄 CORS Test</h3>
+            <button onclick="testCORS()">Test CORS Headers</button>
+            <div id="corsResult"></div>
+        </div>
+
+        <div class="test-section info">
+            <h3>💡 Troubleshooting</h3>
+            <p><strong>If tests fail:</strong></p>
+            <ul>
+                <li><strong>Connection Error:</strong> Make sure Django server is running on port 8000</li>
+                <li><strong>CORS Error:</strong> Check Django CORS settings</li>
+                <li><strong>Login Error:</strong> Verify credentials in database</li>
+                <li><strong>404 Error:</strong> Check API URL paths</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:8000';
+        
+        async function testServerConnection() {
+            const resultDiv = document.getElementById('serverResult');
+            resultDiv.innerHTML = '<p>🔄 Testing server connection...</p>';
+            
+            try {
+                // Test basic server response
+                const response = await fetch(`${BACKEND_URL}/api/auth/login/`, {
+                    method: 'OPTIONS'
+                });
+                
+                if (response.ok || response.status === 405) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Backend Server Connected</h4>
+                            <p>Django server is running and accessible</p>
+                            <p>Status: ${response.status}</p>
+                            <p>URL: ${BACKEND_URL}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>⚠️ Server Response Issue</h4>
+                            <p>Server responded with status: ${response.status}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Connection Failed</h4>
+                        <p>Cannot connect to Django backend</p>
+                        <p>Error: ${error.message}</p>
+                        <p><strong>Solution:</strong> Start Django server with: <code>python manage.py runserver</code></p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testLogin(username, password) {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.innerHTML = `<p>🔄 Testing login for ${username}...</p>`;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Login Successful for ${username}</h4>
+                            <p>User: ${data.user.username}</p>
+                            <p>Email: ${data.user.email}</p>
+                            <p>Role: ${data.user.role}</p>
+                            <p>Token: ${data.tokens.access.substring(0, 30)}...</p>
+                            <p><strong>✅ These credentials work! Use them in the React app.</strong></p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Login Failed for ${username}</h4>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Login Request Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testCORS() {
+            const resultDiv = document.getElementById('corsResult');
+            resultDiv.innerHTML = '<p>🔄 Testing CORS headers...</p>';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/login/`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'http://localhost:3000',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+                };
+                
+                const hasValidCORS = corsHeaders['Access-Control-Allow-Origin'] && 
+                                   corsHeaders['Access-Control-Allow-Methods'];
+                
+                if (hasValidCORS) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ CORS Headers Present</h4>
+                            <pre>${JSON.stringify(corsHeaders, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>⚠️ CORS Headers Missing</h4>
+                            <p>Some CORS headers may be missing</p>
+                            <pre>${JSON.stringify(corsHeaders, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ CORS Test Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Auto-run server test on page load
+        window.addEventListener('load', function() {
+            testServerConnection();
+        });
+    </script>
+</body>
+</html>

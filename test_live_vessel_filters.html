@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Vessel Filters & Subscription Test</title>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-radius: 8px;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-secondary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-danger { background: var(--danger-color); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        .live-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .data-source-info {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .map-with-filters {
+            display: flex;
+            height: 500px;
+            gap: 1rem;
+        }
+
+        .filters-sidebar {
+            flex: 0 0 300px;
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .filters-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+            flex: 1;
+        }
+
+        .filter-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        .speed-range {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .speed-range input {
+            flex: 1;
+        }
+
+        .map-container {
+            flex: 1;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background: #e8f4fd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .live-filters-demo {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .feature-highlight {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🚢 Live Vessel Filters & Subscription Demo</h1>
+            <p>Enhanced vessel tracking with real-time filtering and subscription capabilities</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <div class="live-controls">
+                <button class="btn btn-primary">Live Data</button>
+                <button class="btn btn-success">Fetch Live Data</button>
+                <button class="btn btn-success">Update Database</button>
+            </div>
+            
+            <div class="data-source-info">
+                <p><strong>Data Source:</strong> Live AIS Stream</p>
+                <p><strong>Vessels:</strong> 45 (filtered from 127)</p>
+                <p><strong>Last Updated:</strong> 2:34:12 PM</p>
+            </div>
+        </div>
+
+        <!-- New Features Demo -->
+        <div class="card">
+            <h2>🆕 New Features</h2>
+            
+            <div class="feature-highlight">
+                <strong>✅ Live Vessel Filtering:</strong> Filters now work with real-time AIS data
+            </div>
+            
+            <div class="feature-highlight">
+                <strong>✅ Speed Range Filter:</strong> Filter vessels by minimum and maximum speed
+            </div>
+            
+            <div class="feature-highlight">
+                <strong>✅ Status Filter:</strong> Filter by vessel navigation status (anchored, under way, etc.)
+            </div>
+            
+            <div class="feature-highlight">
+                <strong>✅ Live Vessel Subscriptions:</strong> Subscribe to real-time updates for live vessels
+            </div>
+            
+            <div class="feature-highlight">
+                <strong>✅ Enhanced Search:</strong> Search by vessel name or MMSI number
+            </div>
+        </div>
+
+        <!-- Map with Enhanced Filters -->
+        <div class="card">
+            <h2>Vessel Locations</h2>
+            <div class="map-with-filters">
+                <!-- Enhanced Filters Sidebar -->
+                <div class="filters-sidebar">
+                    <div class="filters-header">
+                        <h3>Filters</h3>
+                        <button class="btn btn-sm btn-outline">Clear All</button>
+                    </div>
+                    
+                    <!-- Basic Filters -->
+                    <div class="filter-group">
+                        <label>Vessel Type</label>
+                        <select class="form-control">
+                            <option value="">All Types</option>
+                            <option value="cargo" selected>Cargo Ship</option>
+                            <option value="tanker">Tanker</option>
+                            <option value="container">Container Ship</option>
+                            <option value="passenger">Passenger Ship</option>
+                            <option value="fishing">Fishing Vessel</option>
+                            <option value="military">Military Vessel</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Flag Country</label>
+                        <input type="text" class="form-control" placeholder="e.g., Panama, Liberia" value="Panama">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Search Vessel</label>
+                        <input type="text" class="form-control" placeholder="Enter vessel name or MMSI">
+                    </div>
+                    
+                    <!-- Live Data Specific Filters -->
+                    <div class="live-filters-demo">
+                        <strong>🔴 Live Data Filters</strong>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Speed Range (knots)</label>
+                        <div class="speed-range">
+                            <input type="number" class="form-control" placeholder="Min" value="5">
+                            <span>-</span>
+                            <input type="number" class="form-control" placeholder="Max" value="25">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Vessel Status</label>
+                        <select class="form-control">
+                            <option value="">All Status</option>
+                            <option value="under way using engine" selected>Under Way Using Engine</option>
+                            <option value="at anchor">At Anchor</option>
+                            <option value="not under command">Not Under Command</option>
+                            <option value="restricted manoeuvrability">Restricted Manoeuvrability</option>
+                            <option value="moored">Moored</option>
+                            <option value="aground">Aground</option>
+                            <option value="engaged in fishing">Engaged in Fishing</option>
+                            <option value="under way sailing">Under Way Sailing</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Map Container -->
+                <div class="map-container">
+                    🗺️ Interactive Map Area<br>
+                    <small>Live vessels with subscription buttons</small><br><br>
+                    
+                    <div style="text-align: left; background: rgba(255,255,255,0.9); padding: 1rem; border-radius: 8px;">
+                        <strong>Sample Live Vessel Popup:</strong><br>
+                        <strong>Name:</strong> EVER GIVEN<br>
+                        <strong>MMSI:</strong> 353136000<br>
+                        <strong>Type:</strong> Container Ship<br>
+                        <strong>Flag:</strong> Panama<br>
+                        <strong>Speed:</strong> 18.5 knots<br>
+                        <strong>Course:</strong> 045°<br>
+                        <strong>Status:</strong> Under Way Using Engine<br>
+                        <button class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Subscribe</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

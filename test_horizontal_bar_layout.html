@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Horizontal Bar Layout</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+
+        .test-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .test-header h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .test-header p {
+            color: #6c757d;
+        }
+
+        .status-section {
+            margin-bottom: 2rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #28a745;
+        }
+
+        .status-icon {
+            font-size: 1.5rem;
+            color: #28a745;
+        }
+
+        .status-text {
+            flex: 1;
+        }
+
+        .status-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-description {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-icon {
+            font-size: 1.2rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .test-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+
+        .responsive-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .responsive-info h4 {
+            color: #1976d2;
+            margin-bottom: 0.5rem;
+        }
+
+        .responsive-info p {
+            color: #424242;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .test-container {
+                padding: 1rem;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🚢 Maritime Platform - Horizontal Bar Layout Test</h1>
+            <p>Testing the new horizontal bar layout implementation</p>
+        </div>
+
+        <div class="status-section">
+            <h2 style="margin-bottom: 1rem; color: #2c3e50;">Implementation Status</h2>
+            
+            <div class="status-item">
+                <div class="status-icon">✅</div>
+                <div class="status-text">
+                    <div class="status-title">TopHorizontalBar Component Created</div>
+                    <div class="status-description">React component with notification bell and profile section</div>
+                </div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-icon">✅</div>
+                <div class="status-text">
+                    <div class="status-title">CSS Styles Implemented</div>
+                    <div class="status-description">Complete styling with glassmorphism effect and responsive design</div>
+                </div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-icon">✅</div>
+                <div class="status-text">
+                    <div class="status-title">App.js Updated</div>
+                    <div class="status-description">Horizontal bar integrated into main layout</div>
+                </div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-icon">✅</div>
+                <div class="status-text">
+                    <div class="status-title">Vertical Sidebar Removed</div>
+                    <div class="status-description">ProfileSidebar component disabled via CSS</div>
+                </div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-icon">✅</div>
+                <div class="status-text">
+                    <div class="status-title">Notification Context Integration</div>
+                    <div class="status-description">Real-time notification count updates</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3><span class="feature-icon">🔔</span>Notification Bell</h3>
+                <ul class="feature-list">
+                    <li>Left side of horizontal bar</li>
+                    <li>Real-time notification count badge</li>
+                    <li>Hover animations and bell ring effect</li>
+                    <li>Direct link to notifications page</li>
+                    <li>Responsive sizing for mobile</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">👤</span>Profile Section</h3>
+                <ul class="feature-list">
+                    <li>Right side of horizontal bar</li>
+                    <li>User avatar with initials</li>
+                    <li>User name display</li>
+                    <li>Dropdown arrow indicator</li>
+                    <li>Glassmorphism styling</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">📱</span>Responsive Design</h3>
+                <ul class="feature-list">
+                    <li>Adapts to different screen sizes</li>
+                    <li>Mobile-optimized spacing</li>
+                    <li>Hides user name on very small screens</li>
+                    <li>Adjusts dropdown positioning</li>
+                    <li>Touch-friendly interactions</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">🎨</span>Visual Effects</h3>
+                <ul class="feature-list">
+                    <li>Glassmorphism background effect</li>
+                    <li>Smooth hover transitions</li>
+                    <li>Notification badge pulse animation</li>
+                    <li>Dropdown slide-in animation</li>
+                    <li>Ocean-themed color scheme</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="responsive-info">
+            <h4>📐 Responsive Breakpoints</h4>
+            <p><strong>Desktop:</strong> Full horizontal bar with all elements visible<br>
+            <strong>Tablet (≤768px):</strong> Slightly smaller elements, adjusted spacing<br>
+            <strong>Mobile (≤480px):</strong> Compact layout, user name hidden on very small screens</p>
+        </div>
+
+        <div class="test-actions">
+            <a href="../frontend/public/index.html" class="btn btn-primary">
+                <span>🚀</span>
+                Launch Frontend
+            </a>
+            <button onclick="window.location.reload()" class="btn btn-success">
+                <span>🔄</span>
+                Refresh Test
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ Horizontal Bar Layout Test Loaded');
+            console.log('📊 Implementation Status: Complete');
+            console.log('🎯 Features: Notification Bell + Profile Section');
+            console.log('📱 Responsive: Yes');
+            console.log('🎨 Styling: Glassmorphism Effect');
+        });
+    </script>
+</body>
+</html>

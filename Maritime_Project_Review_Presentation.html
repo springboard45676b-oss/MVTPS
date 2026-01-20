@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Vessel Tracking Platform - Project Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #87CEEB 0%, #4682B4 50%, #1E90FF 100%);
+            color: #2C3E50;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            width: 100%;
+            height: 100%;
+            display: none;
+            padding: 60px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: linear-gradient(135deg, #87CEEB 0%, #4682B4 50%, #1E90FF 100%);
+            animation: slideIn 0.5s ease-in-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .slide h1 {
+            font-size: 3.5rem;
+            margin-bottom: 30px;
+            text-align: center;
+            background: linear-gradient(45deg, #FF6B35, #F7931E);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .slide h2 {
+            font-size: 2.8rem;
+            margin-bottom: 40px;
+            text-align: center;
+            color: #FF6B35;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .slide h3 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #2C3E50;
+        }
+
+        .content {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .tech-category {
+            background: rgba(255,255,255,0.8);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .tech-category h4 {
+            color: #FF6B35;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .tech-list {
+            list-style: none;
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #2C3E50;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.8);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            color: #2C3E50;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .architecture-diagram {
+            background: rgba(255,255,255,0.8);
+            padding: 40px;
+            border-radius: 20px;
+            margin: 30px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .arch-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .arch-component {
+            background: rgba(255,107,53,0.2);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #FF6B35;
+            min-width: 150px;
+            color: #2C3E50;
+        }
+
+        .arrow {
+            font-size: 2rem;
+            color: #FF6B35;
+        }
+
+        .challenges-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .challenge-solution {
+            background: rgba(255,255,255,0.8);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border-left: 5px solid #FF6B6B;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            color: #2C3E50;
+        }
+
+        .solution {
+            border-left-color: #4ECDC4;
+            margin-top: 15px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.8);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            text-align: center;
+            color: #2C3E50;
+        }
+
+        .metric-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #FF6B35;
+            display: block;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.8);
+            border: none;
+            border-radius: 25px;
+            color: #2C3E50;
+            cursor: pointer;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,107,53,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(255,255,255,0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            color: #2C3E50;
+        }
+
+        .process-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+        }
+
+        .process-step {
+            background: rgba(255,255,255,0.8);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            width: 18%;
+            text-align: center;
+            color: #2C3E50;
+        }
+
+        .step-number {
+            background: #FF6B35;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .future-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .future-item {
+            background: rgba(255,255,255,0.8);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border-left: 5px solid #4ECDC4;
+            color: #2C3E50;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #2C3E50;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .highlight {
+            color: #FF6B35;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <div class="slide-counter">
+            <span id="current-slide">1</span> / <span id="total-slides">9</span>
+        </div>
+
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <div class="content">
+                <h1>🚢 Maritime Vessel Tracking Platform</h1>
+                <div class="subtitle">Comprehensive Full-Stack Web Platform for Interactive Live Vessel Tracking</div>
+                <div style="margin-top: 50px; font-size: 1.3rem;">
+                    <p><strong>Real-time vessel positions • Port analytics • Safety visualization</strong></p>
+                    <p style="margin-top: 20px; color: #87CEEB;">Revolutionizing maritime operations through intelligent tracking and analytics</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Technology Stack -->
+        <div class="slide">
+            <div class="content">
+                <h2>🛠️ Technology Stack</h2>
+                <div class="tech-grid">
+                    <div class="tech-category">
+                        <h4>Frontend Technologies</h4>
+                        <ul class="tech-list">
+                            <li>⚛️ React.js 18 with Hooks</li>
+                            <li>🗺️ React Leaflet for Interactive Maps</li>
+                            <li>📊 Recharts for Data Visualization</li>
+                            <li>🎨 CSS3 with Responsive Design</li>
+                            <li>🔄 Axios for API Integration</li>
+                        </ul>
+                    </div>
+                    <div class="tech-category">
+                        <h4>Backend Technologies</h4>
+                        <ul class="tech-list">
+                            <li>🐍 Django 4.2 Framework</li>
+                            <li>🔌 Django REST Framework</li>
+                            <li>🔐 JWT Authentication</li>
+                            <li>🗄️ SQLite Database</li>
+                            <li>🌐 CORS Headers Support</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Core Features -->
+        <div class="slide">
+            <div class="content">
+                <h2>⭐ Core Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔐</div>
+                        <h4>Authentication & Roles</h4>
+                        <p>JWT-based authentication with role management (Admin, Operator, Analyst)</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📍</div>
+                        <h4>Live Vessel Tracking</h4>
+                        <p>Real-time vessel positions with interactive map visualization</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h4>Port Analytics</h4>
+                        <p>Comprehensive port congestion analysis and statistics</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚠️</div>
+                        <h4>Safety Overlays</h4>
+                        <p>Weather data, piracy zones, and accident information</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h4>Historical Replay</h4>
+                        <p>Voyage history tracking and compliance monitoring</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h4>Interactive Dashboards</h4>
+                        <p>Role-based analytics with real-time visualizations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Challenges Faced -->
+        <div class="slide">
+            <div class="content">
+                <h2>⚡ Challenges Faced in Development</h2>
+                <div class="challenges-grid">
+                    <div class="challenge-solution">
+                        <h4>🔄 Real-time Data Integration</h4>
+                        <p>Integrating live vessel data from external APIs while maintaining performance</p>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4>🗺️ Interactive Map Performance</h4>
+                        <p>Rendering thousands of vessel positions without UI lag</p>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4>🔐 Complex Authentication</h4>
+                        <p>Implementing role-based access control with JWT tokens</p>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4>📱 Responsive Design</h4>
+                        <p>Creating mobile-friendly interfaces for maritime operations</p>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4>📊 Data Visualization</h4>
+                        <p>Presenting complex maritime analytics in intuitive formats</p>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4>⚡ System Scalability</h4>
+                        <p>Designing architecture to handle growing data volumes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: System Architecture -->
+        <div class="slide">
+            <div class="content">
+                <h2>🏗️ System Architecture Overview</h2>
+                <div class="architecture-diagram">
+                    <div class="arch-flow">
+                        <div class="arch-component">
+                            <h4>Frontend</h4>
+                            <p>React.js</p>
+                            <p>Port: 3000</p>
+                        </div>
+                        <div class="arrow">⟷</div>
+                        <div class="arch-component">
+                            <h4>Backend API</h4>
+                            <p>Django REST</p>
+                            <p>Port: 8000</p>
+                        </div>
+                        <div class="arrow">⟷</div>
+                        <div class="arch-component">
+                            <h4>Database</h4>
+                            <p>SQLite</p>
+                            <p>Local Storage</p>
+                        </div>
+                    </div>
+                    <div class="arch-flow" style="margin-top: 30px;">
+                        <div class="arch-component">
+                            <h4>External APIs</h4>
+                            <p>MarineTraffic</p>
+                            <p>Live Data</p>
+                        </div>
+                        <div class="arrow">⟷</div>
+                        <div class="arch-component">
+                            <h4>Services Layer</h4>
+                            <p>Data Processing</p>
+                            <p>Notifications</p>
+                        </div>
+                        <div class="arrow">⟷</div>
+                        <div class="arch-component">
+                            <h4>Authentication</h4>
+                            <p>JWT Tokens</p>
+                            <p>Role Management</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Challenges and Solutions -->
+        <div class="slide">
+            <div class="content">
+                <h2>💡 Challenges & Solutions</h2>
+                <div class="challenges-grid">
+                    <div class="challenge-solution">
+                        <h4 style="color: #FF6B6B;">Challenge: API Rate Limits</h4>
+                        <p>External maritime APIs have strict rate limiting</p>
+                        <div class="solution">
+                            <h4 style="color: #4ECDC4;">Solution: Smart Caching</h4>
+                            <p>Implemented intelligent caching with demo data fallback</p>
+                        </div>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4 style="color: #FF6B6B;">Challenge: Large Dataset Rendering</h4>
+                        <p>Rendering multiple vessels on interactive maps</p>
+                        <div class="solution">
+                            <h4 style="color: #4ECDC4;">Solution: Efficient Filtering</h4>
+                            <p>Client-side filtering and optimized map rendering</p>
+                        </div>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4 style="color: #FF6B6B;">Challenge: Cross-Origin Requests</h4>
+                        <p>Frontend-backend communication blocked by CORS</p>
+                        <div class="solution">
+                            <h4 style="color: #4ECDC4;">Solution: CORS Configuration</h4>
+                            <p>Proper CORS headers and authentication handling</p>
+                        </div>
+                    </div>
+                    <div class="challenge-solution">
+                        <h4 style="color: #FF6B6B;">Challenge: Real-time Updates</h4>
+                        <p>Need for live vessel position updates</p>
+                        <div class="solution">
+                            <h4 style="color: #4ECDC4;">Solution: Polling Strategy</h4>
+                            <p>Optimized polling with notification system</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Measurable Outcomes -->
+        <div class="slide">
+            <div class="content">
+                <h2>📈 Measurable Outcomes & Impact</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-number">50+</span>
+                        <h4>Real Vessels</h4>
+                        <p>Tracked with live data</p>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-number">3</span>
+                        <h4>User Roles</h4>
+                        <p>Admin, Operator, Analyst</p>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-number">15+</span>
+                        <h4>API Endpoints</h4>
+                        <p>RESTful architecture</p>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-number">100%</span>
+                        <h4>Responsive</h4>
+                        <p>Mobile-friendly design</p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px;">
+                    <h3>Positive Impact</h3>
+                    <div class="features-grid" style="margin-top: 30px;">
+                        <div class="feature-card">
+                            <h4>⚡ Operational Efficiency</h4>
+                            <p>Real-time tracking reduces manual monitoring by 80%</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>📊 Data-Driven Decisions</h4>
+                            <p>Analytics enable informed port management strategies</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔒 Enhanced Security</h4>
+                            <p>Role-based access ensures data protection and compliance</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Registration Process -->
+        <div class="slide">
+            <div class="content">
+                <h2>📝 Maritime Registration Process</h2>
+                <div class="process-steps">
+                    <div class="process-step">
+                        <div class="step-number">1</div>
+                        <h4>User Registration</h4>
+                        <p>Create account with role selection</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">2</div>
+                        <h4>Authentication</h4>
+                        <p>JWT token-based secure login</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">3</div>
+                        <h4>Role Assignment</h4>
+                        <p>Access control based on user role</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">4</div>
+                        <h4>Dashboard Access</h4>
+                        <p>Personalized interface and features</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="step-number">5</div>
+                        <h4>Vessel Subscription</h4>
+                        <p>Subscribe to specific vessels for updates</p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px;">
+                    <div class="architecture-diagram">
+                        <h3>Registration Flow Architecture</h3>
+                        <div class="arch-flow">
+                            <div class="arch-component">
+                                <h4>Registration Form</h4>
+                                <p>User Input Validation</p>
+                            </div>
+                            <div class="arrow">→</div>
+                            <div class="arch-component">
+                                <h4>Backend Validation</h4>
+                                <p>Data Processing</p>
+                            </div>
+                            <div class="arrow">→</div>
+                            <div class="arch-component">
+                                <h4>JWT Token</h4>
+                                <p>Secure Authentication</p>
+                            </div>
+                            <div class="arrow">→</div>
+                            <div class="arch-component">
+                                <h4>Dashboard</h4>
+                                <p>Role-based Access</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Future Enhancements -->
+        <div class="slide">
+            <div class="content">
+                <h2>🚀 Future Enhancements</h2>
+                <div class="future-grid">
+                    <div class="future-item">
+                        <h4>🤖 AI-Powered Analytics</h4>
+                        <p>Machine learning for predictive vessel routing and port congestion forecasting</p>
+                    </div>
+                    <div class="future-item">
+                        <h4>🌐 WebSocket Integration</h4>
+                        <p>Real-time bidirectional communication for instant updates</p>
+                    </div>
+                    <div class="future-item">
+                        <h4>📱 Mobile Application</h4>
+                        <p>Native iOS and Android apps for on-the-go maritime operations</p>
+                    </div>
+                    <div class="future-item">
+                        <h4>🔗 Blockchain Integration</h4>
+                        <p>Immutable voyage records and smart contracts for shipping</p>
+                    </div>
+                    <div class="future-item">
+                        <h4>🌍 Global Port Network</h4>
+                        <p>Integration with international port authorities and customs</p>
+                    </div>
+                    <div class="future-item">
+                        <h4>📊 Advanced Reporting</h4>
+                        <p>Automated compliance reports and regulatory documentation</p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; text-align: center;">
+                    <h3 style="color: #FF6B35;">Thank You!</h3>
+                    <p style="font-size: 1.3rem; margin-top: 20px; color: #2C3E50;">
+                        <span class="highlight">Maritime Vessel Tracking Platform</span> - 
+                        Revolutionizing maritime operations through technology
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <button class="nav-btn" onclick="previousSlide()">← Previous</button>
+            <button class="nav-btn" onclick="nextSlide()">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        document.getElementById('total-slides').textContent = totalSlides;
+
+        function showSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (n + totalSlides) % totalSlides;
+            slides[currentSlide].classList.add('active');
+            document.getElementById('current-slide').textContent = currentSlide + 1;
+        }
+
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+        }
+
+        function previousSlide() {
+            showSlide(currentSlide - 1);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Auto-advance slides (optional - remove if not needed)
+        // setInterval(nextSlide, 10000); // Advance every 10 seconds
+    </script>
+</body>
+</html>

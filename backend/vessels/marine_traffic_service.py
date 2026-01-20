@@ -1,6 +1,6 @@
 """
 MarineTraffic API Integration Service
-Fetches live vessel data from MarineTraffic API
+Fetches live vessel data from MarineTraffic API and AIS Stream
 """
 
 import requests
@@ -8,49 +8,129 @@ import json
 from datetime import datetime, timedelta
 from django.conf import settings
 from .models import Vessel, VesselPosition
+from .aisstream_service import aisstream_service
 
 class MarineTrafficService:
     def __init__(self):
         # You need to get API key from https://www.marinetraffic.com/en/ais-api-services
         self.api_key = getattr(settings, 'MARINE_TRAFFIC_API_KEY', None)
         self.base_url = "https://services.marinetraffic.com/api"
+        self.use_aisstream = getattr(settings, 'AISSTREAM_API_KEY', None) is not None
         
     def get_live_vessels(self, bounds=None):
         """
-        Fetch live vessel data from MarineTraffic API
+        Fetch live vessel data from AIS Stream (preferred) or MarineTraffic API
         bounds: dict with minlat, maxlat, minlon, maxlon
         """
-        if not self.api_key:
-            print("MarineTraffic API key not configured. Using demo data.")
-            return self._get_demo_live_data()
+        # Try AIS Stream first if available
+        if self.use_aisstream:
+            try:
+                return self._get_aisstream_data(bounds)
+            except Exception as e:
+                print(f"AIS Stream error, falling back to database: {e}")
         
+        # Fallback to MarineTraffic or database data
+        if self.api_key:
+            try:
+                return self._get_marinetraffic_data(bounds)
+            except Exception as e:
+                print(f"MarineTraffic error, using database data: {e}")
+        
+        print("No API keys working. Using database vessels.")
+        return self._get_recent_database_vessels(bounds)
+    
+    def _get_aisstream_data(self, bounds=None):
+        """Get data from AIS Stream service"""
+        # Start streaming if not already running
+        if not aisstream_service.is_streaming():
+            aisstream_service.start_streaming(bounds)
+        
+        # Get cached vessel data
+        cached_vessels = aisstream_service.get_cached_vessels()
+        
+        if cached_vessels:
+            return cached_vessels
+        
+        # If no cached data, get recent data from database
+        return self._get_recent_database_vessels(bounds)
+    
+    def _get_recent_database_vessels(self, bounds=None):
+        """Get recent vessel data from database"""
         try:
-            # API endpoint for vessel positions
-            url = f"{self.base_url}/exportvessels/v:8/{self.api_key}"
+            # Get vessels updated in the last 24 hours (extended for demo data)
+            cutoff_time = datetime.now() - timedelta(hours=24)
             
-            params = {
-                'protocol': 'jsono',
-                'msgtype': 'simple',
-                'timespan': 10,  # Last 10 minutes
-            }
+            # Build query
+            positions = VesselPosition.objects.filter(
+                timestamp__gte=cutoff_time
+            ).select_related('vessel')
             
+            # If no recent positions, get all vessels with their latest positions
+            if not positions.exists():
+                positions = VesselPosition.objects.select_related('vessel')
+            
+            # Apply bounds filter if specified
             if bounds:
-                params.update({
-                    'minlat': bounds.get('minlat', -90),
-                    'maxlat': bounds.get('maxlat', 90),
-                    'minlon': bounds.get('minlon', -180),
-                    'maxlon': bounds.get('maxlon', 180),
-                })
+                positions = positions.filter(
+                    latitude__gte=bounds.get('minlat', -90),
+                    latitude__lte=bounds.get('maxlat', 90),
+                    longitude__gte=bounds.get('minlon', -180),
+                    longitude__lte=bounds.get('maxlon', 180),
+                )
             
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
+            # Get latest position for each vessel
+            vessels = []
+            seen_vessels = set()
             
-            data = response.json()
-            return self._process_marine_traffic_data(data)
+            for position in positions.order_by('-timestamp'):
+                if position.vessel.mmsi not in seen_vessels:
+                    vessels.append({
+                        'mmsi': position.vessel.mmsi,
+                        'name': position.vessel.name,
+                        'latitude': float(position.latitude),
+                        'longitude': float(position.longitude),
+                        'speed': float(position.speed),
+                        'course': float(position.course),
+                        'heading': float(position.heading),
+                        'status': position.status,
+                        'vessel_type': position.vessel.vessel_type,
+                        'flag': getattr(position.vessel, 'flag', 'Unknown'),
+                        'length': getattr(position.vessel, 'length', 0),
+                        'width': getattr(position.vessel, 'width', 0),
+                        'timestamp': position.timestamp,
+                    })
+                    seen_vessels.add(position.vessel.mmsi)
+            
+            return vessels
             
         except Exception as e:
-            print(f"Error fetching MarineTraffic data: {e}")
-            return self._get_demo_live_data()
+            print(f"Error getting database vessels: {e}")
+            return []
+    
+    def _get_marinetraffic_data(self, bounds):
+        """Get data from MarineTraffic API"""
+        # API endpoint for vessel positions
+        url = f"{self.base_url}/exportvessels/v:8/{self.api_key}"
+        
+        params = {
+            'protocol': 'jsono',
+            'msgtype': 'simple',
+            'timespan': 10,  # Last 10 minutes
+        }
+        
+        if bounds:
+            params.update({
+                'minlat': bounds.get('minlat', -90),
+                'maxlat': bounds.get('maxlat', 90),
+                'minlon': bounds.get('minlon', -180),
+                'maxlon': bounds.get('maxlon', 180),
+            })
+        
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        return self._process_marine_traffic_data(data)
     
     def _process_marine_traffic_data(self, data):
         """Process MarineTraffic API response"""
@@ -188,6 +268,12 @@ class MarineTrafficService:
         """
         Fetch live data and update vessel positions in database
         """
+        # If using AIS Stream, start the streaming service
+        if self.use_aisstream and not aisstream_service.is_streaming():
+            aisstream_service.start_streaming(bounds)
+            return 0  # AIS Stream updates continuously
+        
+        # Otherwise use traditional API approach
         live_vessels = self.get_live_vessels(bounds)
         updated_count = 0
         
@@ -199,7 +285,7 @@ class MarineTrafficService:
                     defaults={
                         'name': vessel_data['name'],
                         'vessel_type': vessel_data['vessel_type'],
-                        'flag': vessel_data['flag'],
+                        'flag': vessel_data.get('flag', 'Unknown'),
                         'length': vessel_data.get('length', 0),
                         'width': vessel_data.get('width', 0),
                     }
@@ -224,6 +310,34 @@ class MarineTrafficService:
                 continue
         
         return updated_count
+    
+    def get_streaming_status(self):
+        """Get status of AIS streaming"""
+        if self.use_aisstream:
+            return {
+                'aisstream_enabled': True,
+                'is_streaming': aisstream_service.is_streaming(),
+                'cached_vessels': len(aisstream_service.get_cached_vessels())
+            }
+        return {
+            'aisstream_enabled': False,
+            'is_streaming': False,
+            'cached_vessels': 0
+        }
+    
+    def start_ais_streaming(self, bounds=None):
+        """Start AIS streaming service"""
+        if self.use_aisstream:
+            aisstream_service.start_streaming(bounds)
+            return True
+        return False
+    
+    def stop_ais_streaming(self):
+        """Stop AIS streaming service"""
+        if self.use_aisstream:
+            aisstream_service.stop_streaming()
+            return True
+        return False
 
 # Global instance
 marine_traffic_service = MarineTrafficService()

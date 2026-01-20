@@ -64,70 +64,44 @@ const PortAnalytics = () => {
   }
 
   return (
-    <div className="container" style={{ marginTop: '30px' }}>
-      <h1>Port Analytics</h1>
+    <div className="container" style={{ paddingTop: '0.5rem' }}>
+      <div className="page-header" style={{ marginBottom: '0.5rem' }}>
+        <h1 style={{ fontSize: '1.8rem', marginBottom: '0.25rem' }}>Port Analytics</h1>
+        <p style={{ fontSize: '0.9rem', margin: '0' }}>Monitor port congestion and traffic patterns worldwide</p>
+      </div>
 
       {/* Filters */}
       <div className="card">
-        <h3>Filters</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Search Ports</label>
+            <input
+              type="text"
+              name="search"
+              className="form-control"
+              placeholder="Search by port name..."
+              value={filters.search}
+              onChange={handleFilterChange}
+            />
+          </div>
           <div className="form-group">
             <label>Country</label>
             <input
               type="text"
               name="country"
               className="form-control"
-              placeholder="Enter country name"
+              placeholder="Filter by country..."
               value={filters.country}
               onChange={handleFilterChange}
             />
-          </div>
-
-          <div className="form-group">
-            <label>Search</label>
-            <input
-              type="text"
-              name="search"
-              className="form-control"
-              placeholder="Search port name"
-              value={filters.search}
-              onChange={handleFilterChange}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Congestion Legend */}
-      <div className="card">
-        <h3>Congestion Levels</h3>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'green', borderRadius: '50%' }}></div>
-            <span>Low</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'yellow', borderRadius: '50%' }}></div>
-            <span>Medium</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'orange', borderRadius: '50%' }}></div>
-            <span>High</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'red', borderRadius: '50%' }}></div>
-            <span>Critical</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'gray', borderRadius: '50%' }}></div>
-            <span>No Data</span>
           </div>
         </div>
       </div>
 
       {/* Map */}
       <div className="card">
-        <h3>Port Locations & Congestion</h3>
-        <div style={{ height: '500px', width: '100%' }}>
+        <h2>Port Locations</h2>
+        <div style={{ height: '400px', width: '100%' }}>
           <MapContainer
             center={[20, 0]}
             zoom={2}
@@ -167,60 +141,69 @@ const PortAnalytics = () => {
         </div>
       </div>
 
+      {/* Statistics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon">🏗️</div>
+          <div className="metric-content">
+            <div className="metric-number">{ports.length}</div>
+            <div className="metric-label">Total Ports</div>
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-icon">🚨</div>
+          <div className="metric-content">
+            <div className="metric-number">
+              {ports.filter(p => p.latest_congestion?.congestion_level === 'critical').length}
+            </div>
+            <div className="metric-label">Critical Congestion</div>
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-icon">⚠️</div>
+          <div className="metric-content">
+            <div className="metric-number">
+              {ports.filter(p => p.latest_congestion?.congestion_level === 'high').length}
+            </div>
+            <div className="metric-label">High Congestion</div>
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-icon">✅</div>
+          <div className="metric-content">
+            <div className="metric-number">
+              {ports.filter(p => p.latest_congestion?.congestion_level === 'low').length}
+            </div>
+            <div className="metric-label">Low Congestion</div>
+          </div>
+        </div>
+      </div>
+
       {/* Port List */}
       <div className="card">
-        <h3>Port List ({ports.length} ports)</h3>
-        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          {ports.length === 0 ? (
-            <p>No ports found matching your criteria.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {ports.map((port) => (
-                <div
-                  key={port.id}
-                  style={{
-                    padding: '15px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto',
-                    alignItems: 'center',
-                  }}
-                >
+        <h2>Port Details ({ports.length} ports)</h2>
+        {ports.length === 0 ? (
+          <p>No ports found matching your criteria.</p>
+        ) : (
+          <div className="features-grid">
+            {ports.map((port) => (
+              <div key={port.id} className="feature-card">
+                <h3>{port.name}</h3>
+                <p><strong>Code:</strong> {port.code}</p>
+                <p><strong>Country:</strong> {port.country}</p>
+                {port.latest_congestion ? (
                   <div>
-                    <h4>{port.name} ({port.code})</h4>
-                    <p>
-                      <strong>Country:</strong> {port.country} |{' '}
-                      <strong>Coordinates:</strong> {port.latitude.toFixed(4)}, {port.longitude.toFixed(4)}
-                    </p>
-                    {port.latest_congestion ? (
-                      <p>
-                        <strong>Congestion:</strong> {port.latest_congestion.congestion_level} |{' '}
-                        <strong>Waiting Vessels:</strong> {port.latest_congestion.vessels_waiting} |{' '}
-                        <strong>Avg Wait:</strong> {port.latest_congestion.average_wait_time.toFixed(1)}h
-                      </p>
-                    ) : (
-                      <p><em>No congestion data available</em></p>
-                    )}
+                    <p><strong>Congestion:</strong> {port.latest_congestion.congestion_level}</p>
+                    <p><strong>Waiting:</strong> {port.latest_congestion.vessels_waiting} vessels</p>
+                    <p><strong>Wait Time:</strong> {port.latest_congestion.average_wait_time.toFixed(1)} hours</p>
                   </div>
-                  <div>
-                    <div
-                      style={{
-                        width: '30px',
-                        height: '30px',
-                        backgroundColor: getCongestionColor(port.latest_congestion?.congestion_level),
-                        borderRadius: '50%',
-                        border: '2px solid white',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                      title={port.latest_congestion?.congestion_level || 'No data'}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ) : (
+                  <p><em>No congestion data</em></p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

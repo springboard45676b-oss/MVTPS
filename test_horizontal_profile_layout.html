@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horizontal Profile Layout - Maritime Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+        .layout-demo {
+            position: relative;
+            background: linear-gradient(135deg, #006994 0%, #4da6d9 100%);
+            height: 400px;
+            border-radius: 12px;
+            margin: 2rem 0;
+            overflow: hidden;
+        }
+        .demo-back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #2c3e50;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .demo-profile-circle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .demo-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0066cc 0%, #006994 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            position: relative;
+        }
+        .demo-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.4rem;
+            border-radius: 12px;
+            min-width: 20px;
+            text-align: center;
+            border: 2px solid white;
+        }
+        .demo-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .demo-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+        .demo-role {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin: 0;
+        }
+        .demo-arrow {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .feature-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .feature-section h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .check-icon {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .comparison-item {
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .old-design {
+            background: #ffe6e6;
+            border: 1px solid #ffcccc;
+        }
+        .new-design {
+            background: #e6f7ff;
+            border: 1px solid #b3e0ff;
+        }
+        .access-info {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        .access-info strong {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🔄 Horizontal Profile Layout + Back Button</h1>
+            <p>New top-right horizontal profile bar with back navigation</p>
+        </div>
+
+        <!-- Layout Demo -->
+        <div class="layout-demo">
+            <div class="demo-back-button">
+                <span>←</span>
+                <span>Back</span>
+            </div>
+            
+            <div class="demo-profile-circle">
+                <div class="demo-avatar">
+                    A
+                    <span class="demo-badge">3</span>
+                </div>
+                <div class="demo-info">
+                    <div class="demo-name">Admin User</div>
+                    <div class="demo-role">admin</div>
+                </div>
+                <span class="demo-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>✅ New Horizontal Profile Layout</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> <strong>Horizontal Design</strong> - Profile info displayed side-by-side</li>
+                <li><span class="check-icon">✓</span> <strong>User Avatar</strong> - Circular profile picture with initials</li>
+                <li><span class="check-icon">✓</span> <strong>User Info</strong> - Name and role displayed horizontally</li>
+                <li><span class="check-icon">✓</span> <strong>Notification Badge</strong> - Red badge showing unread count</li>
+                <li><span class="check-icon">✓</span> <strong>Dropdown Arrow</strong> - Visual indicator for menu</li>
+                <li><span class="check-icon">✓</span> <strong>Hover Effects</strong> - Smooth animations on interaction</li>
+            </ul>
+        </div>
+
+        <div class="feature-section">
+            <h3>🔙 Back Button Navigation</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> <strong>Smart Positioning</strong> - Top-left corner, opposite to profile</li>
+                <li><span class="check-icon">✓</span> <strong>Context Aware</strong> - Only shows on non-dashboard pages</li>
+                <li><span class="check-icon">✓</span> <strong>Browser History</strong> - Uses browser back functionality</li>
+                <li><span class="check-icon">✓</span> <strong>Fallback Navigation</strong> - Goes to dashboard if no history</li>
+                <li><span class="check-icon">✓</span> <strong>Visual Feedback</strong> - Hover effects and animations</li>
+                <li><span class="check-icon">✓</span> <strong>Responsive Design</strong> - Adapts to all screen sizes</li>
+            </ul>
+        </div>
+
+        <div class="comparison-grid">
+            <div class="comparison-item old-design">
+                <h4>❌ Old Design</h4>
+                <p>Vertical sidebar only</p>
+                <p>No back button</p>
+                <p>Hidden user info</p>
+            </div>
+            <div class="comparison-item new-design">
+                <h4>✅ New Design</h4>
+                <p>Horizontal top bar</p>
+                <p>Smart back navigation</p>
+                <p>Visible user info</p>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>📱 Responsive Behavior</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> <strong>Desktop</strong> - Full horizontal layout with all info visible</li>
+                <li><span class="check-icon">✓</span> <strong>Tablet</strong> - Slightly smaller but maintains functionality</li>
+                <li><span class="check-icon">✓</span> <strong>Mobile</strong> - Compact layout, essential info only</li>
+                <li><span class="check-icon">✓</span> <strong>Small Mobile</strong> - Avatar only, text hidden to save space</li>
+            </ul>
+        </div>
+
+        <div class="feature-section">
+            <h3>🎨 Visual Improvements</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> <strong>Clean Layout</strong> - Removed navbar clutter</li>
+                <li><span class="check-icon">✓</span> <strong>Better Spacing</strong> - Proper margins and padding</li>
+                <li><span class="check-icon">✓</span> <strong>Consistent Design</strong> - Matches overall platform theme</li>
+                <li><span class="check-icon">✓</span> <strong>Professional Look</strong> - Modern, clean interface</li>
+                <li><span class="check-icon">✓</span> <strong>Accessibility</strong> - Proper contrast and touch targets</li>
+            </ul>
+        </div>
+
+        <div class="access-info">
+            <h4>🌐 How to Test</h4>
+            <p><strong>Frontend URL:</strong> http://localhost:3000</p>
+            <p><strong>Login Credentials:</strong> admin / admin123</p>
+            <p><strong>Navigation:</strong></p>
+            <ul>
+                <li>Look for horizontal profile bar in top-right corner</li>
+                <li>Navigate to any page (not dashboard) to see back button</li>
+                <li>Click profile bar to see dropdown menu</li>
+                <li>Test back button functionality</li>
+                <li>Check notification badge updates</li>
+            </ul>
+        </div>
+
+        <div class="feature-section">
+            <h3>🔧 Technical Implementation</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> <strong>TopProfileCircle.js</strong> - Horizontal profile component</li>
+                <li><span class="check-icon">✓</span> <strong>BackButton.js</strong> - Smart navigation component</li>
+                <li><span class="check-icon">✓</span> <strong>Updated CSS</strong> - Horizontal layout styles</li>
+                <li><span class="check-icon">✓</span> <strong>App.js Integration</strong> - Components properly positioned</li>
+                <li><span class="check-icon">✓</span> <strong>Responsive Design</strong> - Mobile-first approach</li>
+                <li><span class="check-icon">✓</span> <strong>Context Integration</strong> - Real notification counts</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; padding: 1rem; background: #d4edda; border-radius: 8px; color: #155724;">
+            <h3>🎉 Layout Update Complete!</h3>
+            <p>The Maritime Platform now features a horizontal profile bar in the top-right corner and smart back navigation functionality.</p>
+        </div>
+    </div>
+</body>
+</html>

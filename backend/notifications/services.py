@@ -254,6 +254,113 @@ class NotificationService:
         r = 6371
         
         return c * r
+    
+    @staticmethod
+    def notify_realtime_subscription_created(user, subscription):
+        """Notify user about successful real-time data subscription"""
+        title = f"Real-time Data Subscription Created"
+        
+        if subscription.subscription_type == 'global':
+            message = f"You are now subscribed to global real-time vessel data updates."
+        elif subscription.subscription_type == 'region':
+            message = f"You are now subscribed to regional real-time vessel data updates."
+        else:
+            vessel_count = subscription.vessels.count()
+            message = f"You are now subscribed to real-time updates for {vessel_count} specific vessels."
+        
+        NotificationService.create_notification(
+            user=user,
+            vessel=None,
+            notification_type='subscription',
+            title=title,
+            message=message,
+            priority='low',
+            data={
+                'subscription_type': subscription.subscription_type,
+                'subscription_id': subscription.id,
+                'action': 'created'
+            }
+        )
+    
+    @staticmethod
+    def notify_realtime_subscription_updated(user, subscription):
+        """Notify user about real-time subscription update"""
+        title = f"Real-time Subscription Updated"
+        message = f"Your {subscription.subscription_type} real-time data subscription has been updated."
+        
+        NotificationService.create_notification(
+            user=user,
+            vessel=None,
+            notification_type='subscription',
+            title=title,
+            message=message,
+            priority='low',
+            data={
+                'subscription_type': subscription.subscription_type,
+                'subscription_id': subscription.id,
+                'action': 'updated'
+            }
+        )
+    
+    @staticmethod
+    def notify_realtime_subscription_deleted(user):
+        """Notify user about real-time subscription deletion"""
+        title = f"Real-time Subscription Deleted"
+        message = f"Your real-time data subscription has been deleted."
+        
+        NotificationService.create_notification(
+            user=user,
+            vessel=None,
+            notification_type='subscription',
+            title=title,
+            message=message,
+            priority='low',
+            data={
+                'action': 'deleted'
+            }
+        )
+    
+    @staticmethod
+    def notify_realtime_subscription_toggled(user, subscription, is_active):
+        """Notify user about real-time subscription toggle"""
+        status = 'activated' if is_active else 'deactivated'
+        title = f"Real-time Subscription {status.title()}"
+        message = f"Your {subscription.subscription_type} real-time data subscription has been {status}."
+        
+        NotificationService.create_notification(
+            user=user,
+            vessel=None,
+            notification_type='subscription',
+            title=title,
+            message=message,
+            priority='low',
+            data={
+                'subscription_type': subscription.subscription_type,
+                'subscription_id': subscription.id,
+                'action': status,
+                'is_active': is_active
+            }
+        )
+    
+    @staticmethod
+    def notify_realtime_data_update(user, vessels_updated, update_source='AIS Stream'):
+        """Notify user about real-time data updates"""
+        title = f"Real-time Data Update"
+        message = f"Received updates for {vessels_updated} vessels from {update_source}."
+        
+        NotificationService.create_notification(
+            user=user,
+            vessel=None,
+            notification_type='data_update',
+            title=title,
+            message=message,
+            priority='low',
+            data={
+                'vessels_updated': vessels_updated,
+                'update_source': update_source,
+                'timestamp': timezone.now().isoformat()
+            }
+        )
 
 # Global instance
 notification_service = NotificationService()

@@ -123,3 +123,6 @@ AUTH_USER_MODEL = 'authentication.User'
 
 # MarineTraffic API Configuration
 MARINE_TRAFFIC_API_KEY = config('MARINE_TRAFFIC_API_KEY', default=None)
+
+# AIS Stream API Configuration
+AISSTREAM_API_KEY = config('AISSTREAM_API_KEY', default='698798e83f0d53e62fe9db32313677f5ed6eeb45')

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Voyage Tracking Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-radius: 8px;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-secondary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-danger { background: var(--danger-color); color: white; }
+        .btn-warning { background: var(--warning-color); color: #212529; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .feature-card {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .feature-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--primary-color);
+        }
+
+        .connection-status {
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+        }
+
+        .connection-status.connected {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+
+        .tracking-demo {
+            display: flex;
+            gap: 1rem;
+            height: 600px;
+        }
+
+        .tracking-sidebar {
+            flex: 0 0 350px;
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            overflow-y: auto;
+        }
+
+        .map-demo {
+            flex: 1;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .tracking-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 68, 68, 0.9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+        }
+
+        .tracked-vessel {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .tracked-vessel h5 {
+            margin: 0 0 0.5rem 0;
+            color: var(--primary-color);
+        }
+
+        .vessel-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .notification-demo {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .notification-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            margin: 0.5rem 0;
+            border-left: 4px solid #ffc107;
+        }
+
+        .voyage-path {
+            stroke: #ff4444;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 5,5;
+            animation: dash 20s linear infinite;
+        }
+
+        @keyframes dash {
+            to { stroke-dashoffset: -100; }
+        }
+
+        .destination-marker {
+            width: 20px;
+            height: 20px;
+            background: var(--success-color);
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .live-updates {
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .update-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .timestamp {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🚢 Live Voyage Tracking System</h1>
+            <p>Real-time vessel tracking with live path updates and destination notifications</p>
+            
+            <div class="connection-status connected">
+                🟢 WebSocket Connected
+            </div>
+        </div>
+
+        <!-- New Features Overview -->
+        <div class="card">
+            <h2>🆕 Live Tracking Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🛤️ Live Voyage Paths</h4>
+                    <p>Real-time tracking of vessel movements with animated path visualization</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎯 Destination Detection</h4>
+                    <p>Automatic destination estimation and arrival notifications</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔔 Smart Notifications</h4>
+                    <p>Browser notifications and toast alerts for important events</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📡 WebSocket Integration</h4>
+                    <p>Real-time data streaming for instant position updates</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Tracking Demo -->
+        <div class="card">
+            <h2>Live Tracking Dashboard</h2>
+            <div class="tracking-demo">
+                <!-- Tracking Sidebar -->
+                <div class="tracking-sidebar">
+                    <h3>🎯 Tracked Vessels</h3>
+                    
+                    <div class="tracked-vessel">
+                        <h5>EVER GIVEN</h5>
+                        <p><strong>MMSI:</strong> 353136000</p>
+                        <div class="vessel-status">
+                            <span>Status: Under Way</span>
+                            <div class="status-indicator"></div>
+                        </div>
+                        <p><strong>Speed:</strong> 18.5 knots</p>
+                        <p><strong>Course:</strong> 045°</p>
+                        <p><strong>ETA:</strong> ~16 hours</p>
+                        <button class="btn btn-danger btn-sm">Stop Tracking</button>
+                    </div>
+
+                    <div class="tracked-vessel">
+                        <h5>MSC OSCAR</h5>
+                        <p><strong>MMSI:</strong> 229767000</p>
+                        <div class="vessel-status">
+                            <span>Status: At Anchor</span>
+                            <div class="status-indicator" style="background: var(--warning-color);"></div>
+                        </div>
+                        <p><strong>Speed:</strong> 0.2 knots</p>
+                        <p><strong>Course:</strong> 180°</p>
+                        <p><strong>ETA:</strong> Anchored</p>
+                        <button class="btn btn-danger btn-sm">Stop Tracking</button>
+                    </div>
+
+                    <div class="live-updates">
+                        <h4>📡 Live Updates</h4>
+                        <div class="update-item">
+                            <span>🚢</span>
+                            <span>EVER GIVEN position updated</span>
+                            <span class="timestamp">2s ago</span>
+                        </div>
+                        <div class="update-item">
+                            <span>⚓</span>
+                            <span>MSC OSCAR dropped anchor</span>
+                            <span class="timestamp">1m ago</span>
+                        </div>
+                        <div class="update-item">
+                            <span>🎯</span>
+                            <span>MAERSK ESSEX approaching destination</span>
+                            <span class="timestamp">3m ago</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Demo -->
+                <div class="map-demo">
+                    <div class="tracking-indicator">
+                        🔴 LIVE • 2 vessels tracked
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Demo -->
+        <div class="card">
+            <h2>🔔 Smart Notifications</h2>
+            <div class="notification-demo">
+                <h3>Recent Notifications</h3>
+                
+                <div class="notification-item">
+                    <strong>🎯 Destination Reached</strong><br>
+                    <small>MAERSK ESSEX has arrived at Port of Rotterdam</small><br>
+                    <span class="timestamp">5 minutes ago</span>
+                </div>
+                
+                <div class="notification-item">
+                    <strong>⚠️ Course Change Detected</strong><br>
+                    <small>EVER GIVEN changed course by 45° - possible route deviation</small><br>
+                    <span class="timestamp">12 minutes ago</span>
+                </div>
+                
+                <div class="notification-item">
+                    <strong>🚨 Emergency Status</strong><br>
+                    <small>CMA CGM MARCO POLO broadcasting distress signal</small><br>
+                    <span class="timestamp">1 hour ago</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Implementation -->
+        <div class="card">
+            <h2>🔧 Technical Implementation</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>WebSocket Service</h4>
+                    <p>Real-time bidirectional communication with automatic reconnection</p>
+                    <code>websocketService.connect(token)</code>
+                </div>
+                <div class="feature-card">
+                    <h4>Voyage Tracker Component</h4>
+                    <p>React component for rendering live vessel paths and destinations</p>
+                    <code>&lt;VoyageTracker vessel={vessel} /&gt;</code>
+                </div>
+                <div class="feature-card">
+                    <h4>Live Tracking Hook</h4>
+                    <p>Custom React hook for managing vessel subscriptions and updates</p>
+                    <code>useLiveVesselTracking()</code>
+                </div>
+                <div class="feature-card">
+                    <h4>Notification Integration</h4>
+                    <p>Browser notifications with toast alerts and sound notifications</p>
+                    <code>addNotification(data)</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize demo map
+        const map = L.map('map').setView([51.505, -0.09], 6);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Demo vessel with animated path
+        const vesselPath = [
+            [51.505, -0.09],
+            [51.51, -0.1],
+            [51.515, -0.11],
+            [51.52, -0.12],
+            [51.525, -0.13]
+        ];
+
+        // Add vessel marker
+        const vesselIcon = L.divIcon({
+            html: `<svg width="24" height="24" viewBox="0 0 24 24">
+                     <g transform="rotate(45 12 12)">
+                       <path d="M12 2 L16 20 L12 16 L8 20 Z" fill="#ff4444" stroke="white" stroke-width="1"/>
+                     </g>
+                   </svg>`,
+            className: 'vessel-icon',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const vesselMarker = L.marker([51.525, -0.13], { icon: vesselIcon }).addTo(map);
+        vesselMarker.bindPopup(`
+            <div>
+                <h4>EVER GIVEN</h4>
+                <p><strong>MMSI:</strong> 353136000</p>
+                <p><strong>Speed:</strong> 18.5 knots</p>
+                <p><strong>Course:</strong> 045°</p>
+                <p><strong>Status:</strong> Under Way Using Engine</p>
+                <p>🛤️ <strong>Tracking:</strong> 47 positions recorded</p>
+                <button class="btn btn-danger btn-sm" style="width: 100%; margin-top: 0.5rem;">Stop Tracking</button>
+            </div>
+        `);
+
+        // Add voyage path
+        const voyagePath = L.polyline(vesselPath, {
+            color: '#ff4444',
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '5, 10'
+        }).addTo(map);
+
+        // Add destination marker
+        const destinationIcon = L.divIcon({
+            html: '<div class="destination-marker"></div>',
+            className: 'destination-icon',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        const destinationMarker = L.marker([51.9, 4.5], { icon: destinationIcon }).addTo(map);
+        destinationMarker.bindPopup(`
+            <div>
+                <h4>🎯 Estimated Destination</h4>
+                <p><strong>Port:</strong> Rotterdam</p>
+                <p><strong>ETA:</strong> ~16 hours</p>
+                <p><small>Based on current course and speed</small></p>
+            </div>
+        `);
+
+        // Simulate live updates
+        let updateCount = 0;
+        setInterval(() => {
+            updateCount++;
+            const updates = document.querySelectorAll('.update-item .timestamp');
+            updates.forEach((el, index) => {
+                const seconds = (updateCount + index * 30) % 300;
+                if (seconds < 60) {
+                    el.textContent = `${seconds}s ago`;
+                } else {
+                    el.textContent = `${Math.floor(seconds / 60)}m ago`;
+                }
+            });
+        }, 1000);
+
+        // Demo notification
+        setTimeout(() => {
+            if ('Notification' in window && Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification('🚢 Vessel Tracking Demo', {
+                            body: 'EVER GIVEN is being tracked in real-time',
+                            icon: '/favicon.ico'
+                        });
+                    }
+                });
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

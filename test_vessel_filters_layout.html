@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vessel Tracking - Filters Layout Test</title>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-primary: #333333;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-secondary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .page-header p {
+            font-size: 0.9rem;
+            margin: 0;
+            color: #666;
+        }
+
+        /* Map with Filters Layout */
+        .map-with-filters {
+            display: flex;
+            height: 500px;
+            gap: 1rem;
+        }
+
+        .filters-sidebar {
+            flex: 0 0 280px;
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .filters-sidebar h3 {
+            margin: 0 0 1.5rem 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .filter-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .filter-group .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .filter-group .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+        }
+
+        .map-container {
+            flex: 1;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background: #e8f4fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        /* Responsive design for map with filters */
+        @media (max-width: 1024px) {
+            .map-with-filters {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .filters-sidebar {
+                flex: none;
+                order: 1;
+            }
+            
+            .map-container {
+                order: 2;
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters-sidebar {
+                padding: 1rem;
+            }
+            
+            .filter-group {
+                margin-bottom: 1rem;
+            }
+            
+            .map-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header" style="margin-bottom: 0.5rem;">
+            <h1>Vessel Tracking</h1>
+            <p>Track vessels in real-time and monitor their movements</p>
+        </div>
+
+        <!-- Map with Filters Sidebar -->
+        <div class="card">
+            <h2>Vessel Locations</h2>
+            <div class="map-with-filters">
+                <!-- Filters Sidebar -->
+                <div class="filters-sidebar">
+                    <h3>Filters</h3>
+                    <div class="filter-group">
+                        <label>Vessel Type</label>
+                        <select class="form-control">
+                            <option value="">All Types</option>
+                            <option value="cargo">Cargo Ship</option>
+                            <option value="tanker">Tanker</option>
+                            <option value="container">Container Ship</option>
+                            <option value="passenger">Passenger Ship</option>
+                            <option value="fishing">Fishing Vessel</option>
+                            <option value="military">Military Vessel</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Flag Country</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            placeholder="e.g., Panama, Liberia"
+                        />
+                    </div>
+                    <div class="filter-group">
+                        <label>Search Vessel</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            placeholder="Enter vessel name"
+                        />
+                    </div>
+                </div>
+                
+                <!-- Map Container -->
+                <div class="map-container">
+                    🗺️ Interactive Map Area<br>
+                    (Leaflet map will render here)
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
