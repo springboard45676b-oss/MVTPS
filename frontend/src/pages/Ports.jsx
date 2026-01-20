@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Anchor, Search, Plus, Edit, Trash2, Eye, AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, MapPin, Wind, Waves, Shield, Bell, BellOff, Map, BarChart3, Users, Ship } from 'lucide-react';
 import { getPorts, deletePort } from '../api/ports';
 import { useAuth } from "../context/AuthContext";
-import { websocketService } from '../services/websocket';
+import { websocketService } from '../services/Mockwebsocket';
 
 const Ports = () => {
   const { user } = useAuth();
