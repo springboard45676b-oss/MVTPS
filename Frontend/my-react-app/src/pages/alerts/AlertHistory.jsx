@@ -58,6 +58,39 @@ function AlertHistory() {
                   ● Unread
                 </span>
               )}
+
+              {/* ================= STEP-11: COMPLIANCE REPORT ================= */}
+              {alert.type === "Safety" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // ⛔ prevent markAsRead on click
+
+                    const report = `
+MARINE COMPLIANCE VIOLATION REPORT
+---------------------------------
+Alert Message : ${alert.message}
+Alert Type    : ${alert.type}
+Time          : ${alert.time}
+Status        : VIOLATION DETECTED
+
+Action Required:
+• Review vessel route
+• Notify insurer
+• File compliance record
+                    `;
+
+                    const blob = new Blob([report], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "compliance-violation-report.txt";
+                    a.click();
+                  }}
+                  className="block mt-3 text-xs text-blue-400 hover:underline"
+                >
+                  📄 Download Compliance Report
+                </button>
+              )}
             </li>
           ))}
         </ul>

@@ -9,6 +9,8 @@ import noaaSafety from "../../data/noaaSafety";
 import accidents from "../../data/accidents";
 import "leaflet/dist/leaflet.css";
 import { useAlerts } from "../../context/AlertContext";
+import { useVoyage } from "../../context/VoyageContext";
+
 
 
 /* ================= Initial Vessel Data ================= */
@@ -82,7 +84,7 @@ function LiveTracking() {
   const [vessels] = useState(initialVessels);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
-  const [alerts, setAlerts] = useState([]);
+  const { alerts, addAlert } = useAlerts();
   const [showAlerts, setShowAlerts] = useState(false);
   const alertRef = useRef(null);
 
@@ -100,11 +102,22 @@ function LiveTracking() {
     Panama: true,
     Bahamas: false,
   });
+  
 
   /* ================= ALERT LOGIC (CONTEXT BASED) ================= */
 
 
-const { addAlert } = useAlerts();
+  const { addVoyagePoint } = useVoyage();
+useEffect(() => {
+  vessels.forEach(vessel => {
+    addVoyagePoint(vessel.id, {
+      lat: vessel.position[0],
+      lng: vessel.position[1]
+    });
+  });
+}, [vessels]);
+
+
 
 useEffect(() => {
   vessels.forEach((vessel) => {
@@ -182,6 +195,13 @@ useEffect(() => {
           >
             Alert History
           </button>
+          <button
+  onClick={() => navigate("/voyage-history")}
+  className="text-sm text-green-600 hover:underline"
+>
+  Voyage History
+</button>
+
 
           {alerts.length > 0 && (
             <button
@@ -190,6 +210,7 @@ useEffect(() => {
             >
               {alerts.length} Alerts
             </button>
+
           )}
         </div>
       </div>

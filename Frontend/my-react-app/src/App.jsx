@@ -22,43 +22,43 @@ import EditProfile from "./pages/profile/EditProfile";
 /* ================= Alerts ================= */
 import AlertHistory from "./pages/alerts/AlertHistory";
 
+/* ================= Voyage ================= */
+import VoyageHistory from "./pages/voyage/VoyageHistory"; // ✅ ADD THIS
+
 function App() {
   return (
     <Routes>
-      {/* ================= Default Redirect ================= */}
+      {/* Default */}
       <Route path="/" element={<Navigate to="/login/operator" replace />} />
 
-      {/* ================= Login Routes ================= */}
+      {/* Login */}
       <Route path="/login/operator" element={<OperatorLogin />} />
       <Route path="/login/analyst" element={<AnalystLogin />} />
       <Route path="/login/admin" element={<AdminLogin />} />
 
-      {/* ================= Signup Routes ================= */}
+      {/* Signup */}
       <Route path="/signup/operator" element={<OperatorSignup />} />
       <Route path="/signup/analyst" element={<AnalystSignup />} />
       <Route path="/signup/admin" element={<AdminSignup />} />
 
-      {/* ================= Operator Dashboard Routes ================= */}
+      {/* Operator */}
       <Route path="/dashboard/operator" element={<OperatorDashboard />} />
-      <Route
-        path="/dashboard/operator/live-tracking"
-        element={<LiveTracking />}
-      />
-      <Route
-        path="/dashboard/operator/ports"
-        element={<PortDashboard />}
-      />
+      <Route path="/dashboard/operator/live-tracking" element={<LiveTracking />} />
+      <Route path="/dashboard/operator/ports" element={<PortDashboard />} />
 
-      {/* ================= Admin Dashboard Routes ================= */}
+      {/* Admin */}
       <Route path="/dashboard/admin" element={<AdminDashboard />} />
 
-      {/* ================= Edit Profile (Shared) ================= */}
+      {/* Profile */}
       <Route path="/profile/edit/:role" element={<EditProfile />} />
 
-      {/* ================= Alert History ================= */}
+      {/* Alerts */}
       <Route path="/alerts" element={<AlertHistory />} />
 
-      {/* ================= Fallback (404) ================= */}
+      {/* ✅ Voyage History */}
+      <Route path="/voyage-history" element={<VoyageHistory />} />
+
+      {/* 404 */}
       <Route path="*" element={<Navigate to="/login/operator" replace />} />
     </Routes>
   );
