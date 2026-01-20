@@ -1,43 +1,31 @@
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-
-from .serializers import RegisterSerializer, UserSerializer
 from .models import User
+from rest_framework import serializers
 
+# A helper to turn User data into JSON for React
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role']
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    # this runs when user logs in
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        data['message'] = "User successfully logged in"
-        data['user'] = UserSerializer(self.user).data
-        return data
-
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]
-
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        return Response({
-            "message": "Registration successful",
-            "user": response.data
-        })
-
-
+# This view sends the name and role to the frontend
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+# This view allows new people to sign up
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = [permissions.AllowAny]
+    serializer_class = UserSerializer
+
+    def perform_create(self, serializer):
+        # This makes sure the password is encrypted (hidden)
+        instance = serializer.save()
+        instance.set_password(instance.password)
+        instance.save()
