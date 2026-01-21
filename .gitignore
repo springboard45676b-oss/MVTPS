@@ -1,0 +1,26 @@
+# Ignore Python Virtual Environments
+venv/
+env/
+.env
+
+# Ignore Backup Folders
+*_backup/
+*Copy*
+
+# Ignore OS Files
+.DS_Store
+Thumbs.db
+
+# Ignore Large Datasets & Junk
+*.zip
+*.csv
+*.pdf
+ml-latest-small/
+Python/
+UIDAI/
+UIDAI_Hackathon_2026/
+data_generator.py
+Certificates/flutter/
+My Docuements/
+frontend/node_modules/
+AuthProject/Food_ordering app/node_modules/

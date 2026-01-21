@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Flip Word Guess Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Flip Word Guess Game</h1>
+  <div class="game-box">
+    <div class="word-display" id="wordDisplay">Flipped: -----</div>
+    <div class="timer" id="timer">Time: 60</div>
+    <div id="hintDisplay">Hint: _ _ _ _ _</div>
+    <input type="text" id="playerInput" placeholder="Guess the word..." />
+    <br>
+    <button onclick="submitGuess()">Submit</button>
+    <button onclick="giveHint()">Hint</button>
+    <button onclick="restartGame()">Restart</button>
+    <div id="status"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
