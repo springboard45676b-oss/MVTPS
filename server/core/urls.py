@@ -3,6 +3,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .views import (
     api_root,
@@ -78,7 +79,11 @@ urlpatterns = [
     # AUTHENTICATION ENDPOINTS - /api/auth/*
     # ============================================
     path('auth/register/', RegisterAPI.as_view(), name='register'),
-    path('auth/login/', CustomTokenObtainPairView.as_view(), name='login'),
+    # path('auth/login/', CustomTokenObtainPairView.as_view(), name='login'),
+    
+
+    path('auth/login/', TokenObtainPairView.as_view(), name='login'),
+
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', UserProfileAPI.as_view(), name='user-profile'),
     path('auth/profile/edit/', UserProfileUpdateAPI.as_view(), name='user-profile-edit'),
