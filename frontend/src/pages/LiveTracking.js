@@ -24,7 +24,6 @@ const selectedShipIcon = new L.Icon({
     className: 'selected-ship-glow'
 });
 
-// Helper component to recenter map
 const RecenterMap = ({ lat, lon }) => {
     const map = useMap();
     useEffect(() => {
@@ -35,12 +34,10 @@ const RecenterMap = ({ lat, lon }) => {
     return null;
 };
 
-// 3. Component Function
 const LiveTracking = ({ user, setUser }) => {
     const [vessels, setVessels] = useState([]);
     const [selectedVessel, setSelectedVessel] = useState(null);
     const navigate = useNavigate();
-    
     const WEATHER_API_KEY = "YOUR_OPENWEATHER_API_KEY"; 
 
     const fetchVessels = useCallback(() => {
@@ -61,29 +58,50 @@ const LiveTracking = ({ user, setUser }) => {
         return () => clearInterval(interval);
     }, [fetchVessels]); 
 
-    // --- NEW: Export to CSV Function ---
+    const calculateTotalDistance = (history) => {
+        if (!history || history.length < 2) return 0;
+        const toRad = (value) => (value * Math.PI) / 180;
+        let total = 0;
+        for (let i = 0; i < history.length - 1; i++) {
+            const lat1 = history[i].latitude;
+            const lon1 = history[i].longitude;
+            const lat2 = history[i+1].latitude;
+            const lon2 = history[i+1].longitude;
+            const R = 6371; 
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            total += R * c;
+        }
+        return total.toFixed(2);
+    };
+
+    // --- NEW: Voyage Time Calculation ---
+    const calculateVoyageTime = (history) => {
+        if (!history || history.length < 2) return "0h 0m";
+        const startTime = new Date(history[0].timestamp);
+        const endTime = new Date(history[history.length - 1].timestamp);
+        const diffMs = Math.abs(endTime - startTime);
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.round((diffMs % 3600000) / 60000);
+        return `${diffHrs}h ${diffMins}m`;
+    };
+
     const exportToCSV = () => {
         if (!selectedVessel || !selectedVessel.history) return;
-
         const headers = ["Latitude,Longitude,Timestamp\n"];
         const rows = selectedVessel.history.map(h => 
             `${h.latitude},${h.longitude},${new Date(h.timestamp).toLocaleString()}`
         ).join("\n");
-
         const blob = new Blob([headers + rows], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.setAttribute('hidden', '');
         a.setAttribute('href', url);
-        a.setAttribute('download', `${selectedVessel.name}_voyage_history.csv`);
-        document.body.appendChild(a);
+        a.setAttribute('download', `${selectedVessel.name}_history.csv`);
         a.click();
-        document.body.removeChild(a);
-    };
-
-    const handleLogout = () => { 
-        setUser(null); 
-        navigate('/login'); 
     };
 
     return (
@@ -100,7 +118,7 @@ const LiveTracking = ({ user, setUser }) => {
                         <small style={{color: '#64748b'}}>Signed in</small>
                         <strong style={{fontSize: '14px'}}>emmadishettianjali</strong>
                     </div>
-                    <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
+                    <button onClick={() => {setUser(null); navigate('/login');}} style={styles.logoutBtn}>Logout</button>
                 </div>
             </nav>
 
@@ -128,17 +146,11 @@ const LiveTracking = ({ user, setUser }) => {
                             <MapContainer center={[20, 0]} zoom={2} style={{ height: '400px', width: '100%' }}>
                                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                 <LayersControl position="topright">
-                                    <LayersControl.Overlay name="Precipitation (Rain)">
-                                        <TileLayer url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`} />
-                                    </LayersControl.Overlay>
-                                    <LayersControl.Overlay name="Wind Speed">
-                                        <TileLayer url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`} />
-                                    </LayersControl.Overlay>
+                                    <LayersControl.Overlay name="Rain"><TileLayer url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`} /></LayersControl.Overlay>
+                                    <LayersControl.Overlay name="Wind"><TileLayer url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`} /></LayersControl.Overlay>
                                 </LayersControl>
 
-                                {selectedVessel && (
-                                    <RecenterMap lat={selectedVessel.last_position_lat} lon={selectedVessel.last_position_lon} />
-                                )}
+                                {selectedVessel && <RecenterMap lat={selectedVessel.last_position_lat} lon={selectedVessel.last_position_lon} />}
 
                                 {vessels.map(ship => (
                                     <Marker 
@@ -165,8 +177,13 @@ const LiveTracking = ({ user, setUser }) => {
                                 {selectedVessel ? (
                                     <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
                                         <p><b>Name:</b> {selectedVessel.name}</p>
-                                        <p><b>Heading:</b> {selectedVessel.heading || 0}°</p>
-                                        <p><b>Type:</b> {selectedVessel.type}</p>
+                                        <p style={{color: '#10b981', fontWeight: 'bold'}}>
+                                            <b>Distance:</b> {calculateTotalDistance(selectedVessel.history)} km
+                                        </p>
+                                        {/* Display Time Here */}
+                                        <p style={{color: '#3b82f6', fontWeight: 'bold'}}>
+                                            <b>Travel Time:</b> {calculateVoyageTime(selectedVessel.history)}
+                                        </p>
                                         <p><b>Flag:</b> {selectedVessel.flag || 'N/A'}</p>
                                     </div>
                                 ) : <p style={{ color: '#64748b' }}>Select a ship...</p>}
@@ -175,31 +192,20 @@ const LiveTracking = ({ user, setUser }) => {
                             <div style={styles.infoSection}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                     <h4 style={{ margin: 0 }}>📜 Recent Voyage Points</h4>
-                                    {/* CSV Button Added Here */}
                                     {selectedVessel?.history?.length > 0 && (
                                         <button onClick={exportToCSV} style={styles.csvBtn}>📥 Export CSV</button>
                                     )}
                                 </div>
-                                {selectedVessel && selectedVessel.history && selectedVessel.history.length > 0 ? (
+                                {selectedVessel?.history?.length > 0 ? (
                                     <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
-                                                <th style={{ padding: '5px' }}>Latitude</th>
-                                                <th style={{ padding: '5px' }}>Longitude</th>
-                                                <th style={{ padding: '5px' }}>Time</th>
-                                            </tr>
-                                        </thead>
+                                        <thead><tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}><th style={{ padding: '5px' }}>Lat</th><th style={{ padding: '5px' }}>Lon</th></tr></thead>
                                         <tbody>
                                             {selectedVessel.history.map((h, i) => (
-                                                <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                    <td style={{ padding: '5px' }}>{h.latitude}°</td>
-                                                    <td style={{ padding: '5px' }}>{h.longitude}°</td>
-                                                    <td style={{ padding: '5px' }}>{new Date(h.timestamp).toLocaleTimeString()}</td>
-                                                </tr>
+                                                <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}><td style={{ padding: '5px' }}>{h.latitude}°</td><td style={{ padding: '5px' }}>{h.longitude}°</td></tr>
                                             ))}
                                         </tbody>
                                     </table>
-                                ) : <p style={{ fontSize: '12px', color: '#64748b' }}>No voyage history recorded.</p>}
+                                ) : <p style={{ fontSize: '12px', color: '#64748b' }}>No voyage history.</p>}
                             </div>
 
                             <div style={styles.infoSection}>
@@ -240,7 +246,7 @@ const styles = {
     mapBox: { borderRadius: '15px', overflow: 'hidden', border: '1px solid #e2e8f0' },
     bottomInfoPanel: { display: 'flex', gap: '20px' },
     infoSection: { flex: 1, background: 'white', padding: '20px', borderRadius: '15px', border: '1px solid #e2e8f0', minHeight: '150px' },
-    csvBtn: { background: '#10b981', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' } // Added Style
+    csvBtn: { background: '#10b981', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }
 };
 
 export default LiveTracking;
