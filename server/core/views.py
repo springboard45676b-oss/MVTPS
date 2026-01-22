@@ -146,6 +146,17 @@ def api_root(request, format=None):
 #             'refresh': token_data.get('refresh'),
 #         }, status=status.HTTP_201_CREATED)
 
+from rest_framework import generics, status, permissions
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model, authenticate
+from .serializers import RegisterSerializer
+import logging
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
 class RegisterAPI(generics.CreateAPIView):
     """Register a new user and return tokens"""
     serializer_class = RegisterSerializer
@@ -153,7 +164,6 @@ class RegisterAPI(generics.CreateAPIView):
     
     def create(self, request, *args, **kwargs):
         logger.info(f"📝 Registration attempt")
-        logger.info(f"📝 Request data: {request.data}")
         
         # Validate registration data
         serializer = self.get_serializer(data=request.data)
@@ -172,34 +182,28 @@ class RegisterAPI(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Generate tokens using the CustomTokenObtainPairSerializer
+        # Generate tokens manually
         try:
-            token_serializer = CustomTokenObtainPairSerializer(data={
-                'username': user.username,
-                'password': request.data.get('password')
-            })
+            refresh = RefreshToken.for_user(user)
+            access = str(refresh.access_token)
+            refresh_str = str(refresh)
             
-            if not token_serializer.is_valid():
-                logger.error(f"❌ Token serializer errors: {token_serializer.errors}")
-                return Response(
-                    token_serializer.errors,
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            token_data = token_serializer.validated_data
-            
-            logger.info(f"✅ Tokens generated")
-            logger.info(f"✅ Token keys: {list(token_data.keys())}")
-            logger.info(f"✅ User object in response: {token_data.get('user')}")
+            logger.info(f"✅ Tokens generated for new user: {user.username}")
             
             response_data = {
-                'user': token_data.get('user'),
-                'access': token_data.get('access'),
-                'refresh': token_data.get('refresh'),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': getattr(user, 'role', 'operator'),
+                    'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') else None,
+                },
+                'access': access,
+                'refresh': refresh_str,
             }
             
             logger.info(f"✅ Registration successful for user: {user.username}")
-            logger.info(f"✅ Response data keys: {list(response_data.keys())}")
+            logger.info(f"✅ Response keys: {list(response_data.keys())}")
             
             return Response(response_data, status=status.HTTP_201_CREATED)
         
@@ -209,7 +213,6 @@ class RegisterAPI(generics.CreateAPIView):
                 {'error': f'User created but token generation failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 # class CustomTokenObtainPairView(TokenObtainPairView):
 #     """Custom token obtain view"""
 #     serializer_class = CustomTokenObtainPairSerializer
@@ -280,47 +283,102 @@ class RegisterAPI(generics.CreateAPIView):
         
 #         return response
 
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
+from django.contrib.auth import get_user_model, authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
 import logging
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
+class CustomTokenObtainPairView(APIView):
     """
-    Custom Token Obtain View
-    Uses CustomTokenObtainPairSerializer which includes user data in response
+    Custom Token Obtain View - Complete Override
+    Doesn't inherit from TokenObtainPairView
+    Manually handles authentication and token generation
     """
+    permission_classes = [AllowAny]
     
     def post(self, request, *args, **kwargs):
         """
         Handle POST request for token generation
-        The serializer does all the work - validate() returns tokens + user data
+        Manual authentication and token generation
         """
         username_or_email = request.data.get('username')
+        password = request.data.get('password')
         
         logger.info(f"🔐 Login attempt for: {username_or_email}")
         
+        if not username_or_email or not password:
+            logger.error("❌ Missing username or password")
+            return Response(
+                {'detail': 'Username and password required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Try to authenticate with username
+        user = authenticate(username=username_or_email, password=password)
+        logger.info(f"Authenticate by username result: {user}")
+        
+        # If authentication failed, try with email
+        if not user and '@' in username_or_email:
+            logger.info(f"Trying email authentication for: {username_or_email}")
+            try:
+                user_obj = User.objects.get(email=username_or_email)
+                logger.info(f"Found user by email: {user_obj.username}")
+                user = authenticate(username=user_obj.username, password=password)
+                logger.info(f"Email authentication result: {user}")
+            except User.DoesNotExist:
+                logger.warning(f"User not found by email: {username_or_email}")
+                pass
+        
+        if not user:
+            logger.error(f"❌ Authentication failed for: {username_or_email}")
+            return Response(
+                {'detail': 'Invalid username/email or password'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        logger.info(f"✅ User authenticated: {user.username}")
+        
+        # Generate tokens manually
         try:
-            # Call parent post() which will use CustomTokenObtainPairSerializer
-            response = super().post(request, *args, **kwargs)
+            refresh = RefreshToken.for_user(user)
+            access = str(refresh.access_token)
+            refresh_str = str(refresh)
             
-            logger.info(f"✅ Response status: {response.status_code}")
-            logger.info(f"✅ Response data keys: {list(response.data.keys()) if response.data else 'None'}")
+            logger.info(f"✅ Tokens generated")
+            logger.info(f"✅ Access token: {access[:50]}...")
+            logger.info(f"✅ Refresh token: {refresh_str[:50]}...")
             
-            if response.status_code == 200:
-                logger.info(f"✅ Login successful")
-                logger.info(f"✅ Response contains: {response.data}")
+            # Build response
+            response_data = {
+                'access': access,
+                'refresh': refresh_str,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': getattr(user, 'role', 'operator'),
+                    'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
+                }
+            }
             
-            return response
+            logger.info(f"✅ Response data prepared")
+            logger.info(f"✅ Response keys: {list(response_data.keys())}")
+            logger.info(f"✅ User in response: {response_data['user']}")
+            
+            return Response(response_data, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"❌ Login error: {str(e)}", exc_info=True)
+            logger.error(f"❌ Error generating tokens: {str(e)}", exc_info=True)
             return Response(
-                {'detail': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
+                {'detail': f'Error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 # ============================================
