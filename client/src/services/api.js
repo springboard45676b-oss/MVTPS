@@ -87,190 +87,86 @@ export const authAPI = {
   // Login user (with username or email)
   login: async (credentials) => {
     try {
-      console.log('🔐 Login attempt with:', { username: credentials.username });
+      console.log('Login attempt with:', { username: credentials.username, selected_role: credentials.selected_role });
       
       const response = await api.post('/auth/login/', {
         username: credentials.username || credentials.email,
         password: credentials.password,
+        selected_role: credentials.selected_role  // Send the selected role
       });
       
-      console.log('✅ Login response status:', response.status);
-      console.log('✅ Login response data:', response.data);
-      console.log('✅ Response keys:', Object.keys(response.data));
+      console.log('Login response:', response.data);
       
-      const responseData = response.data;
+      // Store tokens and user data
+      const { access, refresh, user } = response.data;
       
-      // Check for access token
-      if (!responseData.access) {
-        console.error('❌ Missing access token');
-        throw new Error('Login failed: No access token in response');
-      }
-      
-      // Check for refresh token
-      if (!responseData.refresh) {
-        console.error('❌ Missing refresh token');
-        throw new Error('Login failed: No refresh token in response');
-      }
-      
-      // Handle user object - with fallback
-      let user = null;
-      
-      if (responseData.user) {
-        // Backend returned user object ✅
-        user = responseData.user;
-        console.log('✅ User object from backend:', user);
-      } else {
-        // Fallback: Create minimal user object
-        console.warn('⚠️ No user object in response, using fallback');
-        user = {
-          id: null,
-          username: credentials.username || credentials.email,
-          email: null,
-          role: 'operator',
-          created_at: null,
-        };
-        console.warn('⚠️ Fallback user created:', user);
-      }
-      
-      // Validate user has username
-      if (!user.username) {
-        throw new Error('Login failed: No username in response');
+      if (!access || !refresh) {
+        console.error('No tokens in response:', response.data);
+        throw new Error('Login failed: No tokens received');
       }
       
       // Save to localStorage
-      localStorage.setItem('access_token', responseData.access);
-      localStorage.setItem('refresh_token', responseData.refresh);
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
       localStorage.setItem('user', JSON.stringify(user));
       
-      console.log('✅ Tokens and user saved to localStorage');
-      console.log('✅ User logged in:', user.username, 'Role:', user.role);
+      console.log('Tokens saved to localStorage');
+      console.log('access_token:', access.substring(0, 20) + '...');
+      console.log('refresh_token:', refresh.substring(0, 20) + '...');
       
-      // Update axios default header
-      api.defaults.headers.common['Authorization'] = `Bearer ${responseData.access}`;
-      
-      return { 
-        token: responseData.access, 
-        user: user 
-      };
-      
+      return { token: access, user };
     } catch (error) {
-      console.error('❌ Login error:', error.message);
-      
-      if (error.response) {
-        console.error('❌ Response status:', error.response.status);
-        console.error('❌ Response data:', error.response.data);
-        
-        if (error.response.status === 401) {
-          throw new Error('Invalid username or password');
-        }
-      }
-      
+      console.error('Login error:', error);
       throw error;
     }
   },
-
+  
   // Register new user
   register: async (userData) => {
     try {
-      console.log('📝 Register attempt with:', { username: userData.username, email: userData.email });
-      
       const response = await api.post('/auth/register/', {
         username: userData.username,
         email: userData.email,
         password: userData.password,
         password2: userData.password2,
-        role: userData.role || 'operator'
+        role: userData.role
       });
-      
-      console.log('✅ Registration successful');
-      console.log('✅ Response status:', response.status);
-      console.log('✅ Response data:', response.data);
-      console.log('✅ Response keys:', Object.keys(response.data));
       
       // Store tokens and user data from registration response
       const { access, refresh, user } = response.data;
       if (access && refresh) {
-        console.log('✅ Tokens found in registration response');
         localStorage.setItem('access_token', access);
         localStorage.setItem('refresh_token', refresh);
-        
-        if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
-        }
-        
-        console.log('✅ Tokens and user saved to localStorage');
-        
-        // Update axios default header
-        api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-        
-        return { token: access, user: user || { username: userData.username } };
+        localStorage.setItem('user', JSON.stringify(user));
+        return { token: access, user };
       }
       
       // Fallback to auto-login if tokens not in response
-      console.warn('⚠️ No tokens in registration response, attempting auto-login');
-      console.warn('⚠️ Credentials for login:', { username: userData.username });
-      
-      // Add small delay before auto-login to ensure backend is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const loginResult = await authAPI.login({
+      return authAPI.login({
         username: userData.username,
         password: userData.password,
+        selected_role: userData.role
       });
-      
-      return loginResult;
     } catch (error) {
-      console.error('❌ Register error:', error.message);
-      
-      if (error.response) {
-        console.error('❌ Response status:', error.response.status);
-        console.error('❌ Response data:', error.response.data);
-      }
-      
+      console.error('Register error:', error);
       throw error;
     }
   },
   
   // Logout user
   logout: () => {
-    try {
-      console.log('🚪 Logging out user...');
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      
-      // Clear axios default header
-      api.defaults.headers.common['Authorization'] = '';
-      
-      console.log('✅ User logged out successfully');
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      throw error;
-    }
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    console.log('User logged out');
   },
   
-  // Get current user from localStorage - SAFE VERSION
+  // Get current user from localStorage
   getCurrentUser: () => {
-    try {
-      const user = localStorage.getItem('user');
-      
-      // If no user in storage, return null instead of trying to parse undefined
-      if (!user) {
-        console.warn('No user data found in localStorage');
-        return null;
-      }
-      
-      // Parse and return the user object
-      const parsedUser = JSON.parse(user);
-      return parsedUser;
-    } catch (error) {
-      console.error('Error parsing user from localStorage:', error);
-      // If parsing fails, clear the corrupted data
-      localStorage.removeItem('user');
-      return null;
-    }
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
   },
-
+  
   // Check if user is authenticated
   isAuthenticated() {
     const token = localStorage.getItem('access_token');

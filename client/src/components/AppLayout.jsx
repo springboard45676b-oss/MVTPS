@@ -182,14 +182,18 @@ const Navbar = ({ isConnected }) => {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  // Dynamic navigation items based on user role - MOVED INSIDE COMPONENT
-  const navItems = [
-    { to: user?.role?.toLowerCase() === 'admin' ? '/admin/dashboard' : '/dashboard', label: "Dashboard" },
-    { to: "/vessels", label: "Vessels" },
-    { to: "/ports", label: "Ports" },
-    { to: "/voyages", label: "Voyages" },
-    { to: "/live-tracking", label: "Live Tracking" },
-  ];
+  const getDashboardLink = () => {
+     const role = user?.role?.toLowerCase();
+     return role === 'admin' ? '/admin/dashboard' : '/dashboard';
+   };
+
+   const navItems = [
+     { to: getDashboardLink(), label: "Dashboard" },
+     { to: "/vessels", label: "Vessels" },
+     { to: "/ports", label: "Ports" },
+     { to: "/voyages", label: "Voyages" },
+     { to: "/live-tracking", label: "Live Tracking" },
+   ];
 
   // Real-time WebSocket notification handler
   const handleNewNotification = useCallback((newNotification) => {
