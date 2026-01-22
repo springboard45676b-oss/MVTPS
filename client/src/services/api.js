@@ -183,29 +183,42 @@ export const authAPI = {
       });
       
       console.log('✅ Registration successful');
+      console.log('✅ Response status:', response.status);
       console.log('✅ Response data:', response.data);
+      console.log('✅ Response keys:', Object.keys(response.data));
       
       // Store tokens and user data from registration response
       const { access, refresh, user } = response.data;
-      if (access && refresh && user) {
+      if (access && refresh) {
+        console.log('✅ Tokens found in registration response');
         localStorage.setItem('access_token', access);
         localStorage.setItem('refresh_token', refresh);
-        localStorage.setItem('user', JSON.stringify(user));
+        
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
         
         console.log('✅ Tokens and user saved to localStorage');
         
         // Update axios default header
         api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         
-        return { token: access, user };
+        return { token: access, user: user || { username: userData.username } };
       }
       
       // Fallback to auto-login if tokens not in response
       console.warn('⚠️ No tokens in registration response, attempting auto-login');
-      return authAPI.login({
+      console.warn('⚠️ Credentials for login:', { username: userData.username });
+      
+      // Add small delay before auto-login to ensure backend is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const loginResult = await authAPI.login({
         username: userData.username,
         password: userData.password,
       });
+      
+      return loginResult;
     } catch (error) {
       console.error('❌ Register error:', error.message);
       
