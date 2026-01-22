@@ -85,101 +85,188 @@ api.interceptors.response.use(
 // Auth API methods
 export const authAPI = {
   // Login user (with username or email)
-  login: async (credentials) => {
-    try {
-      console.log('Login attempt with:', { username: credentials.username });
+  // login: async (credentials) => {
+  //   try {
+  //     console.log('Login attempt with:', { username: credentials.username });
       
-      const response = await api.post('/auth/login/', {
+  //     const response = await api.post('/auth/login/', {
+  //       username: credentials.username || credentials.email,
+  //       password: credentials.password,
+  //       // Don't send selected_role - let backend determine it from the database
+  //     });
+      
+  //     console.log('Login response:', response.data);
+      
+  //     // Store tokens and user data
+  //     const { access, refresh, user } = response.data;
+      
+  //     if (!access || !refresh || !user) {
+  //       console.error('Missing required data in response:', response.data);
+  //       throw new Error('Login failed: Invalid response from server');
+  //     }
+      
+  //     // Save to localStorage - IMPORTANT: user must be a valid object
+  //     localStorage.setItem('access_token', access);
+  //     localStorage.setItem('refresh_token', refresh);
+  //     localStorage.setItem('user', JSON.stringify(user)); // Stringify the user object
+      
+  //     console.log('Tokens and user data saved to localStorage');
+  //     console.log('User role:', user.role);
+      
+  //     return { token: access, user };
+  //   } catch (error) {
+  //     console.error('Login error:', error);
+  //     throw error;
+  //   }
+  // },
+  
+  // // Register new user
+  // register: async (userData) => {
+  //   try {
+  //     const response = await api.post('/auth/register/', {
+  //       username: userData.username,
+  //       email: userData.email,
+  //       password: userData.password,
+  //       password2: userData.password2,
+  //       role: userData.role
+  //     });
+      
+  //     // Store tokens and user data from registration response
+  //     const { access, refresh, user } = response.data;
+  //     if (access && refresh && user) {
+  //       localStorage.setItem('access_token', access);
+  //       localStorage.setItem('refresh_token', refresh);
+  //       localStorage.setItem('user', JSON.stringify(user));
+  //       return { token: access, user };
+  //     }
+      
+  //     // Fallback to auto-login if tokens not in response
+  //     return authAPI.login({
+  //       username: userData.username,
+  //       password: userData.password,
+  //     });
+  //   } catch (error) {
+  //     console.error('Register error:', error);
+  //     throw error;
+  //   }
+  // },
+  
+  // // Logout user
+  // logout: () => {
+  //   localStorage.removeItem('access_token');
+  //   localStorage.removeItem('refresh_token');
+  //   localStorage.removeItem('user');
+  //   console.log('User logged out');
+  // },
+  
+  // // Get current user from localStorage - SAFE VERSION
+  // getCurrentUser: () => {
+  //   try {
+  //     const user = localStorage.getItem('user');
+      
+  //     // If no user in storage, return null instead of trying to parse undefined
+  //     if (!user) {
+  //       console.warn('No user data found in localStorage');
+  //       return null;
+  //     }
+      
+  //     // Parse and return the user object
+  //     const parsedUser = JSON.parse(user);
+  //     return parsedUser;
+  //   } catch (error) {
+  //     console.error('Error parsing user from localStorage:', error);
+  //     // If parsing fails, clear the corrupted data
+  //     localStorage.removeItem('user');
+  //     return null;
+  //   }
+  // },
+
+  // In client/src/services/api.js
+// REPLACE just the login function with this:
+
+login: async (credentials) => {
+  try {
+    console.log('🔐 Login attempt with:', { username: credentials.username });
+    
+    const response = await api.post('/auth/login/', {
+      username: credentials.username || credentials.email,
+      password: credentials.password,
+    });
+    
+    console.log('✅ Login response status:', response.status);
+    console.log('✅ Login response data:', response.data);
+    console.log('✅ Response keys:', Object.keys(response.data));
+    
+    const responseData = response.data;
+    
+    // Check for access token
+    if (!responseData.access) {
+      console.error('❌ Missing access token');
+      throw new Error('Login failed: No access token in response');
+    }
+    
+    // Check for refresh token
+    if (!responseData.refresh) {
+      console.error('❌ Missing refresh token');
+      throw new Error('Login failed: No refresh token in response');
+    }
+    
+    // Handle user object - with fallback
+    let user = null;
+    
+    if (responseData.user) {
+      // Backend returned user object ✅
+      user = responseData.user;
+      console.log('✅ User object from backend:', user);
+    } else {
+      // Fallback: Create minimal user object
+      console.warn('⚠️ No user object in response, using fallback');
+      user = {
+        id: null,
         username: credentials.username || credentials.email,
-        password: credentials.password,
-        // Don't send selected_role - let backend determine it from the database
-      });
-      
-      console.log('Login response:', response.data);
-      
-      // Store tokens and user data
-      const { access, refresh, user } = response.data;
-      
-      if (!access || !refresh || !user) {
-        console.error('Missing required data in response:', response.data);
-        throw new Error('Login failed: Invalid response from server');
-      }
-      
-      // Save to localStorage - IMPORTANT: user must be a valid object
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      localStorage.setItem('user', JSON.stringify(user)); // Stringify the user object
-      
-      console.log('Tokens and user data saved to localStorage');
-      console.log('User role:', user.role);
-      
-      return { token: access, user };
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+        email: null,
+        role: 'operator',
+        created_at: null,
+      };
+      console.warn('⚠️ Fallback user created:', user);
     }
-  },
-  
-  // Register new user
-  register: async (userData) => {
-    try {
-      const response = await api.post('/auth/register/', {
-        username: userData.username,
-        email: userData.email,
-        password: userData.password,
-        password2: userData.password2,
-        role: userData.role
-      });
-      
-      // Store tokens and user data from registration response
-      const { access, refresh, user } = response.data;
-      if (access && refresh && user) {
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
-        localStorage.setItem('user', JSON.stringify(user));
-        return { token: access, user };
-      }
-      
-      // Fallback to auto-login if tokens not in response
-      return authAPI.login({
-        username: userData.username,
-        password: userData.password,
-      });
-    } catch (error) {
-      console.error('Register error:', error);
-      throw error;
+    
+    // Validate user has username
+    if (!user.username) {
+      throw new Error('Login failed: No username in response');
     }
-  },
-  
-  // Logout user
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    console.log('User logged out');
-  },
-  
-  // Get current user from localStorage - SAFE VERSION
-  getCurrentUser: () => {
-    try {
-      const user = localStorage.getItem('user');
+    
+    // Save to localStorage
+    localStorage.setItem('access_token', responseData.access);
+    localStorage.setItem('refresh_token', responseData.refresh);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    console.log('✅ Tokens and user saved to localStorage');
+    console.log('✅ User logged in:', user.username, 'Role:', user.role);
+    
+    // Update axios default header
+    api.defaults.headers.common['Authorization'] = `Bearer ${responseData.access}`;
+    
+    return { 
+      token: responseData.access, 
+      user: user 
+    };
+    
+  } catch (error) {
+    console.error('❌ Login error:', error.message);
+    
+    if (error.response) {
+      console.error('❌ Response status:', error.response.status);
+      console.error('❌ Response data:', error.response.data);
       
-      // If no user in storage, return null instead of trying to parse undefined
-      if (!user) {
-        console.warn('No user data found in localStorage');
-        return null;
+      if (error.response.status === 401) {
+        throw new Error('Invalid username or password');
       }
-      
-      // Parse and return the user object
-      const parsedUser = JSON.parse(user);
-      return parsedUser;
-    } catch (error) {
-      console.error('Error parsing user from localStorage:', error);
-      // If parsing fails, clear the corrupted data
-      localStorage.removeItem('user');
-      return null;
     }
-  },
+    
+    throw error;
+  }
+},
   
   // Check if user is authenticated
   isAuthenticated() {
