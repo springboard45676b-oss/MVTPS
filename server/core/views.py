@@ -218,67 +218,110 @@ class RegisterAPI(generics.CreateAPIView):
 #         response = super().post(request, *args, **kwargs)
 #         return response
 
+# class CustomTokenObtainPairView(TokenObtainPairView):
+#     """Custom token obtain view with role validation"""
+#     serializer_class = CustomTokenObtainPairSerializer
+    
+#     def post(self, request, *args, **kwargs):
+#         # Get login data
+#         username = request.data.get('username')
+#         selected_role = request.data.get('selected_role', 'operator')  # Default to operator
+        
+#         # Try to authenticate first
+#         try:
+#             response = super().post(request, *args, **kwargs)
+#         except Exception as e:
+#             logger.warning(f"Authentication failed for {username}: {str(e)}")
+#             return Response(
+#                 {'detail': 'Invalid credentials'},
+#                 status=status.HTTP_401_UNAUTHORIZED
+#             )
+        
+#         # Get the user
+#         try:
+#             try:
+#                 user = User.objects.get(username=username)
+#             except User.DoesNotExist:
+#                 user = User.objects.get(email=username)
+            
+#             # Validate role match (optional - comment out if you don't want to enforce it)
+#             # if user.role != selected_role and selected_role != 'admin':
+#             #     return Response(
+#             #         {'selected_role': f'User role is {user.role}, not {selected_role}'},
+#             #         status=status.HTTP_400_BAD_REQUEST
+#             #     )
+            
+#             # Add user data to response
+#             response.data['user'] = {
+#                 'id': user.id,
+#                 'username': user.username,
+#                 'email': user.email,
+#                 'role': user.role,
+#                 'created_at': user.created_at.isoformat() if user.created_at else None,
+#             }
+            
+#             logger.info(f"User {user.username} (role: {user.role}) logged in successfully")
+            
+#         except User.DoesNotExist:
+#             logger.warning(f"Login attempt with non-existent user: {username}")
+#             return Response(
+#                 {'detail': 'User not found'},
+#                 status=status.HTTP_401_UNAUTHORIZED
+#             )
+#         except Exception as e:
+#             logger.error(f"Error in token view: {str(e)}")
+#             # Return the tokens even if we can't add user data
+#             response.data['user'] = {
+#                 'id': None,
+#                 'username': username,
+#                 'email': None,
+#                 'role': 'operator',
+#             }
+        
+#         return response
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.response import Response
+from rest_framework import status
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom token obtain view with role validation"""
-    serializer_class = CustomTokenObtainPairSerializer
+    """
+    Custom Token Obtain View
+    Uses CustomTokenObtainPairSerializer which includes user data in response
+    """
     
     def post(self, request, *args, **kwargs):
-        # Get login data
-        username = request.data.get('username')
-        selected_role = request.data.get('selected_role', 'operator')  # Default to operator
+        """
+        Handle POST request for token generation
+        The serializer does all the work - validate() returns tokens + user data
+        """
+        username_or_email = request.data.get('username')
         
-        # Try to authenticate first
+        logger.info(f"🔐 Login attempt for: {username_or_email}")
+        
         try:
+            # Call parent post() which will use CustomTokenObtainPairSerializer
             response = super().post(request, *args, **kwargs)
+            
+            logger.info(f"✅ Response status: {response.status_code}")
+            logger.info(f"✅ Response data keys: {list(response.data.keys()) if response.data else 'None'}")
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Login successful")
+                logger.info(f"✅ Response contains: {response.data}")
+            
+            return response
+            
         except Exception as e:
-            logger.warning(f"Authentication failed for {username}: {str(e)}")
+            logger.error(f"❌ Login error: {str(e)}", exc_info=True)
             return Response(
-                {'detail': 'Invalid credentials'},
-                status=status.HTTP_401_UNAUTHORIZED
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Get the user
-        try:
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                user = User.objects.get(email=username)
-            
-            # Validate role match (optional - comment out if you don't want to enforce it)
-            # if user.role != selected_role and selected_role != 'admin':
-            #     return Response(
-            #         {'selected_role': f'User role is {user.role}, not {selected_role}'},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
-            
-            # Add user data to response
-            response.data['user'] = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'role': user.role,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
-            }
-            
-            logger.info(f"User {user.username} (role: {user.role}) logged in successfully")
-            
-        except User.DoesNotExist:
-            logger.warning(f"Login attempt with non-existent user: {username}")
-            return Response(
-                {'detail': 'User not found'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        except Exception as e:
-            logger.error(f"Error in token view: {str(e)}")
-            # Return the tokens even if we can't add user data
-            response.data['user'] = {
-                'id': None,
-                'username': username,
-                'email': None,
-                'role': 'operator',
-            }
-        
-        return response
 
 # ============================================
 # USER PROFILE VIEWS

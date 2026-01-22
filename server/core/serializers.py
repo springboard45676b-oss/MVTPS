@@ -279,12 +279,84 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
+# class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     """
+#     Custom Token Obtain Pair Serializer
+#     Extends the default serializer to add custom claims to the JWT token
+#     """
+#     username_field = 'username'
+    
+#     @classmethod
+#     def get_token(cls, user):
+#         """Generate token with custom claims"""
+#         token = super().get_token(user)
+        
+#         # Add custom claims to the token
+#         token['username'] = user.username
+#         token['email'] = user.email
+#         token['role'] = getattr(user, 'role', 'operator')
+        
+#         return token
+    
+#     def validate(self, attrs):
+#         """
+#         Validate credentials and return token data
+#         Handles both username and email login
+#         """
+#         username_or_email = attrs.get('username')
+#         password = attrs.get('password')
+        
+#         logger.info(f"Token validation started for: {username_or_email}")
+        
+#         # Try to authenticate with username
+#         user = authenticate(username=username_or_email, password=password)
+        
+#         # If authentication failed, try with email
+#         if not user and '@' in username_or_email:
+#             try:
+#                 user_obj = User.objects.get(email=username_or_email)
+#                 user = authenticate(username=user_obj.username, password=password)
+#                 logger.info(f"Authenticated user by email: {user_obj.username}")
+#             except User.DoesNotExist:
+#                 logger.warning(f"User not found by email: {username_or_email}")
+#                 pass
+        
+#         if not user:
+#             logger.error(f"Authentication failed for: {username_or_email}")
+#             raise serializers.ValidationError("Invalid username/email or password")
+        
+#         # Generate tokens
+#         refresh = self.get_token(user)
+        
+#         data = {
+#             'refresh': str(refresh),
+#             'access': str(refresh.access_token),
+#             'user': {
+#                 'id': user.id,
+#                 'username': user.username,
+#                 'email': user.email,
+#                 'role': getattr(user, 'role', 'operator'),
+#                 'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') else None,
+#             }
+#         }
+        
+#         logger.info(f"Token validation successful. User: {user.username}, Role: {user.role}")
+#         return data
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework import serializers
+from django.contrib.auth import get_user_model, authenticate
+import logging
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Custom Token Obtain Pair Serializer
-    Extends the default serializer to add custom claims to the JWT token
+    Overrides the parent validate() to include user data in response
     """
-    username_field = 'username'
     
     @classmethod
     def get_token(cls, user):
@@ -296,52 +368,70 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         token['role'] = getattr(user, 'role', 'operator')
         
+        logger.info(f"✅ Token generated for user: {user.username}")
         return token
     
     def validate(self, attrs):
         """
-        Validate credentials and return token data
-        Handles both username and email login
+        Override parent validate to:
+        1. Authenticate user
+        2. Generate tokens
+        3. Return tokens + user data
         """
         username_or_email = attrs.get('username')
         password = attrs.get('password')
         
-        logger.info(f"Token validation started for: {username_or_email}")
+        logger.info(f"🔐 Validating credentials for: {username_or_email}")
         
         # Try to authenticate with username
         user = authenticate(username=username_or_email, password=password)
+        logger.info(f"Authenticate result: {user}")
         
         # If authentication failed, try with email
-        if not user and '@' in username_or_email:
+        if not user and username_or_email and '@' in username_or_email:
+            logger.info(f"Trying email authentication for: {username_or_email}")
             try:
                 user_obj = User.objects.get(email=username_or_email)
+                logger.info(f"Found user by email: {user_obj.username}")
                 user = authenticate(username=user_obj.username, password=password)
-                logger.info(f"Authenticated user by email: {user_obj.username}")
+                logger.info(f"Email authentication result: {user}")
             except User.DoesNotExist:
                 logger.warning(f"User not found by email: {username_or_email}")
                 pass
         
         if not user:
-            logger.error(f"Authentication failed for: {username_or_email}")
+            logger.error(f"❌ Authentication failed for: {username_or_email}")
             raise serializers.ValidationError("Invalid username/email or password")
         
+        logger.info(f"✅ User authenticated: {user.username}")
+        
         # Generate tokens
-        refresh = self.get_token(user)
-        
-        data = {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'role': getattr(user, 'role', 'operator'),
-                'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') else None,
+        try:
+            refresh = self.get_token(user)
+            logger.info(f"✅ Refresh token generated")
+            
+            # Build response with tokens + user data
+            data = {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': getattr(user, 'role', 'operator'),
+                    'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
+                }
             }
-        }
-        
-        logger.info(f"Token validation successful. User: {user.username}, Role: {user.role}")
-        return data
+            
+            logger.info(f"✅ Response data prepared")
+            logger.info(f"✅ Response keys: {list(data.keys())}")
+            logger.info(f"✅ User in response: {data['user']}")
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating tokens: {str(e)}", exc_info=True)
+            raise serializers.ValidationError(f"Error generating tokens: {str(e)}")
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
