@@ -37,7 +37,8 @@ const ADMIN_PASSWORD = "admin123";
 const LoginRegister = () => {
   const [authMode, setAuthMode] = useState("login");
   const [mounted, setMounted] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("operator");
+  // const [selectedRole, setSelectedRole] = useState("operator");
+  const [selectedRole, setSelectedRole] = useState("");
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -97,6 +98,9 @@ const LoginRegister = () => {
       } else if (!/^[a-zA-Z0-9@.+\-_]+$/.test(trimmed.username)) {
         nextErrors.username = 'Username can only contain letters, numbers, and @/./+/-/_';
       }
+       if (!selectedRole) {
+    nextErrors.role = 'Please select a role';
+  }
 
       // Email validation
       if (!trimmed.email) {
@@ -139,14 +143,25 @@ const LoginRegister = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Sync authMode with URL path
+  // // Sync authMode with URL path
+  // useEffect(() => {
+  //   if (location.pathname.includes("/register")) {
+  //     setAuthMode("register");
+  //   } else {
+  //     setAuthMode("login");
+  //   }
+  // }, [location.pathname]);
+
   useEffect(() => {
-    if (location.pathname.includes("/register")) {
-      setAuthMode("register");
-    } else {
-      setAuthMode("login");
-    }
-  }, [location.pathname]);
+  if (location.pathname.includes("/register")) {
+    setAuthMode("register");
+    setSelectedRole("operator"); // Default for registration only
+  } else {
+    setAuthMode("login");
+    setSelectedRole(""); // No default for login
+  }
+}, [location.pathname]);
+
 
 // In client/src/pages/LoginRegister.jsx - REPLACE the handleSubmit function with this:
 
@@ -207,28 +222,52 @@ const handleSubmit = async (event) => {
       const loginIdentifier = formData.username.trim() || formData.email.trim();
       
       // ========== IMPORTANT: SEND SELECTED ROLE FOR VALIDATION ==========
+      // const response = await authAPI.login({
+      //   username: loginIdentifier,
+      //   password: formData.password,
+      //   selected_role: selectedRole  // SEND THE SELECTED ROLE
+      // });
+
       const response = await authAPI.login({
-        username: loginIdentifier,
-        password: formData.password,
-        selected_role: selectedRole  // SEND THE SELECTED ROLE
-      });
+  username: loginIdentifier,
+  password: formData.password,
+  // Don't send selected_role for login - use backend user.role instead
+});
       
+      // const user = response.user;
+      // const role = user.role || 'operator';
+      // const roleText = role.charAt(0).toUpperCase() + role.slice(1);
+      
+      // setSuccessMessage(`${roleText} login successful.`);
+      
+      // // Redirect based on user role
+      // setTimeout(() => {
+      //   if (role === 'admin') {
+      //     navigate('/admin/dashboard');
+      //   } else if (role === 'analyst') {
+      //     navigate('/analyst/dashboard');
+      //   } else {
+      //     navigate('/operator/dashboard');
+      //   }
+      // }, 1500);
+
       const user = response.user;
-      const role = user.role || 'operator';
-      const roleText = role.charAt(0).toUpperCase() + role.slice(1);
-      
-      setSuccessMessage(`${roleText} login successful.`);
-      
-      // Redirect based on user role
-      setTimeout(() => {
-        if (role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (role === 'analyst') {
-          navigate('/analyst/dashboard');
-        } else {
-          navigate('/operator/dashboard');
-        }
-      }, 1500);
+const role = user.role; // Get role from backend response
+const roleText = role.charAt(0).toUpperCase() + role.slice(1);
+
+setSuccessMessage(`${roleText} login successful.`);
+setShowSuccess(true);
+
+// Redirect based on user role from backend
+setTimeout(() => {
+  if (role === 'admin') {
+    navigate('/admin/dashboard');
+  } else if (role === 'analyst') {
+    navigate('/analyst/dashboard');
+  } else {
+    navigate('/operator/dashboard');
+  }
+}, 1500);
     }
     
     setShowSuccess(true);

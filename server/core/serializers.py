@@ -89,57 +89,184 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'role')
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'username'
+# class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     username_field = 'username'
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['selected_role'] = serializers.CharField(
-            required=False,
-            allow_blank=True,
-            help_text='The role user is trying to login with (operator, analyst, admin)'
-        )
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.fields['selected_role'] = serializers.CharField(
+#             required=False,
+#             allow_blank=True,
+#             help_text='The role user is trying to login with (operator, analyst, admin)'
+#         )
+    
+#     def validate(self, attrs):
+#         from django.contrib.auth import authenticate
+        
+#         username_or_email = attrs.get('username')
+#         password = attrs.get('password')
+#         selected_role = attrs.pop('selected_role', None)
+        
+#         user = authenticate(request=self.context.get('request'), username=username_or_email, password=password)
+        
+#         if not user and '@' in username_or_email:
+#             try:
+#                 user_obj = User.objects.get(email=username_or_email)
+#                 user = authenticate(request=self.context.get('request'), username=user_obj.username, password=password)
+#             except User.DoesNotExist:
+#                 pass
+        
+#         if not user:
+#             raise serializers.ValidationError("Invalid username/email or password.")
+        
+#         if selected_role:
+#             if user.role != selected_role:
+#                 raise serializers.ValidationError(
+#                     f"Your account is registered as '{user.role.title()}', "
+#                     f"but you're trying to login as '{selected_role.title()}'. "
+#                     f"Please select the correct role and try again."
+#                 )
+        
+#         refresh = self.get_token(user)
+#         data = {}
+#         data['refresh'] = str(refresh)
+#         data['access'] = str(refresh.access_token)
+        
+#         data['user'] = {
+#             'id': user.id,
+#             'username': user.username,
+#             'email': user.email,
+#             'role': user.role,
+#         }
+#         return data
+# ============================================
+# COMPLETE FIXED CustomTokenObtainPairView
+# Place this in server/core/views.py
+# ============================================
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+import logging
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Custom Token Obtain Pair Serializer
+    Extends the default serializer to add custom claims to the JWT token
+    """
+    
+    @classmethod
+    def get_token(cls, user):
+        """Generate token with custom claims"""
+        token = super().get_token(user)
+        
+        # Add custom claims to the token
+        token['username'] = user.username
+        token['email'] = user.email
+        token['role'] = getattr(user, 'role', 'operator')
+        
+        return token
     
     def validate(self, attrs):
-        from django.contrib.auth import authenticate
+        """Validate credentials and return token data"""
+        # Call parent to validate and get tokens
+        data = super().validate(attrs)
         
-        username_or_email = attrs.get('username')
-        password = attrs.get('password')
-        selected_role = attrs.pop('selected_role', None)
+        # At this point, data should have 'access' and 'refresh'
+        logger.info(f"Token validation successful. Token keys: {list(data.keys())}")
         
-        user = authenticate(request=self.context.get('request'), username=username_or_email, password=password)
-        
-        if not user and '@' in username_or_email:
-            try:
-                user_obj = User.objects.get(email=username_or_email)
-                user = authenticate(request=self.context.get('request'), username=user_obj.username, password=password)
-            except User.DoesNotExist:
-                pass
-        
-        if not user:
-            raise serializers.ValidationError("Invalid username/email or password.")
-        
-        if selected_role:
-            if user.role != selected_role:
-                raise serializers.ValidationError(
-                    f"Your account is registered as '{user.role.title()}', "
-                    f"but you're trying to login as '{selected_role.title()}'. "
-                    f"Please select the correct role and try again."
-                )
-        
-        refresh = self.get_token(user)
-        data = {}
-        data['refresh'] = str(refresh)
-        data['access'] = str(refresh.access_token)
-        
-        data['user'] = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role,
-        }
         return data
 
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Custom Token Obtain View
+    Returns JWT tokens AND user data in response
+    """
+    serializer_class = CustomTokenObtainPairSerializer
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST request for token generation
+        Returns tokens + user data
+        """
+        username_or_email = request.data.get('username')
+        password = request.data.get('password')
+        
+        logger.info(f"Login attempt for user: {username_or_email}")
+        
+        # First, get the tokens from parent
+        response = super().post(request, *args, **kwargs)
+        
+        logger.info(f"Parent response status: {response.status_code}")
+        logger.info(f"Parent response keys: {list(response.data.keys()) if response.data else 'None'}")
+        
+        # If token generation was successful, add user data
+        if response.status_code == 200:
+            try:
+                # Get the user object
+                user = None
+                
+                # Try to find by username first
+                try:
+                    user = User.objects.get(username=username_or_email)
+                    logger.info(f"Found user by username: {username_or_email}")
+                except User.DoesNotExist:
+                    # Try by email
+                    try:
+                        user = User.objects.get(email=username_or_email)
+                        logger.info(f"Found user by email: {username_or_email}")
+                    except User.DoesNotExist:
+                        logger.warning(f"User not found: {username_or_email}")
+                        return Response(
+                            {'detail': 'Invalid credentials'},
+                            status=status.HTTP_401_UNAUTHORIZED
+                        )
+                
+                # Verify user exists
+                if not user:
+                    logger.error("User object is None after lookup")
+                    return Response(
+                        {'detail': 'User not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Build user data
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': getattr(user, 'role', 'operator'),  # Default to 'operator' if no role
+                    'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
+                }
+                
+                logger.info(f"User data prepared: {user_data}")
+                
+                # Add user data to response
+                response.data['user'] = user_data
+                
+                logger.info(f"Final response keys: {list(response.data.keys())}")
+                logger.info(f"Login successful for user: {user.username} (role: {user.role})")
+                
+                return response
+                
+            except Exception as e:
+                logger.error(f"Error adding user data to response: {str(e)}", exc_info=True)
+                return Response(
+                    {'detail': f'Server error: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            # If parent returned non-200, log and return as-is
+            logger.warning(f"Token generation failed with status {response.status_code}")
+            logger.warning(f"Response data: {response.data}")
+            return response
 
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(

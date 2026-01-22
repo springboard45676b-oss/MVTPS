@@ -82,7 +82,7 @@ urlpatterns = [
     # path('auth/login/', CustomTokenObtainPairView.as_view(), name='login'),
     
 
-    path('auth/login/', TokenObtainPairView.as_view(), name='login'),
+      path('auth/login/', CustomTokenObtainPairView.as_view(), name='login'), 
 
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', UserProfileAPI.as_view(), name='user-profile'),
