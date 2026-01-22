@@ -119,33 +119,96 @@ def api_root(request, format=None):
 # AUTHENTICATION VIEWS
 # ============================================
 
+# class RegisterAPI(generics.CreateAPIView):
+#     """Register a new user"""
+#     serializer_class = RegisterSerializer
+#     permission_classes = [permissions.AllowAny]
+    
+#     def create(self, request, *args, **kwargs):
+#         logger.info(f"Registration attempt")
+#         serializer = self.get_serializer(data=request.data)
+#         if not serializer.is_valid():
+#             logger.error(f"Validation errors: {serializer.errors}")
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#         user = serializer.save()
+        
+#         token_serializer = CustomTokenObtainPairSerializer(data={
+#             'username': user.username,
+#             'password': request.data.get('password')
+#         })
+#         token_serializer.is_valid(raise_exception=True)
+        
+#         token_data = token_serializer.validated_data
+        
+#         return Response({
+#             'user': UserSerializer(user).data,
+#             'access': token_data.get('access'),
+#             'refresh': token_data.get('refresh'),
+#         }, status=status.HTTP_201_CREATED)
+
 class RegisterAPI(generics.CreateAPIView):
-    """Register a new user"""
+    """Register a new user and return tokens"""
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     
     def create(self, request, *args, **kwargs):
-        logger.info(f"Registration attempt")
+        logger.info(f"📝 Registration attempt")
+        logger.info(f"📝 Request data: {request.data}")
+        
+        # Validate registration data
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            logger.error(f"Validation errors: {serializer.errors}")
+            logger.error(f"❌ Validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        user = serializer.save()
         
-        token_serializer = CustomTokenObtainPairSerializer(data={
-            'username': user.username,
-            'password': request.data.get('password')
-        })
-        token_serializer.is_valid(raise_exception=True)
+        # Create the user
+        try:
+            user = serializer.save()
+            logger.info(f"✅ User created: {user.username}")
+        except Exception as e:
+            logger.error(f"❌ Error creating user: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        token_data = token_serializer.validated_data
+        # Generate tokens using the CustomTokenObtainPairSerializer
+        try:
+            token_serializer = CustomTokenObtainPairSerializer(data={
+                'username': user.username,
+                'password': request.data.get('password')
+            })
+            
+            if not token_serializer.is_valid():
+                logger.error(f"❌ Token serializer errors: {token_serializer.errors}")
+                return Response(
+                    token_serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            token_data = token_serializer.validated_data
+            
+            logger.info(f"✅ Tokens generated")
+            logger.info(f"✅ Token keys: {list(token_data.keys())}")
+            logger.info(f"✅ User object in response: {token_data.get('user')}")
+            
+            response_data = {
+                'user': token_data.get('user'),
+                'access': token_data.get('access'),
+                'refresh': token_data.get('refresh'),
+            }
+            
+            logger.info(f"✅ Registration successful for user: {user.username}")
+            logger.info(f"✅ Response data keys: {list(response_data.keys())}")
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
         
-        return Response({
-            'user': UserSerializer(user).data,
-            'access': token_data.get('access'),
-            'refresh': token_data.get('refresh'),
-        }, status=status.HTTP_201_CREATED)
-
+        except Exception as e:
+            logger.error(f"❌ Error generating tokens: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'User created but token generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # class CustomTokenObtainPairView(TokenObtainPairView):
 #     """Custom token obtain view"""

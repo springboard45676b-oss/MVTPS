@@ -144,11 +144,135 @@ class UserSerializer(serializers.ModelSerializer):
 # Place this in server/core/views.py
 # ============================================
 
+# from rest_framework_simplejwt.views import TokenObtainPairView
+# from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+# from rest_framework.response import Response
+# from rest_framework import status
+# from django.contrib.auth import get_user_model
+# import logging
+
+# User = get_user_model()
+# logger = logging.getLogger(__name__)
+
+
+# class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+#     """
+#     Custom Token Obtain Pair Serializer
+#     Extends the default serializer to add custom claims to the JWT token
+#     """
+    
+#     @classmethod
+#     def get_token(cls, user):
+#         """Generate token with custom claims"""
+#         token = super().get_token(user)
+        
+#         # Add custom claims to the token
+#         token['username'] = user.username
+#         token['email'] = user.email
+#         token['role'] = getattr(user, 'role', 'operator')
+        
+#         return token
+    
+#     def validate(self, attrs):
+#         """Validate credentials and return token data"""
+#         # Call parent to validate and get tokens
+#         data = super().validate(attrs)
+        
+#         # At this point, data should have 'access' and 'refresh'
+#         logger.info(f"Token validation successful. Token keys: {list(data.keys())}")
+        
+#         return data
+
+
+# class CustomTokenObtainPairView(TokenObtainPairView):
+#     """
+#     Custom Token Obtain View
+#     Returns JWT tokens AND user data in response
+#     """
+#     serializer_class = CustomTokenObtainPairSerializer
+    
+#     def post(self, request, *args, **kwargs):
+#         """
+#         Handle POST request for token generation
+#         Returns tokens + user data
+#         """
+#         username_or_email = request.data.get('username')
+#         password = request.data.get('password')
+        
+#         logger.info(f"Login attempt for user: {username_or_email}")
+        
+#         # First, get the tokens from parent
+#         response = super().post(request, *args, **kwargs)
+        
+#         logger.info(f"Parent response status: {response.status_code}")
+#         logger.info(f"Parent response keys: {list(response.data.keys()) if response.data else 'None'}")
+        
+#         # If token generation was successful, add user data
+#         if response.status_code == 200:
+#             try:
+#                 # Get the user object
+#                 user = None
+                
+#                 # Try to find by username first
+#                 try:
+#                     user = User.objects.get(username=username_or_email)
+#                     logger.info(f"Found user by username: {username_or_email}")
+#                 except User.DoesNotExist:
+#                     # Try by email
+#                     try:
+#                         user = User.objects.get(email=username_or_email)
+#                         logger.info(f"Found user by email: {username_or_email}")
+#                     except User.DoesNotExist:
+#                         logger.warning(f"User not found: {username_or_email}")
+#                         return Response(
+#                             {'detail': 'Invalid credentials'},
+#                             status=status.HTTP_401_UNAUTHORIZED
+#                         )
+                
+#                 # Verify user exists
+#                 if not user:
+#                     logger.error("User object is None after lookup")
+#                     return Response(
+#                         {'detail': 'User not found'},
+#                         status=status.HTTP_404_NOT_FOUND
+#                     )
+                
+#                 # Build user data
+#                 user_data = {
+#                     'id': user.id,
+#                     'username': user.username,
+#                     'email': user.email,
+#                     'role': getattr(user, 'role', 'operator'),  # Default to 'operator' if no role
+#                     'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
+#                 }
+                
+#                 logger.info(f"User data prepared: {user_data}")
+                
+#                 # Add user data to response
+#                 response.data['user'] = user_data
+                
+#                 logger.info(f"Final response keys: {list(response.data.keys())}")
+#                 logger.info(f"Login successful for user: {user.username} (role: {user.role})")
+                
+#                 return response
+                
+#             except Exception as e:
+#                 logger.error(f"Error adding user data to response: {str(e)}", exc_info=True)
+#                 return Response(
+#                     {'detail': f'Server error: {str(e)}'},
+#                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#                 )
+#         else:
+#             # If parent returned non-200, log and return as-is
+#             logger.warning(f"Token generation failed with status {response.status_code}")
+#             logger.warning(f"Response data: {response.data}")
+#             return response
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 import logging
 
 User = get_user_model()
@@ -160,6 +284,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Custom Token Obtain Pair Serializer
     Extends the default serializer to add custom claims to the JWT token
     """
+    username_field = 'username'
     
     @classmethod
     def get_token(cls, user):
@@ -174,13 +299,48 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
     
     def validate(self, attrs):
-        """Validate credentials and return token data"""
-        # Call parent to validate and get tokens
-        data = super().validate(attrs)
+        """
+        Validate credentials and return token data
+        Handles both username and email login
+        """
+        username_or_email = attrs.get('username')
+        password = attrs.get('password')
         
-        # At this point, data should have 'access' and 'refresh'
-        logger.info(f"Token validation successful. Token keys: {list(data.keys())}")
+        logger.info(f"Token validation started for: {username_or_email}")
         
+        # Try to authenticate with username
+        user = authenticate(username=username_or_email, password=password)
+        
+        # If authentication failed, try with email
+        if not user and '@' in username_or_email:
+            try:
+                user_obj = User.objects.get(email=username_or_email)
+                user = authenticate(username=user_obj.username, password=password)
+                logger.info(f"Authenticated user by email: {user_obj.username}")
+            except User.DoesNotExist:
+                logger.warning(f"User not found by email: {username_or_email}")
+                pass
+        
+        if not user:
+            logger.error(f"Authentication failed for: {username_or_email}")
+            raise serializers.ValidationError("Invalid username/email or password")
+        
+        # Generate tokens
+        refresh = self.get_token(user)
+        
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': getattr(user, 'role', 'operator'),
+                'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') else None,
+            }
+        }
+        
+        logger.info(f"Token validation successful. User: {user.username}, Role: {user.role}")
         return data
 
 
@@ -188,6 +348,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     Custom Token Obtain View
     Returns JWT tokens AND user data in response
+    
+    Handles both username and email login
     """
     serializer_class = CustomTokenObtainPairSerializer
     
@@ -199,74 +361,64 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         username_or_email = request.data.get('username')
         password = request.data.get('password')
         
-        logger.info(f"Login attempt for user: {username_or_email}")
+        logger.info(f"🔐 Login attempt for: {username_or_email}")
         
-        # First, get the tokens from parent
-        response = super().post(request, *args, **kwargs)
+        # Authenticate user
+        user = authenticate(request=request, username=username_or_email, password=password)
         
-        logger.info(f"Parent response status: {response.status_code}")
-        logger.info(f"Parent response keys: {list(response.data.keys()) if response.data else 'None'}")
-        
-        # If token generation was successful, add user data
-        if response.status_code == 200:
+        # If authentication failed, try by email
+        if not user and username_or_email and '@' in username_or_email:
             try:
-                # Get the user object
-                user = None
-                
-                # Try to find by username first
-                try:
-                    user = User.objects.get(username=username_or_email)
-                    logger.info(f"Found user by username: {username_or_email}")
-                except User.DoesNotExist:
-                    # Try by email
-                    try:
-                        user = User.objects.get(email=username_or_email)
-                        logger.info(f"Found user by email: {username_or_email}")
-                    except User.DoesNotExist:
-                        logger.warning(f"User not found: {username_or_email}")
-                        return Response(
-                            {'detail': 'Invalid credentials'},
-                            status=status.HTTP_401_UNAUTHORIZED
-                        )
-                
-                # Verify user exists
-                if not user:
-                    logger.error("User object is None after lookup")
-                    return Response(
-                        {'detail': 'User not found'},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-                
-                # Build user data
-                user_data = {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'role': getattr(user, 'role', 'operator'),  # Default to 'operator' if no role
-                    'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None,
-                }
-                
-                logger.info(f"User data prepared: {user_data}")
-                
-                # Add user data to response
-                response.data['user'] = user_data
-                
-                logger.info(f"Final response keys: {list(response.data.keys())}")
-                logger.info(f"Login successful for user: {user.username} (role: {user.role})")
-                
-                return response
-                
-            except Exception as e:
-                logger.error(f"Error adding user data to response: {str(e)}", exc_info=True)
+                user_obj = User.objects.get(email=username_or_email)
+                user = authenticate(request=request, username=user_obj.username, password=password)
+            except User.DoesNotExist:
+                pass
+        
+        if not user:
+            logger.error(f"❌ Authentication failed for: {username_or_email}")
+            return Response(
+                {'detail': 'Invalid username/email or password'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        logger.info(f"✅ User authenticated: {user.username}")
+        
+        # Get tokens
+        try:
+            serializer = self.get_serializer(data={
+                'username': user.username,
+                'password': password
+            })
+            
+            if not serializer.is_valid():
+                logger.error(f"❌ Serializer validation failed: {serializer.errors}")
                 return Response(
-                    {'detail': f'Server error: {str(e)}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-        else:
-            # If parent returned non-200, log and return as-is
-            logger.warning(f"Token generation failed with status {response.status_code}")
-            logger.warning(f"Response data: {response.data}")
-            return response
+            
+            token_data = serializer.validated_data
+            
+            logger.info(f"✅ Token data: {list(token_data.keys())}")
+            logger.info(f"✅ User data in token: {token_data.get('user')}")
+            
+            response_data = {
+                'access': token_data.get('access'),
+                'refresh': token_data.get('refresh'),
+                'user': token_data.get('user')
+            }
+            
+            logger.info(f"✅ Final response keys: {list(response_data.keys())}")
+            logger.info(f"✅ Login successful for user: {user.username} (role: {user.role})")
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"❌ Error during token generation: {str(e)}", exc_info=True)
+            return Response(
+                {'detail': f'Error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
