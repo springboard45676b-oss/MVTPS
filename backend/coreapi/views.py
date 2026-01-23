@@ -1,19 +1,10 @@
-from rest_framework import generics
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from .models import Vessel
-from rest_framework import serializers
+from .serializers import VesselSerializer
 
-# This converts ship data into a format the Map can read
-class VesselSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vessel
-        fields = ['id', 'name', 'imo_number', 'type', 'flag', 'last_position_lat', 'last_position_lon']
-
-class VesselListView(generics.ListAPIView):
-    queryset = Vessel.objects.all()
-    serializer_class = VesselSerializer
-    
-class VoyageHistoryView(generics.ListAPIView):
-    serializer_class = VesselSerializer # You can reuse or make a simple one
-    def get_queryset(self):
-        vessel_id = self.kwargs['vessel_id']
-        return VoyageHistory.objects.filter(vessel_id=vessel_id).order_by('timestamp')
+class VesselListView(APIView):
+    def get(self, request):
+        vessels = Vessel.objects.all()
+        serializer = VesselSerializer(vessels, many=True)
+        return Response(serializer.data)

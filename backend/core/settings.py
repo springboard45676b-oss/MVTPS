@@ -10,6 +10,10 @@ SECRET_KEY = 'django-insecure-m-@ny-random-letters-12345'
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com"
+]
+
 # 3. Application Definition
 INSTALLED_APPS = [
     'django.contrib.admin',

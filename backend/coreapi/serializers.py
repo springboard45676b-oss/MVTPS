@@ -1,19 +1,33 @@
 from rest_framework import serializers
-from .models import Vessel, VoyageHistory
+from .models import Vessel, VoyageHistory, Port, AlertEvent
 
+# Milestone 4: Serializer for Historical Audit Data
 class VoyageHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = VoyageHistory
-        fields = ['latitude', 'longitude', 'timestamp']
+        fields = ['id', 'latitude', 'longitude', 'timestamp']
 
+# Milestone 2: Vessel Serializer with nested History
 class VesselSerializer(serializers.ModelSerializer):
-    # This line is the fix: it tells Django to include all history points for the vessel
+    # This matches related_name='history' in models.py
     history = VoyageHistorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Vessel
         fields = [
             'id', 'name', 'imo_number', 'type', 'flag', 
-            'last_position_lat', 'last_position_lon', 'heading', 
-            'history'  # Make sure 'history' is included here!
+            'cargo_type', 'operator', 'last_position_lat', 
+            'last_position_lon', 'heading', 'last_update', 'history'
         ]
+
+# Milestone 3: Port Congestion Serializer
+class PortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Port
+        fields = '__all__'
+
+# Milestone 3 & 4: Safety Alerts Serializer
+class AlertEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AlertEvent
+        fields = '__all__'
