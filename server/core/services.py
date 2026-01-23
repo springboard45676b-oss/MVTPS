@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db import transaction
 from .models import Vessel, VesselPosition, APIKey
-from .notification_service import NotificationService
+from .websocket.notification_service import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)

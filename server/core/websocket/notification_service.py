@@ -7,7 +7,7 @@ Combines existing WebSocket notifications with new safety features:
 - Port congestion alerts
 """
 
-from .models import (
+from ..models import (
     Notification, VesselSubscription, Vessel, User, Event,
     PiracyZone, Port, WeatherAlert
 )

@@ -49,9 +49,9 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        // Try to refresh the token
+        // Try to refresh the token - FIXED URL
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/auth/token/refresh/`,
+          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/auth/refresh/`,
           { refresh: refreshToken }
         );
 
@@ -68,13 +68,14 @@ api.interceptors.response.use(
 
         // Retry the original request
         return api(originalRequest);
-      } catch (error) {
+      } catch (refreshError) {
         // If refresh fails, clear tokens and redirect to login
+        console.error('Token refresh failed:', refreshError);
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         localStorage.removeItem("user");
         window.location.href = "/login";
-        return Promise.reject(error);
+        return Promise.reject(refreshError);
       }
     }
 
@@ -87,21 +88,24 @@ export const authAPI = {
   // Login user (with username or email)
   login: async (credentials) => {
     try {
-      console.log('Login attempt with:', { username: credentials.username, selected_role: credentials.selected_role });
+      console.log('🔐 Login attempt with:', { 
+        username: credentials.username, 
+        selected_role: credentials.selected_role 
+      });
       
       const response = await api.post('/auth/login/', {
         username: credentials.username || credentials.email,
         password: credentials.password,
-        selected_role: credentials.selected_role  // Send the selected role
+        selected_role: credentials.selected_role
       });
       
-      console.log('Login response:', response.data);
+      console.log('✅ Login response received:', response.data);
       
       // Store tokens and user data
       const { access, refresh, user } = response.data;
       
       if (!access || !refresh) {
-        console.error('No tokens in response:', response.data);
+        console.error('❌ No tokens in response:', response.data);
         throw new Error('Login failed: No tokens received');
       }
       
@@ -110,13 +114,19 @@ export const authAPI = {
       localStorage.setItem('refresh_token', refresh);
       localStorage.setItem('user', JSON.stringify(user));
       
-      console.log('Tokens saved to localStorage');
-      console.log('access_token:', access.substring(0, 20) + '...');
-      console.log('refresh_token:', refresh.substring(0, 20) + '...');
+      console.log('✅ Tokens saved successfully');
+      console.log('User role:', user.role);
       
       return { token: access, user };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error.response?.data || error.message);
+      
+      // Better error handling
+      if (error.response?.data) {
+        const errorMessage = Object.values(error.response.data).flat().join(', ');
+        throw new Error(errorMessage);
+      }
+      
       throw error;
     }
   },
@@ -124,6 +134,12 @@ export const authAPI = {
   // Register new user
   register: async (userData) => {
     try {
+      console.log('📝 Register attempt:', { 
+        username: userData.username, 
+        email: userData.email,
+        role: userData.role 
+      });
+      
       const response = await api.post('/auth/register/', {
         username: userData.username,
         email: userData.email,
@@ -131,6 +147,8 @@ export const authAPI = {
         password2: userData.password2,
         role: userData.role
       });
+      
+      console.log('✅ Registration successful:', response.data);
       
       // Store tokens and user data from registration response
       const { access, refresh, user } = response.data;
@@ -142,13 +160,21 @@ export const authAPI = {
       }
       
       // Fallback to auto-login if tokens not in response
+      console.log('🔄 Auto-login after registration...');
       return authAPI.login({
         username: userData.username,
         password: userData.password,
         selected_role: userData.role
       });
     } catch (error) {
-      console.error('Register error:', error);
+      console.error('❌ Register error:', error.response?.data || error.message);
+      
+      // Better error handling
+      if (error.response?.data) {
+        const errorMessage = Object.values(error.response.data).flat().join(', ');
+        throw new Error(errorMessage);
+      }
+      
       throw error;
     }
   },
@@ -158,7 +184,7 @@ export const authAPI = {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-    console.log('User logged out');
+    console.log('👋 User logged out');
   },
   
   // Get current user from localStorage
@@ -180,10 +206,11 @@ export const authAPI = {
       const response = await api.get('/auth/profile/');
       if (response.data) {
         localStorage.setItem('user', JSON.stringify(response.data));
+        console.log('✅ User profile fetched:', response.data);
         return response.data;
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('❌ Error fetching user profile:', error);
       // If there's an error, return the user from localStorage if available
       const user = localStorage.getItem('user');
       return user ? JSON.parse(user) : null;
@@ -194,11 +221,15 @@ export const authAPI = {
   // Update user profile via /profile/edit/
   editProfile: async (formData) => {
     try {
+      console.log('✏️ Updating profile...');
+      
       const response = await api.put('/auth/profile/edit/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+      
+      console.log('✅ Profile updated:', response.data);
       
       // Update user data in localStorage
       if (response.data.user) {
@@ -207,7 +238,7 @@ export const authAPI = {
       
       return response.data;
     } catch (error) {
-      console.error('Edit profile error:', error);
+      console.error('❌ Edit profile error:', error.response?.data || error.message);
       throw error;
     }
   }

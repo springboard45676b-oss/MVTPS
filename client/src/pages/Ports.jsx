@@ -108,7 +108,8 @@ const Ports = () => {
     setLoadingDetails(true);
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_URL}/ports/${portId}/statistics/`, {
+      // FIXED: Changed from /ports/${portId}/statistics/ to /ports/${portId}/
+      const response = await fetch(`${API_URL}/ports/${portId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -118,7 +119,8 @@ const Ports = () => {
       if (!response.ok) throw new Error('Failed to load port details');
 
       const data = await response.json();
-      setPortDetails(data);
+      // FIXED: Extract statistics from response
+      setPortDetails(data.statistics);
       setLoadingDetails(false);
     } catch (error) {
       console.error('Error loading port details:', error);

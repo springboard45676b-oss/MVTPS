@@ -3,7 +3,7 @@ import traceback
 from channels.generic.websocket import AsyncWebsocketConsumer # type: ignore
 from channels.db import database_sync_to_async # type: ignore
 from django.utils import timezone
-from .models import User, Notification, VesselAlert, VesselSubscription
+from ..models import User, Notification, VesselAlert, VesselSubscription
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):

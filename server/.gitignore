@@ -27,7 +27,9 @@ db.sqlite3
 db.sqlite3-journal
 
 # Environment variables
-# .env
+.env
+.env.local
+.env.production
 
 # IDE
 .idea/
