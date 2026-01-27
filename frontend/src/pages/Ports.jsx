@@ -35,6 +35,7 @@ const Ports = () => {
   const [selectedPort, setSelectedPort] = useState(null);
   const [showDashboard, setShowDashboard] = useState(true);
   const [subscribedPorts, setSubscribedPorts] = useState(new Set());
+  const [toastNotifications, setToastNotifications] = useState([]);
 
   useEffect(() => {
     const fetchPorts = async () => {
@@ -231,6 +232,23 @@ const Ports = () => {
     setFilteredPorts(filtered);
   }, [searchTerm, ports]);
 
+  // Add toast notification
+  const addToast = (notification) => {
+    const id = Date.now() + Math.random();
+    const toast = { ...notification, id };
+    setToastNotifications(prev => [...prev, toast]);
+    
+    // Auto-remove after 6 seconds
+    setTimeout(() => {
+      setToastNotifications(prev => prev.filter(t => t.id !== id));
+    }, 6000);
+  };
+
+  // Remove toast manually
+  const removeToast = (id) => {
+    setToastNotifications(prev => prev.filter(t => t.id !== id));
+  };
+
   const handleAdd = () => {
     console.log("Add port");
   };
@@ -241,26 +259,22 @@ const Ports = () => {
   };
 
   const handleSubscribe = (portId) => {
-    console.log('Subscribe button clicked for port:', portId);
-    console.log('Current subscribed ports:', Array.from(subscribedPorts));
-    console.log('WebSocket service available:', !!websocketService);
-    console.log('Alert callbacks length:', websocketService.alertCallbacks?.length || 0);
+    console.log('🔔 Subscribe button clicked for port:', portId);
     
     const newSubscribedPorts = new Set(subscribedPorts);
     const port = ports.find(p => p.id === portId);
     
     if (!port) {
-      console.error('Port not found:', portId);
+      console.error('❌ Port not found:', portId);
       return;
     }
     
-    console.log('Port found:', port.name);
+    console.log('✅ Port found:', port.name);
     
     if (subscribedPorts.has(portId)) {
-      console.log('Unsubscribing from port:', port.name);
+      // Unsubscribe
+      console.log('🔕 Unsubscribing from port:', port.name);
       newSubscribedPorts.delete(portId);
-      // Unsubscribe from WebSocket alerts
-      websocketService.off(`port_alert_${portId}`, handlePortAlert);
       
       // Send unsubscribe notification
       const notification = {
@@ -271,19 +285,26 @@ const Ports = () => {
         timestamp: new Date().toISOString()
       };
       
-      // Send to NotificationManager via WebSocket
-      console.log('Sending unsubscribe notification:', notification);
-      websocketService.emit('new_notification', notification);
+      console.log('📤 Sending unsubscribe notification:', notification);
+      addToast(notification);
       
-      // Also send to alert callbacks for immediate display
-      websocketService.alertCallbacks.forEach(callback => {
-        callback(notification);
-      });
+      // Also call websocket callbacks if they exist
+      if (websocketService.alertCallbacks && websocketService.alertCallbacks.length > 0) {
+        console.log(`📡 Calling ${websocketService.alertCallbacks.length} callbacks`);
+        websocketService.alertCallbacks.forEach((callback, index) => {
+          try {
+            console.log(`📞 Calling callback ${index + 1}`);
+            callback(notification);
+            console.log(`✅ Callback ${index + 1} completed`);
+          } catch (error) {
+            console.error(`❌ Error in callback ${index + 1}:`, error);
+          }
+        });
+      }
     } else {
-      console.log('Subscribing to port:', port.name);
+      // Subscribe
+      console.log('🔔 Subscribing to port:', port.name);
       newSubscribedPorts.add(portId);
-      // Subscribe to WebSocket alerts for this port
-      websocketService.on(`port_alert_${portId}`, handlePortAlert);
       
       // Send subscription notification
       const notification = {
@@ -294,26 +315,34 @@ const Ports = () => {
         timestamp: new Date().toISOString()
       };
       
-      // Send to NotificationManager via WebSocket
-      console.log('Sending subscription notification:', notification);
-      websocketService.emit('new_notification', notification);
+      console.log('📤 Sending subscription notification:', notification);
+      addToast(notification);
       
-      // Also send to alert callbacks for immediate display
-      websocketService.alertCallbacks.forEach(callback => {
-        callback(notification);
-      });
+      // Also call websocket callbacks if they exist
+      if (websocketService.alertCallbacks && websocketService.alertCallbacks.length > 0) {
+        console.log(`📡 Calling ${websocketService.alertCallbacks.length} callbacks`);
+        websocketService.alertCallbacks.forEach((callback, index) => {
+          try {
+            console.log(`📞 Calling callback ${index + 1}`);
+            callback(notification);
+            console.log(`✅ Callback ${index + 1} completed`);
+          } catch (error) {
+            console.error(`❌ Error in callback ${index + 1}:`, error);
+          }
+        });
+      }
       
-      // Trigger port-specific alerts for this port after a short delay
+      // Send port-specific alerts after a delay
       setTimeout(() => {
         const portAlerts = safetyAlerts.filter(alert => alert.affectedPorts?.includes(portId));
-        console.log('Port alerts for', port.name, ':', portAlerts);
+        console.log(`🚨 Found ${portAlerts.length} alerts for ${port.name}`);
         
         if (portAlerts.length > 0) {
           portAlerts.forEach((alert, index) => {
             setTimeout(() => {
               const alertNotification = {
                 type: 'port_alert',
-                message: `${alert.type} alert for ${port.name}: ${alert.message}`,
+                message: `${alert.type.toUpperCase()} Alert for ${port.name}: ${alert.message}`,
                 portId: portId,
                 portName: port.name,
                 alertType: alert.type,
@@ -321,52 +350,31 @@ const Ports = () => {
                 timestamp: new Date().toISOString()
               };
               
-              console.log('Sending port alert notification:', alertNotification);
-              websocketService.emit('new_notification', alertNotification);
+              console.log(`📤 Sending port alert ${index + 1}/${portAlerts.length}:`, alertNotification);
+              addToast(alertNotification);
               
-              // Also send to alert callbacks for immediate display
-              websocketService.alertCallbacks.forEach(callback => {
-                callback(alertNotification);
-              });
-            }, index * 1000); // Stagger alerts by 1 second
+              // Also call websocket callbacks if they exist
+              if (websocketService.alertCallbacks && websocketService.alertCallbacks.length > 0) {
+                websocketService.alertCallbacks.forEach((callback, cbIndex) => {
+                  try {
+                    console.log(`📞 Calling callback ${cbIndex + 1} for alert ${index + 1}`);
+                    callback(alertNotification);
+                    console.log(`✅ Callback ${cbIndex + 1} completed for alert ${index + 1}`);
+                  } catch (error) {
+                    console.error(`❌ Error in callback ${cbIndex + 1}:`, error);
+                  }
+                });
+              }
+            }, index * 1500);
           });
         } else {
-          console.log('No alerts found for port:', port.name);
-          // Send a test notification to verify the system works
-          const testNotification = {
-            type: 'test',
-            message: `Test notification for ${port.name} - subscription system working!`,
-            portId: portId,
-            portName: port.name,
-            timestamp: new Date().toISOString()
-          };
-          
-          console.log('Sending test notification:', testNotification);
-          websocketService.emit('new_notification', testNotification);
-          
-          // Also send to alert callbacks for immediate display
-          websocketService.alertCallbacks.forEach(callback => {
-            callback(testNotification);
-          });
+          console.log('ℹ️ No specific alerts found for this port');
         }
-      }, 500);
+      }, 800);
     }
     
     setSubscribedPorts(newSubscribedPorts);
-    console.log('Updated subscribed ports:', Array.from(newSubscribedPorts));
-  };
-
-  const handlePortAlert = (alert) => {
-    // Handle incoming port alerts and send to NotificationManager
-    console.log('Port alert received:', alert);
-    
-    // Send the alert to NotificationManager via WebSocket
-    websocketService.emit('new_notification', alert);
-    
-    // Also send to alert callbacks for immediate display
-    websocketService.alertCallbacks.forEach(callback => {
-      callback(alert);
-    });
+    console.log('✅ Subscription state updated:', Array.from(newSubscribedPorts));
   };
 
   const handleEdit = (id) => {
@@ -398,6 +406,120 @@ const Ports = () => {
       padding: '24px',
       boxSizing: 'border-box'
     }}>
+      {/* Toast Notifications Container */}
+      <div style={{
+        position: 'fixed',
+        top: '24px',
+        right: '24px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        maxWidth: '400px'
+      }}>
+        {toastNotifications.map((toast) => (
+          <div
+            key={toast.id}
+            style={{
+              background: toast.type === 'subscription' 
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : toast.type === 'unsubscription'
+                ? 'linear-gradient(135deg, #64748b 0%, #475569 100%)'
+                : toast.severity === 'high'
+                ? 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)'
+                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              padding: '16px 20px',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              animation: 'slideIn 0.3s ease-out',
+              cursor: 'pointer'
+            }}
+            onClick={() => removeToast(toast.id)}
+          >
+            <div style={{ paddingTop: '2px' }}>
+              {toast.type === 'subscription' ? (
+                <Bell style={{ width: '20px', height: '20px' }} />
+              ) : toast.type === 'unsubscription' ? (
+                <BellOff style={{ width: '20px', height: '20px' }} />
+              ) : (
+                <AlertTriangle style={{ width: '20px', height: '20px' }} />
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ 
+                fontSize: '14px', 
+                fontWeight: '600', 
+                marginBottom: '4px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                {toast.type === 'subscription' ? 'Subscribed' : 
+                 toast.type === 'unsubscription' ? 'Unsubscribed' : 
+                 `${toast.alertType || 'Alert'}`}
+              </div>
+              <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                {toast.message}
+              </div>
+              <div style={{ 
+                fontSize: '11px', 
+                opacity: 0.8, 
+                marginTop: '6px',
+                fontStyle: 'italic'
+              }}>
+                {new Date(toast.timestamp).toLocaleTimeString()}
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                removeToast(toast.id);
+              }}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                color: 'white',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       {/* Page Header */}
       <div style={{ marginBottom: '32px' }}>
         <div style={{ 
